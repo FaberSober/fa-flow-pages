@@ -6,6 +6,7 @@ import { FaFlowForm } from '@features/fa-flow-pages/components';
 import { Button, Form, Space, Spin } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { normalizeFlowFormValues } from './formValueUtils';
 
 export interface FormEditProps {
   flowForm: Flow.FlowForm;
@@ -44,13 +45,12 @@ export default function FormEdit({ flowForm, record, open: openProp, onOpenChang
       try {
         const res = await flowFormApi.getFormDataDetailById(flowForm.id, record.id);
         if (res.data) {
-          // 直接使用原始数据，不进行转换
-          form.setFieldsValue(res.data);
+          form.setFieldsValue(normalizeFlowFormValues(flowForm, res.data));
         }
       } catch (error) {
         console.error('Failed to fetch form data detail:', error);
         // 如果获取失败，使用传入的record数据作为备份
-        form.setFieldsValue(record);
+        form.setFieldsValue(normalizeFlowFormValues(flowForm, record));
       } finally {
         setLoading(false);
       }
