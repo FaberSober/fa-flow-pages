@@ -40,9 +40,9 @@ export default function FlowAuditStart() {
     form.submit();
   }
 
-  function handleFormSubmit(flow: Flow.FlowProcess, formValues: any) {
+  function handleFormSubmit(flow: Flow.FlowProcess, formValues: any, requestId: string) {
     // start flow
-    flowProcessApi.start({ processId: flow.id, processKey: flow.processKey, args: formValues }).then(res => {
+    return flowProcessApi.start({ processId: flow.id, processKey: flow.processKey, requestId, args: formValues }).then(res => {
       FaUtils.showResponse(res, '发起流程');
       dispatch({ type: '@@action/CLOSE_DRAWER' })
       // 成功提交审批流程后，刷新任务数量统计

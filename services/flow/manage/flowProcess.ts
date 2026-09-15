@@ -9,7 +9,7 @@ class Api extends BaseApi<Flow.FlowProcess, number> {
   getByKey = (key: string): Promise<Fa.Ret<Flow.FlowProcess>> => this.get(`getByKey/${key}`);
 
   /** 发布流程 */
-  publish = (entity: Flow.FlowProcess): Promise<Fa.Ret<boolean>> => this.post('publish', entity);
+  publish = (entity: Flow.FlowProcess): Promise<Fa.Ret<Flow.FlowProcess>> => this.post('publish', entity);
 
   /** 发起流程 */
   start = (params: Flow.FlowProcessStartReqVo): Promise<Fa.Ret<Flow.FlwInstance>> => this.post('start', params);

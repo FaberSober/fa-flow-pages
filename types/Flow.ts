@@ -56,6 +56,8 @@ namespace Flow {
 
   export interface FlowProcessStartReqVo {
     processId: number;
+    /** 同一逻辑提交请求的幂等键，重试时保持不变 */
+    requestId: string;
     processKey: string;
     args: any;
   }

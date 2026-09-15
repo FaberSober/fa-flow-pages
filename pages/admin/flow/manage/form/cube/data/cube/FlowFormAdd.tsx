@@ -34,9 +34,9 @@ export default function FlowFormAdd({ flowForm, onSuccess }: FlowFormAddProps) {
     form.submit();
   }, [form]);
 
-  const handleFormSubmit = React.useCallback((flow: Flow.FlowProcess, formValues: any) => {
+  const handleFormSubmit = React.useCallback((flow: Flow.FlowProcess, formValues: any, requestId: string) => {
     // start flow
-    flowProcessApi.start({ processId: flow.id, processKey: flow.processKey, args: formValues }).then(res => {
+    return flowProcessApi.start({ processId: flow.id, processKey: flow.processKey, requestId, args: formValues }).then(res => {
       FaUtils.showResponse(res, '发起流程');
       setOpen(false);
       onSuccess?.();
