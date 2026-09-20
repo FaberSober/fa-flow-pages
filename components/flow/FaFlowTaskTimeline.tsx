@@ -76,6 +76,20 @@ export default function FaFlowTaskTimeline({ processApprovals = [], style }: FaF
             </div>
           )}
 
+          {/* 已完成任务的审批意见或驳回原因 */}
+          {approval.comment && (
+            <div style={{ marginBottom: 4 }}>
+              <Text type="secondary">审批意见：</Text>
+              <Text>{approval.comment}</Text>
+            </div>
+          )}
+          {approval.reason && (
+            <div style={{ marginBottom: 4 }}>
+              <Text type="secondary">驳回原因：</Text>
+              <Text>{approval.reason}</Text>
+            </div>
+          )}
+
           {/* 节点用户列表 - 仅在待处理任务时显示 */}
           {approval.type === -1 && approval.content?.nodeUserList && approval.content.nodeUserList.length > 0 && (
             <div style={{ marginBottom: 4 }}>

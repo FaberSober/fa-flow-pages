@@ -106,6 +106,10 @@ namespace Flow {
     taskKey?: string;
     /** 任务类型/状态 - Task Type/Status (1:已完成, -1:待处理) */
     type?: number;
+    /** 审批意见 - Approval Comment */
+    comment?: string;
+    /** 驳回原因 - Rejection Reason */
+    reason?: string;
     /** 扩展内容 - Extended Content */
     content?: FlowProcessApprovalContent;
   }

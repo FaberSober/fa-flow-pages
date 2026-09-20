@@ -3,7 +3,7 @@ import { Flow } from '@/types';
 import { ApartmentOutlined, CheckOutlined, CloseOutlined, CommentOutlined, FormOutlined, HistoryOutlined } from '@ant-design/icons';
 import { FaFlexRestLayout, FaLazyContainer, FaUtils, PageLoading } from '@fa/ui';
 import { FaWorkFlow, FaFlowTaskTimeline } from '@features/fa-flow-pages/components';
-import { Button, message, Modal, Segmented, Space, Splitter, Typography } from 'antd';
+import { Button, Input, message, Modal, Segmented, Space, Splitter, Typography } from 'antd';
 import { isNil } from 'lodash';
 import { useEffect, useState } from 'react';
 import FlowFormView from './FlowFormView';
@@ -34,11 +34,21 @@ export default function FlowInstanceDeal({ instanceId, taskId, onSuccess, type =
   }
 
   function handlePass() {
+    let comment = '';
     Modal.confirm({
       title: '请确认是否通过?',
+      content: (
+        <Input.TextArea
+          rows={4}
+          maxLength={2000}
+          showCount
+          placeholder='请输入审批意见（可选）'
+          onChange={(event) => { comment = event.target.value; }}
+        />
+      ),
       okText: '通过',
       onOk: () => {
-        return flowTaskApi.pass({ taskId: taskId! }).then(res => {
+        return flowTaskApi.pass({ taskId: taskId!, comment: comment.trim() || undefined }).then(res => {
           FaUtils.showResponse(res, '同意流程')
           onSuccess?.();
           refreshCount();
@@ -48,12 +58,22 @@ export default function FlowInstanceDeal({ instanceId, taskId, onSuccess, type =
   }
 
   function handleReject() {
+    let reason = '';
     Modal.confirm({
       title: '请确认是否拒绝?',
+      content: (
+        <Input.TextArea
+          rows={4}
+          maxLength={2000}
+          showCount
+          placeholder='请输入拒绝原因（可选）'
+          onChange={(event) => { reason = event.target.value; }}
+        />
+      ),
       okText: '拒绝',
       okButtonProps: {danger: true},
       onOk: () => {
-        return flowTaskApi.reject({ taskId: taskId! }).then(res => {
+        return flowTaskApi.reject({ taskId: taskId!, reason: reason.trim() || undefined }).then(res => {
           FaUtils.showResponse(res, '拒绝流程')
           onSuccess?.();
           refreshCount();
