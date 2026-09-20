@@ -200,11 +200,34 @@ body {
     overflow: visible;
     min-height: 180px;
     height: auto;
-    border-bottom: 2px solid #ccc;
-    border-top: 2px solid #ccc;
+    // Preserve layout spacing; horizontal connectors are drawn by each column below.
+    border-bottom: 2px solid transparent;
+    border-top: 2px solid transparent;
     position: relative;
     margin-top: 15px;
     background: var(--el-bg-color);
+  }
+
+  // Draw only between branch centres. Background masks leave antialiasing seams when scaled.
+  .branch-box > .col-box::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    border-top: 2px solid #ccc;
+    border-bottom: 2px solid #ccc;
+    pointer-events: none;
+  }
+
+  // Direct div children of branch-box are branch columns; the add control is a button.
+  .branch-box > .col-box:first-of-type::after {
+    left: 50%;
+  }
+
+  .branch-box > .col-box:last-of-type::after {
+    right: 50%;
   }
 
   .branch-box .col-box::before {
@@ -320,37 +343,10 @@ body {
   }
 
   .top-left-cover-line,
-  .top-right-cover-line {
-    position: absolute;
-    height: 3px;
-    width: 50%;
-    background-color: #efefef;
-    top: -2px;
-  }
-
+  .top-right-cover-line,
   .bottom-left-cover-line,
   .bottom-right-cover-line {
-    position: absolute;
-    height: 3px;
-    width: 50%;
-    background-color: #efefef;
-    bottom: -2px;
-  }
-
-  .top-left-cover-line {
-    left: -1px;
-  }
-
-  .top-right-cover-line {
-    right: -1px;
-  }
-
-  .bottom-left-cover-line {
-    left: -1px;
-  }
-
-  .bottom-right-cover-line {
-    right: -1px;
+    display: none;
   }
 
   .end-node {
@@ -503,7 +499,7 @@ body {
   vertical-align: middle;
 }
 
-.dark .sc-workflow-design {
+[data-theme='dark'] .sc-workflow-design {
 
   .node-wrap-box,
   .auto-judge {
@@ -512,13 +508,6 @@ body {
 
   .col-box {
     background: var(--el-bg-color);
-  }
-
-  .top-left-cover-line,
-  .top-right-cover-line,
-  .bottom-left-cover-line,
-  .bottom-right-cover-line {
-    background-color: var(--el-bg-color);
   }
 
   .node-wrap-box::before,

@@ -2,13 +2,15 @@ import ZoomPanEditor from "@features/fa-flow-pages/components/flow/cubes/ZoomPan
 import { Flow, Flw } from "@features/fa-flow-pages/types";
 import { Button, Space, Tag } from 'antd';
 import clsx from 'clsx';
-import { useEffect } from 'react';
+import { useContext, useEffect } from 'react';
 import './index.scss';
 import NodeWrap from './NodeWrap';
 import { useWorkFlowStore } from './stores/useWorkFlowStore';
-import { BaseDrawer } from "@fa/ui";
+import { BaseDrawer, ThemeLayoutContext } from "@fa/ui";
 import JsonView from '@uiw/react-json-view';
 import { lightTheme } from '@uiw/react-json-view/light';
+import { darkTheme } from '@uiw/react-json-view/dark';
+import { getFlowMinimapShapes } from './utils/flowMinimap';
 
 
 export interface FaWorkFlowProps {
@@ -31,6 +33,7 @@ export interface FaWorkFlowProps {
  * @date 2025/8/19 17:34
  */
 export default function FaWorkFlow({ flowProcess, processModel, onChange, renderNodes, showLegends, readOnly = false }: FaWorkFlowProps) {
+  const { themeDark } = useContext(ThemeLayoutContext);
   // 从 Store 中获取设置方法和流程数据
   const setFlowProcess = useWorkFlowStore(state => state.setFlowProcess);
   const setProcessModel = useWorkFlowStore(state => state.setProcessModel);
@@ -77,6 +80,7 @@ export default function FaWorkFlow({ flowProcess, processModel, onChange, render
 
   return (
     <ZoomPanEditor
+      getMinimapShapes={getFlowMinimapShapes}
       leftTop={showLegends && (
         <Space className="fa-flex-row">
           <Tag color="#52c41a" variant="solid">已执行</Tag>
@@ -89,7 +93,7 @@ export default function FaWorkFlow({ flowProcess, processModel, onChange, render
           <BaseDrawer triggerDom={<Button>查看JSON</Button>} title="流程配置JSON" size={600} forceRender>
             <JsonView
               value={processModel}
-              style={lightTheme}
+              style={themeDark ? darkTheme : lightTheme}
               collapsed={3}
             />
           </BaseDrawer>
@@ -97,7 +101,7 @@ export default function FaWorkFlow({ flowProcess, processModel, onChange, render
       )}
     >
       <div className={clsx('sc-workflow-design', readOnly && 'sc-workflow-design-readonly')}>
-        <div className="box-scale">
+        <div className="box-scale" ref={element => { element?.toggleAttribute('inert', readOnly); }}>
           <NodeWrap node={processModel.nodeConfig} />
         </div>
       </div>

@@ -92,17 +92,11 @@ export default function FlowProcessList({ catagoryId }: FlowProcessListProps) {
           <Space>
             <FaHref icon={<OrderedListOutlined />} tooltip="版本管理" />
 
-            <BaseDrawer
+            <FlowProcessEdit
+              item={r}
+              onSuccess={fetchPageList}
               triggerDom={<FaHref icon={<EditOutlined />} tooltip='编辑' />}
-              size={document.body.clientWidth}
-              push={false}
-              title={false}
-              styles={{
-                header: { display: 'none' }
-              }}
-            >
-              <FlowProcessEdit item={r} onSuccess={fetchPageList} />
-            </BaseDrawer>
+            />
 
             <FaHref icon={<CopyOutlined />} tooltip="复制" />
 

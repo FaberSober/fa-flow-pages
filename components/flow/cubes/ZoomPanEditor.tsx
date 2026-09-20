@@ -1,20 +1,19 @@
-import React, {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
-import "./ZoomPanEditor.scss";
-import { QuestionCircleOutlined } from "@ant-design/icons";
-import { Button, Popover, Space } from "antd";
+import { useEffect, useMemo, useRef, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
+import { MinusOutlined, PlusOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { Button, Popover, Space, theme } from 'antd';
+import useZoomPan, { type ZoomPanOptions } from '../hooks/useZoomPan';
+import useMinimapShapes from '../hooks/useMinimapShapes';
+import type { MinimapShape } from '../utils/flowMinimap';
+import { getMinimap, minimapOffset, type Point } from '../utils/zoomPanGeometry';
+import './ZoomPanEditor.scss';
 
-interface ZoomPanEditorProps {
-  children: React.ReactNode;
+interface ZoomPanEditorProps extends ZoomPanOptions {
+  children: ReactNode;
   miniMapWidth?: number;
   miniMapHeight?: number;
-  toolbar?: React.ReactNode;
-  leftTop?: React.ReactNode;
+  toolbar?: ReactNode;
+  leftTop?: ReactNode;
+  getMinimapShapes?: (root: HTMLElement) => MinimapShape[];
 }
 
 export default function ZoomPanEditor({
@@ -23,338 +22,153 @@ export default function ZoomPanEditor({
   miniMapHeight = 150,
   toolbar,
   leftTop,
+  getMinimapShapes,
+  ...options
 }: ZoomPanEditorProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const { token } = theme.useToken();
+  const controller = useZoomPan(options);
+  const { containerRef, contentRef, zoom, offset, viewport, content, isDragging, isSpacePressed, setOffset, setZoom, zoomBy, resetView } = controller;
+  const shapes = useMinimapShapes(contentRef, getMinimapShapes);
+  const mapSize = { width: Math.max(80, Math.min(miniMapWidth, viewport.width - 24)), height: Math.max(60, Math.min(miniMapHeight, viewport.height / 3)) };
+  const map = getMinimap({ zoom, offset }, viewport, content, mapSize);
+  const miniDrag = useRef<{ id: number; grab: Point; map: typeof map; zoom: number } | null>(null);
+  const miniMapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const reset = () => {
+      const id = miniDrag.current?.id;
+      miniDrag.current = null;
+      if (id !== undefined && miniMapRef.current?.hasPointerCapture(id)) miniMapRef.current.releasePointerCapture(id);
+    };
+    window.addEventListener('blur', reset);
+    return () => {
+      reset();
+      window.removeEventListener('blur', reset);
+    };
+  }, []);
+  const ready = content.width > 0 && content.height > 0;
+  const projection = useMemo(
+    () =>
+      shapes.map((shape, index) =>
+        shape.kind === 'node' ? (
+          <rect key={index} x={shape.x} y={shape.y} width={shape.width} height={shape.height} rx={4} className="fa-zoom-minimap-node" />
+        ) : (
+          <line key={index} x1={shape.x} y1={shape.y} x2={shape.x2} y2={shape.y2} className="fa-zoom-minimap-line" />
+        ),
+      ),
+    [shapes],
+  );
 
-  const [zoom, setZoom] = useState(1);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [initialZoomLevel, setInitialZoomLevel] = useState(1);
-  const [initialOffset, setInitialOffset] = useState({ x: 0, y: 0 });
-
-  const [miniScale, setMiniScale] = useState(1);
-  const [miniContentOffset, setMiniContentOffset] = useState({ x: 0, y: 0 });
-
-  const [isDragging, setIsDragging] = useState(false);
-  const [isDraggingMiniMap, setIsDraggingMiniMap] = useState(false);
-  const [isSpacePressed, setIsSpacePressed] = useState(false);
-
-  const dragStart = useRef({ x: 0, y: 0, offsetX: 0, offsetY: 0 });
-  const miniDragStart = useRef({
-    mouseX: 0,
-    mouseY: 0,
-    offsetX: 0,
-    offsetY: 0,
-  });
-
-  /** 计算初始居中和最佳缩放 */
-  const getCenteredOffsetAndZoom = useCallback(() => {
-    if (!containerRef.current || !contentRef.current) {
-      return { offset: { x: 0, y: 0 }, zoom: 1 };
-    }
-
-    const containerRect = containerRef.current.getBoundingClientRect();
-    const contentRect = contentRef.current.getBoundingClientRect();
-
-    if (contentRect.width === 0 || contentRect.height === 0) {
-      return { offset: { x: 0, y: 0 }, zoom: 1 };
-    }
-
-    const padding = 50;
-    const scaleX = (containerRect.width - padding * 2) / contentRect.width;
-    const scaleY = (containerRect.height - padding * 2) / contentRect.height;
-    const optimalZoom = Math.min(scaleX, scaleY, 1);
-
-    const scaledWidth = contentRect.width * optimalZoom;
-    const scaledHeight = contentRect.height * optimalZoom;
-
-    const centerX = (containerRect.width - scaledWidth) / 2;
-    const centerY = (containerRect.height - scaledHeight) / 2;
-
+  const miniPoint = (event: PointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
     return {
-      offset: { x: centerX, y: centerY },
-      zoom: optimalZoom,
+      x: ((event.clientX - rect.left - event.currentTarget.clientLeft) * mapSize.width) / event.currentTarget.clientWidth,
+      y: ((event.clientY - rect.top - event.currentTarget.clientTop) * mapSize.height) / event.currentTarget.clientHeight,
     };
-  }, []);
-
-  /** 初始居中定位 */
-  useLayoutEffect(() => {
-    const { offset, zoom } = getCenteredOffsetAndZoom();
-    setInitialOffset(offset);
-    setInitialZoomLevel(zoom);
-    setOffset(offset);
-    setZoom(zoom);
-  }, [getCenteredOffsetAndZoom]);
-
-  /** 小地图参数计算 */
-  useEffect(() => {
-    const calculateMiniParams = () => {
-      if (!contentRef.current) return;
-
-      const contentRect = contentRef.current.getBoundingClientRect();
-      if (contentRect.width === 0 || contentRect.height === 0) return;
-
-      const scaleX = miniMapWidth / contentRect.width;
-      const scaleY = miniMapHeight / contentRect.height;
-      const scale = Math.min(scaleX, scaleY);
-
-      const offsetX = Math.max((miniMapWidth - contentRect.width * scale) / 2, 0);
-      const offsetY = Math.max((miniMapHeight - contentRect.height * scale) / 2, 0);
-
-      setMiniScale(scale);
-      setMiniContentOffset({ x: offsetX, y: offsetY });
-    };
-
-    calculateMiniParams();
-
-    const observer = new ResizeObserver(calculateMiniParams);
-    if (contentRef.current) observer.observe(contentRef.current);
-
-    return () => observer.disconnect();
-  }, [miniMapWidth, miniMapHeight]);
-
-  /** 计算小地图中视口红框 */
-  const getViewportRect = useCallback(() => {
-    if (!containerRef.current) return { x: 0, y: 0, w: 0, h: 0 };
-
-    const containerRect = containerRef.current.getBoundingClientRect();
-
-    const visibleWidth = containerRect.width / zoom;
-    const visibleHeight = containerRect.height / zoom;
-
-    const w = visibleWidth * miniScale;
-    const h = visibleHeight * miniScale;
-
-    const topLeftContentX = -offset.x / zoom;
-    const topLeftContentY = -offset.y / zoom;
-
-    const x = miniContentOffset.x + topLeftContentX * miniScale;
-    const y = miniContentOffset.y + topLeftContentY * miniScale;
-
-    return { x, y, w, h };
-  }, [zoom, offset, miniScale, miniContentOffset]);
-
-  const viewportRect = getViewportRect();
-
-  /** 滚轮缩放（原生事件，passive: false） */
-  const handleWheel = useCallback((e: WheelEvent) => {
-    if (!containerRef.current) return;
-    e.preventDefault();
-
-    const rect = containerRef.current.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    const newZoom = Math.min(Math.max(zoom + delta, 0.1), 4);
-
-    const ratio = newZoom / zoom;
-    const newOffsetX = mouseX + (offset.x - mouseX) * ratio;
-    const newOffsetY = mouseY + (offset.y - mouseY) * ratio;
-
-    setZoom(newZoom);
-    setOffset({ x: newOffsetX, y: newOffsetY });
-  }, [zoom, offset]);
-
-  /** 原生 wheel 监听（关键修复） */
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    container.addEventListener("wheel", handleWheel, { passive: false, capture: true });
-
-    return () => {
-      container.removeEventListener("wheel", handleWheel, { capture: true });
-    };
-  }, [handleWheel]);
-
-  /** 键盘空格键控制拖动模式 */
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.code === "Space") {
-      e.preventDefault();
-      setIsSpacePressed(true);
-    }
-  }, []);
-
-  const handleKeyUp = useCallback((e: KeyboardEvent) => {
-    if (e.code === "Space") {
-      e.preventDefault();
-      setIsSpacePressed(false);
-    }
-  }, []);
-
-  /** 主画布拖动 */
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (e.button === 0 && isSpacePressed) {
-        setIsDragging(true);
-        dragStart.current = {
-          x: e.clientX,
-          y: e.clientY,
-          offsetX: offset.x,
-          offsetY: offset.y,
-        };
-      }
-    },
-    [isSpacePressed, offset]
-  );
-
-  /** 全局鼠标移动 */
-  const handleMouseMove = useCallback(
-    (e: MouseEvent) => {
-      if (isDragging) {
-        const dx = e.clientX - dragStart.current.x;
-        const dy = e.clientY - dragStart.current.y;
-        setOffset({
-          x: dragStart.current.offsetX + dx,
-          y: dragStart.current.offsetY + dy,
-        });
-      }
-
-      if (isDraggingMiniMap) {
-        const dx = e.clientX - miniDragStart.current.mouseX;
-        const dy = e.clientY - miniDragStart.current.mouseY;
-        const deltaContentX = dx / miniScale;
-        const deltaContentY = dy / miniScale;
-
-        setOffset({
-          x: miniDragStart.current.offsetX - deltaContentX * zoom,
-          y: miniDragStart.current.offsetY - deltaContentY * zoom,
-        });
-      }
-    },
-    [isDragging, isDraggingMiniMap, miniScale, zoom]
-  );
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-    setIsDraggingMiniMap(false);
-  }, []);
-
-  /** 小地图红框拖动开始 */
-  const handleMiniMapMouseDown = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      e.stopPropagation();
-      e.preventDefault();
-      setIsDraggingMiniMap(true);
-      miniDragStart.current = {
-        mouseX: e.clientX,
-        mouseY: e.clientY,
-        offsetX: offset.x,
-        offsetY: offset.y,
-      };
-    },
-    [offset]
-  );
-
-  /** 全局键盘/鼠标事件 */
-  useEffect(() => {
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-    };
-  }, [handleMouseMove, handleMouseUp, handleKeyDown, handleKeyUp]);
-
-  /** 重置视图 */
-  const handleReset = useCallback(() => {
-    const { offset, zoom } = getCenteredOffsetAndZoom();
-    setOffset(offset);
-    setZoom(zoom);
-  }, [getCenteredOffsetAndZoom]);
+  };
+  const startMiniDrag = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || miniDrag.current) return;
+    event.preventDefault();
+    const point = miniPoint(event);
+    const inside =
+      point.x >= map.viewport.x &&
+      point.x <= map.viewport.x + map.viewport.width &&
+      point.y >= map.viewport.y &&
+      point.y <= map.viewport.y + map.viewport.height;
+    const grab = inside ? { x: point.x - map.viewport.x, y: point.y - map.viewport.y } : { x: map.viewport.width / 2, y: map.viewport.height / 2 };
+    miniDrag.current = { id: event.pointerId, grab, map, zoom };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setOffset(minimapOffset(point, grab, map, zoom));
+  };
+  const moveMiniDrag = (event: PointerEvent<HTMLDivElement>) => {
+    const drag = miniDrag.current;
+    if (drag?.id === event.pointerId) setOffset(minimapOffset(miniPoint(event), drag.grab, drag.map, drag.zoom));
+  };
+  const stopMiniDrag = (event: PointerEvent<HTMLDivElement>) => {
+    miniDrag.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  };
 
   return (
-    <div className="fa-full fa-relative">
-      <div className="fa-full-content">
-        <div
-          ref={containerRef}
-          className={`fa-zoom-pan-editor-container ${
-            isSpacePressed
-              ? isDragging
-                ? "cursor-grabbing"
-                : "cursor-grab"
-              : ""
-          }`}
-          onMouseDown={handleMouseDown}
-          // 移除 onWheelCapture，改用原生监听
-        >
-          <div
-            ref={contentRef}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
-              transformOrigin: "0 0",
-            }}
-          >
+    <div
+      className="fa-full fa-relative fa-zoom-pan-editor"
+      style={
+        {
+          '--zoom-panel-bg': token.colorBgContainer,
+          '--zoom-border': token.colorBorderSecondary,
+          '--zoom-primary': token.colorPrimary,
+          '--zoom-primary-bg': token.colorPrimaryBg,
+          '--zoom-text': token.colorTextSecondary,
+          '--zoom-shadow': token.boxShadowSecondary,
+        } as CSSProperties
+      }
+    >
+      <section
+        ref={containerRef}
+        className={`fa-zoom-pan-editor-container ${isDragging ? 'cursor-grabbing' : isSpacePressed ? 'cursor-grab' : ''}`}
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard zoom/pan requires focus scoped to this canvas.
+        tabIndex={0}
+        aria-label="流程画布，点击后可用空格加左键或中键平移，加减键缩放，0键适应画布"
+      >
+        <div className="fa-zoom-pan-transform" style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})` }}>
+          <div ref={contentRef} className="fa-zoom-pan-content">
             {children}
           </div>
-
-          {/* 小地图 */}
-          <div
-            className="fa-zoom-pan-editor-minimap"
-            style={{
-              width: miniMapWidth,
-              height: miniMapHeight,
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                left: `${miniContentOffset.x}px`,
-                top: `${miniContentOffset.y}px`,
-                transform: `scale(${miniScale})`,
-                transformOrigin: "0 0",
-                opacity: 0.8,
-              }}
-            >
-              {children}
-            </div>
-
-            {/* 视口红框 */}
-            <div
-              onMouseDown={handleMiniMapMouseDown}
-              style={{
-                position: "absolute",
-                left: `${viewportRect.x}px`,
-                top: `${viewportRect.y}px`,
-                width: `${viewportRect.w}px`,
-                height: `${viewportRect.h}px`,
-                border: "2px solid red",
-                background: "rgba(255, 0, 0, 0.1)",
-                boxSizing: "border-box",
-                cursor: "move",
-              }}
-            />
-          </div>
         </div>
-      </div>
+      </section>
 
-      <div className="fa-zoom-pan-left-top">{leftTop}</div>
-
+      {leftTop && <div className="fa-zoom-pan-left-top">{leftTop}</div>}
       <Space className="fa-zoom-pan-editor-toolbar">
         {toolbar}
-        <Button onClick={handleReset}>重置视图</Button>
         <Popover
           content={
             <ol>
-              <li>鼠标滚轮缩放（向鼠标位置）</li>
-              <li>按住空格键 + 鼠标左键拖动平移</li>
-              <li>小地图红框可拖动平移视图</li>
+              <li>在画布上滚动鼠标滚轮，围绕指针缩放</li>
+              <li>点击画布后，空格 + 左键或鼠标中键拖动平移</li>
+              <li>点击小地图定位，拖动视口框平移</li>
+              <li>画布聚焦时，+ / − 缩放，0 适应画布</li>
             </ol>
           }
-          placement="leftTop"
+          placement="bottomRight"
         >
-          <QuestionCircleOutlined />
+          <Button aria-label="画布操作帮助" icon={<QuestionCircleOutlined />} />
         </Popover>
       </Space>
+      <Space className="fa-zoom-pan-controls" size={4} role="group" aria-label="画布缩放">
+        <Button aria-label="缩小" icon={<MinusOutlined />} disabled={!ready || zoom <= (options.minZoom ?? 0.1)} onClick={() => zoomBy(-1)} />
+        <Button
+          className="fa-zoom-pan-percentage"
+          title="恢复 100%"
+          aria-label={`当前缩放 ${Math.round(zoom * 100)}%，恢复100%`}
+          disabled={!ready}
+          onClick={() => setZoom(1)}
+        >
+          {Math.round(zoom * 100)}%
+        </Button>
+        <Button aria-label="放大" icon={<PlusOutlined />} disabled={!ready || zoom >= (options.maxZoom ?? 4)} onClick={() => zoomBy(1)} />
+        <Button disabled={!ready} onClick={resetView}>
+          适应画布
+        </Button>
+      </Space>
+      {ready && getMinimapShapes && (
+        <div
+          ref={miniMapRef}
+          aria-hidden="true"
+          className="fa-zoom-pan-editor-minimap"
+          style={{ width: mapSize.width, height: mapSize.height }}
+          onPointerDown={startMiniDrag}
+          onPointerMove={moveMiniDrag}
+          onPointerUp={stopMiniDrag}
+          onPointerCancel={stopMiniDrag}
+          onLostPointerCapture={() => {
+            miniDrag.current = null;
+          }}
+        >
+          <svg width="100%" height="100%" viewBox={`0 0 ${mapSize.width} ${mapSize.height}`} preserveAspectRatio="none" focusable="false" aria-hidden="true">
+            <g transform={`translate(${map.origin.x} ${map.origin.y}) scale(${map.scale})`}>{projection}</g>
+            <rect {...map.viewport} className="fa-zoom-minimap-viewport" />
+          </svg>
+        </div>
+      )}
     </div>
   );
 }

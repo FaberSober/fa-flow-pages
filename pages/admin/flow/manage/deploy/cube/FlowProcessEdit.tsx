@@ -1,28 +1,35 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { get } from 'lodash';
 import { Flow } from '@/types';
-import { BaseDrawerContext, FaFlexRestLayout, FaUtils } from '@fa/ui';
-import { Button, Modal, Space, Steps, Form, Checkbox, Typography, message } from 'antd';
-import { SendOutlined } from '@ant-design/icons';
+import { Fa, FaFlexRestLayout, FaFullContentModal, FaUtils, useApiLoading } from '@fa/ui';
+import { Button, Modal, Steps, Form, Checkbox, Typography, message } from 'antd';
 import { flowProcessApi } from '@features/fa-flow-pages/services';
 import { FaWorkFlow } from '@features/fa-flow-pages/components';
 import FlowProcessForm from './FlowProcessForm';
 
 const { Text } = Typography;
 
-
 interface FlowProcessEditProps {
   item: Flow.FlowProcess;
   onSuccess?: () => void;
+  onClose?: () => void;
+  triggerDom?: ReactNode;
   viewOnly?: boolean;
 }
 
-export default function FlowProcessEdit({item, onSuccess, viewOnly}: FlowProcessEditProps) {
-  const {closeDrawer} = useContext(BaseDrawerContext)
+export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, viewOnly }: FlowProcessEditProps) {
   const [data, setData] = useState({ ...item });
   const [current, setCurrent] = useState(0);
+  const [open, setOpen] = useState(false);
   const [form] = Form.useForm();
   const [extendForm] = Form.useForm();
+  const publishConfirmOpen = useRef(false);
+  const loading = useApiLoading([flowProcessApi.getUrl('update'), flowProcessApi.getUrl('publish')]);
+
+  const handleClose = useCallback(() => {
+    setOpen(false);
+    onClose?.();
+  }, [onClose]);
 
   useEffect(() => {
     setData({ ...item });
@@ -46,10 +53,29 @@ export default function FlowProcessEdit({item, onSuccess, viewOnly}: FlowProcess
       formType: get(item, 'formType'),
       formId: get(item, 'formId'),
       sort: get(item, 'sort'),
-    }
+    };
   }, [item]);
 
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (nextOpen) {
+        setCurrent(0);
+        setData({ ...item });
+        form.resetFields();
+        form.setFieldsValue(formInitialValues);
+        extendForm.resetFields();
+        extendForm.setFieldsValue({
+          submitterPermission: get(item, 'submitterPermission', false),
+        });
+      }
+      setOpen(nextOpen);
+    },
+    [extendForm, form, formInitialValues, item],
+  );
+
   async function handlePublish() {
+    if (publishConfirmOpen.current) return;
+    publishConfirmOpen.current = true;
     try {
       // 校验基础信息表单
       const formValues = await form.validateFields();
@@ -67,107 +93,138 @@ export default function FlowProcessEdit({item, onSuccess, viewOnly}: FlowProcess
       Modal.confirm({
         title: '发布流程',
         content: '确定要发布该流程吗？',
+        afterClose: () => {
+          publishConfirmOpen.current = false;
+        },
         onOk: async () => {
           try {
             // 先更新表单信息
-            await flowProcessApi.update(publishData.id, publishData);
-            FaUtils.showResponse({ status: 200 } as any, '更新流程信息');
+            const updateRes = await flowProcessApi.update(publishData.id, publishData);
+            if (updateRes.status !== Fa.RES_CODE.OK) throw new Error('更新流程信息失败');
 
             // 然后发布流程配置
             const publishRes = await flowProcessApi.publish(publishData);
+            if (publishRes.status !== Fa.RES_CODE.OK) throw new Error('发布流程失败');
             FaUtils.showResponse(publishRes, '发布流程');
 
             onSuccess?.();
-            closeDrawer();
+            handleClose();
           } catch (error) {
             message.error('发布流程失败');
             console.error('发布流程错误:', error);
+            throw error;
           }
         },
       });
-    } catch (error) {
+    } catch {
+      publishConfirmOpen.current = false;
       message.error('请先完善基础信息');
       // 切换到基础信息步骤
       setCurrent(0);
     }
   }
 
-  return (
-    <div className='fa-full-content fa-flex-column fa-bg-grey2'>
-      <div>
-        {!viewOnly && (
-          <div className='fa-flex-row-center fa-bg-white fa-p12'>
-            <div style={{width: 100}}></div>
-            <div className='fa-flex-1 fa-flex-center'>
-              <Steps
-                style={{width: 450}}
-                current={current}
-                onChange={setCurrent}
-                items={[
-                  { title: '基础信息' },
-                  { title: '流程设计' },
-                  { title: '扩展配置' },
-                ]}
-              />
-            </div>
-            <Space style={{width: 100}} className='fa-flex-row-end'>
-              <Button onClick={handlePublish} type='primary'>发布</Button>
-              <Button onClick={() => closeDrawer()}>取消</Button>
-            </Space>
-          </div>
-        )}
-      </div>
-
-      <FaFlexRestLayout className='fa-full-content fa-flex-column'>
-        {current === 0 && (
-          <div className='fa-bg-white fa-mt12 fa-mb12 fa-radius' style={{width: 700, height: '100%', overflow: 'auto', padding: 20, alignSelf: 'center'}}>
-            <FlowProcessForm
-              form={form}
-              onFinish={(values) => {
-                setData(prev => ({ ...prev, ...values }));
-                message.success('基础信息已保存');
-              }}
-              initialValues={formInitialValues}
-              readOnly={viewOnly}
-              type="edit"
-            />
-          </div>
-        )}
+  const editorContent = (
+    <div className="fa-full-content fa-flex-column fa-bg-grey2">
+      <FaFlexRestLayout className="fa-full-content fa-flex-column">
+        <div
+          className="fa-bg-white fa-mt12 fa-mb12 fa-radius"
+          style={{
+            display: current === 0 ? undefined : 'none',
+            width: 700,
+            maxWidth: '100%',
+            height: '100%',
+            overflow: 'auto',
+            padding: 20,
+            alignSelf: 'center',
+          }}
+        >
+          <FlowProcessForm
+            form={form}
+            onFinish={(values) => {
+              setData((prev) => ({ ...prev, ...values }));
+              message.success('基础信息已保存');
+            }}
+            initialValues={formInitialValues}
+            readOnly={viewOnly}
+            type="edit"
+          />
+        </div>
         {current === 1 && (
           <FaWorkFlow
             flowProcess={data}
+            readOnly={viewOnly}
             processModel={JSON.parse(data.modelContent)}
-            onChange={v => setData(prev => ({ ...prev, modelContent: JSON.stringify(v) }))}
+            onChange={(v) => setData((prev) => ({ ...prev, modelContent: JSON.stringify(v) }))}
           />
         )}
-        {current === 2 && (
-          <div className='fa-bg-white fa-mt12 fa-mb12 fa-radius' style={{width: 700, height: '100%', overflow: 'auto', padding: 20, alignSelf: 'center'}}>
-            <Form
-              form={extendForm}
-              onFinish={(values) => {
-                setData(prev => ({ ...prev, ...values }));
-                message.success('扩展配置已保存');
-              }}
-              {...FaUtils.formItemFullLayout}
-            >
-              <Form.Item
-                name="submitterPermission"
-                valuePropName="checked"
-                label="提交人权限"
-              >
-                <Checkbox disabled={viewOnly}>
-                  第一个审批节点通过后，提交人仍可撤销申请
-                </Checkbox>
-              </Form.Item>
-              <Form.Item>
-                <Text type="secondary" style={{ fontSize: '12px' }}>
-                  第一个审批节点通过后，提交人仍可撤销申请（配置前已发起的申请不生效）
-                </Text>
-              </Form.Item>
-            </Form>
-          </div>
-        )}
+        <div
+          className="fa-bg-white fa-mt12 fa-mb12 fa-radius"
+          style={{
+            display: current === 2 ? undefined : 'none',
+            width: 700,
+            maxWidth: '100%',
+            height: '100%',
+            overflow: 'auto',
+            padding: 20,
+            alignSelf: 'center',
+          }}
+        >
+          <Form
+            form={extendForm}
+            onFinish={(values) => {
+              setData((prev) => ({ ...prev, ...values }));
+              message.success('扩展配置已保存');
+            }}
+            {...FaUtils.formItemFullLayout}
+          >
+            <Form.Item name="submitterPermission" valuePropName="checked" label="提交人权限">
+              <Checkbox disabled={viewOnly}>第一个审批节点通过后，提交人仍可撤销申请</Checkbox>
+            </Form.Item>
+            <Form.Item>
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                第一个审批节点通过后，提交人仍可撤销申请（配置前已发起的申请不生效）
+              </Text>
+            </Form.Item>
+          </Form>
+        </div>
       </FaFlexRestLayout>
     </div>
+  );
+
+  if (viewOnly) {
+    return editorContent;
+  }
+
+  return (
+    <FaFullContentModal
+      title="编辑流程定义"
+      triggerDom={triggerDom}
+      open={open}
+      onOpenChange={handleOpenChange}
+      onCancel={handleClose}
+      showOk={false}
+      showCancel={false}
+      headerCenter={
+        <Steps
+          style={{ width: 450, maxWidth: '100%' }}
+          current={current}
+          onChange={setCurrent}
+          items={[{ title: '基础信息' }, { title: '流程设计' }, { title: '扩展配置' }]}
+        />
+      }
+      headerExtra={
+        <>
+          <Button onClick={handlePublish} type="primary" loading={loading}>
+            发布
+          </Button>
+          <Button onClick={handleClose} disabled={loading}>
+            取消
+          </Button>
+        </>
+      }
+    >
+      {editorContent}
+    </FaFullContentModal>
   );
 }

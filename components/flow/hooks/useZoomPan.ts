@@ -1,175 +1,232 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { constrainView, fitView, zoomAt, type Point, type Size, type View } from '../utils/zoomPanGeometry';
 
-interface ZoomPanOptions {
+export interface ZoomPanOptions {
   minZoom?: number;
   maxZoom?: number;
   step?: number;
-  initialZoom?: number;
 }
 
-export default function useZoomPan(options: ZoomPanOptions = {}) {
-  const {
-    minZoom = 0.1,
-    maxZoom = 2,
-    step = 0.1,
-    initialZoom = 1,
-  } = options;
+const isEditable = (target: EventTarget | null) =>
+  target instanceof Element &&
+  !!target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"]');
+const isControl = (target: EventTarget | null) => isEditable(target) || (target instanceof Element && !!target.closest('button, a, [role="button"]'));
 
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const contentRef = useRef<HTMLDivElement | null>(null);
+export default function useZoomPan({ minZoom = 0.1, maxZoom = 4, step = 0.1 }: ZoomPanOptions = {}) {
+  const containerRef = useRef<HTMLElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [view, setView] = useState<View>({ zoom: 1, offset: { x: 0, y: 0 } });
+  const viewRef = useRef(view);
+  const pendingFrame = useRef(0);
+  const dimensionsRef = useRef({ viewport: { width: 0, height: 0 }, content: { width: 0, height: 0 } });
+  const [dimensions, setDimensions] = useState(dimensionsRef.current);
+  const [isDragging, setDragging] = useState(false);
+  const [isSpacePressed, setSpacePressed] = useState(false);
 
-  const [zoom, setZoom] = useState(initialZoom);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-
-  const isPanning = useRef(false);
-  const lastMousePos = useRef({ x: 0, y: 0 });
-  const spacePressed = useRef(false);
-
-  // ====== Zoom handling ======
-  const zoomTo = useCallback(
-    (delta: number, centerX: number, centerY: number) => {
-      setZoom((prevZoom) => {
-        const newZoom = Math.min(Math.max(prevZoom + delta, minZoom), maxZoom);
-
-        if (contentRef.current) {
-          const rect = contentRef.current.getBoundingClientRect();
-
-          // 计算缩放中心偏移
-          const offsetX = (centerX - rect.left) / prevZoom;
-          const offsetY = (centerY - rect.top) / prevZoom;
-
-          setPosition((prev) => ({
-            x: prev.x - offsetX * (newZoom - prevZoom),
-            y: prev.y - offsetY * (newZoom - prevZoom),
-          }));
-        }
-
-        return newZoom;
+  // Coalesce input events to one render per frame; refs always hold the latest coordinates.
+  const updateView = useCallback((next: View) => {
+    viewRef.current = next;
+    if (!pendingFrame.current)
+      pendingFrame.current = requestAnimationFrame(() => {
+        pendingFrame.current = 0;
+        setView(viewRef.current);
       });
+  }, []);
+
+  const resetView = useCallback(() => {
+    const { viewport, content } = dimensionsRef.current;
+    updateView(fitView(viewport, content, { minZoom, maxZoom }));
+  }, [minZoom, maxZoom, updateView]);
+
+  const setOffset = useCallback(
+    (offset: Point) => {
+      const { viewport, content } = dimensionsRef.current;
+      updateView(constrainView({ ...viewRef.current, offset }, viewport, content));
     },
-    [minZoom, maxZoom]
+    [updateView],
   );
 
-  // ====== Reset handling (双击复位) ======
-  const resetView = useCallback(() => {
-    setZoom(1);
-    if (containerRef.current && contentRef.current) {
-      const container = containerRef.current.getBoundingClientRect();
-      const content = contentRef.current.getBoundingClientRect();
+  const setZoom = useCallback(
+    (value: number, anchor?: Point) => {
+      const { viewport, content } = dimensionsRef.current;
+      updateView(
+        constrainView(zoomAt(viewRef.current, value, anchor ?? { x: viewport.width / 2, y: viewport.height / 2 }, { minZoom, maxZoom }), viewport, content),
+      );
+    },
+    [minZoom, maxZoom, updateView],
+  );
 
-      const centerX = (container.width - content.width) / 2;
-      const centerY = (container.height - content.height) / 2;
+  const zoomBy = useCallback((direction: number) => setZoom(viewRef.current.zoom + direction * step), [setZoom, step]);
 
-      setPosition({ x: centerX, y: centerY });
-    } else {
-      setPosition({ x: 0, y: 0 });
-    }
-  }, []);
-
-  // ====== Mouse wheel ======
-  useEffect(() => {
+  useLayoutEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
-
-    const handleWheel = (e: WheelEvent) => {
-      if (e.ctrlKey) {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? -step : step;
-        zoomTo(delta, e.clientX, e.clientY);
-      }
-    };
-
-    container.addEventListener("wheel", handleWheel, { passive: false });
-    return () => {
-      container.removeEventListener("wheel", handleWheel);
-    };
-  }, [zoomTo, step]);
-
-  // ====== Mouse drag ======
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const handleMouseDown = (e: MouseEvent) => {
-      if (e.button === 1 || (spacePressed.current && e.button === 0)) {
-        isPanning.current = true;
-        lastMousePos.current = { x: e.clientX, y: e.clientY };
-        e.preventDefault();
-      }
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isPanning.current) return;
-      const dx = e.clientX - lastMousePos.current.x;
-      const dy = e.clientY - lastMousePos.current.y;
-      setPosition((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
-      lastMousePos.current = { x: e.clientX, y: e.clientY };
-    };
-
-    const handleMouseUp = () => {
-      isPanning.current = false;
-    };
-
-    container.addEventListener("mousedown", handleMouseDown);
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-
-    return () => {
-      container.removeEventListener("mousedown", handleMouseDown);
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, []);
-
-  // ====== Keyboard ======
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
-        spacePressed.current = true;
-      }
-      if (e.key === "+") {
-        zoomTo(step, window.innerWidth / 2, window.innerHeight / 2);
-      }
-      if (e.key === "-") {
-        zoomTo(-step, window.innerWidth / 2, window.innerHeight / 2);
-      }
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
-        spacePressed.current = false;
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-    };
-  }, [zoomTo, step]);
-
-  // ====== Double click reset ======
-  useEffect(() => {
     const content = contentRef.current;
-    if (!content) return;
-
-    const handleDblClick = (e: MouseEvent) => {
-      e.preventDefault();
-      resetView();
+    if (!container || !content) return;
+    let frame = 0;
+    let initialized = false;
+    let lastVisibleViewport: Size = { width: 0, height: 0 };
+    const measure = () => {
+      frame = 0;
+      const next = {
+        viewport: { width: container.clientWidth, height: container.clientHeight },
+        content: { width: content.offsetWidth, height: content.offsetHeight },
+      };
+      // Hidden tabs do not overwrite the last usable size or view.
+      if (!next.viewport.width || !next.viewport.height) return;
+      const previous = dimensionsRef.current;
+      dimensionsRef.current = next;
+      if (
+        previous.viewport.width !== next.viewport.width ||
+        previous.viewport.height !== next.viewport.height ||
+        previous.content.width !== next.content.width ||
+        previous.content.height !== next.content.height
+      )
+        setDimensions(next);
+      if (!initialized || next.viewport.width !== lastVisibleViewport.width || next.viewport.height !== lastVisibleViewport.height) {
+        if (next.content.width && next.content.height) {
+          initialized = true;
+          resetView();
+        }
+      } else if (next.content.width !== previous.content.width || next.content.height !== previous.content.height) {
+        // Preserve the user's zoom when nodes change, correcting only an out-of-bounds position.
+        updateView(constrainView(viewRef.current, next.viewport, next.content));
+      }
+      lastVisibleViewport = next.viewport;
     };
-
-    content.addEventListener("dblclick", handleDblClick);
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(measure);
+    };
+    const observer = new ResizeObserver(schedule);
+    observer.observe(container);
+    observer.observe(content);
+    measure();
     return () => {
-      content.removeEventListener("dblclick", handleDblClick);
+      observer.disconnect();
+      cancelAnimationFrame(frame);
     };
-  }, [resetView]);
+  }, [resetView, updateView]);
 
-  const transform = {
-    transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
-    transformOrigin: "0 0",
-  };
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    let space = false;
+    let drag: { id: number; start: Point; offset: Point } | undefined;
+    let suppressClick = false;
+    const finish = () => {
+      const id = drag?.id;
+      drag = undefined;
+      setDragging(false);
+      if (id !== undefined && container.hasPointerCapture(id)) container.releasePointerCapture(id);
+    };
+    const resetInput = () => {
+      space = false;
+      setSpacePressed(false);
+      finish();
+    };
+    const wheel = (event: WheelEvent) => {
+      if (drag || isControl(event.target) || !event.deltaY) return;
+      event.preventDefault();
+      const rect = container.getBoundingClientRect();
+      const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? container.clientHeight : 1);
+      setZoom(viewRef.current.zoom * Math.exp((-Math.max(-200, Math.min(200, delta)) * step) / 100), {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      });
+    };
+    const keyDown = (event: KeyboardEvent) => {
+      if (isControl(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.code === 'Space') {
+        event.preventDefault();
+        space = true;
+        setSpacePressed(true);
+      }
+      if (event.key === '+' || event.key === '=') {
+        event.preventDefault();
+        zoomBy(1);
+      }
+      if (event.key === '-') {
+        event.preventDefault();
+        zoomBy(-1);
+      }
+      if (event.key === '0') {
+        event.preventDefault();
+        resetView();
+      }
+    };
+    const keyUp = (event: KeyboardEvent) => {
+      if (event.code === 'Space') {
+        space = false;
+        setSpacePressed(false);
+      }
+    };
+    const pointerDown = (event: PointerEvent) => {
+      if (drag || isEditable(event.target)) return;
+      suppressClick = false;
+      if (event.button !== 1 && !(event.button === 0 && space)) {
+        if (!isControl(event.target)) container.focus({ preventScroll: true });
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      container.focus({ preventScroll: true });
+      drag = { id: event.pointerId, start: { x: event.clientX, y: event.clientY }, offset: viewRef.current.offset };
+      suppressClick = true;
+      container.setPointerCapture(event.pointerId);
+      setDragging(true);
+    };
+    const pointerMove = (event: PointerEvent) => {
+      if (!drag || drag.id !== event.pointerId) return;
+      setOffset({ x: drag.offset.x + event.clientX - drag.start.x, y: drag.offset.y + event.clientY - drag.start.y });
+    };
+    const click = (event: MouseEvent) => {
+      if (suppressClick) {
+        event.preventDefault();
+        event.stopPropagation();
+        suppressClick = false;
+      }
+    };
+    const focusOut = (event: FocusEvent) => {
+      if (!(event.relatedTarget instanceof Node) || !container.contains(event.relatedTarget)) resetInput();
+    };
+    const visibility = () => {
+      if (document.hidden) resetInput();
+    };
+    container.addEventListener('wheel', wheel, { passive: false });
+    container.addEventListener('keydown', keyDown);
+    container.addEventListener('keyup', keyUp);
+    container.addEventListener('focusout', focusOut);
+    container.addEventListener('pointerdown', pointerDown, true);
+    container.addEventListener('pointermove', pointerMove);
+    container.addEventListener('pointerup', finish);
+    container.addEventListener('pointercancel', finish);
+    container.addEventListener('lostpointercapture', finish);
+    container.addEventListener('click', click, true);
+    window.addEventListener('blur', resetInput);
+    document.addEventListener('visibilitychange', visibility);
+    return () => {
+      finish();
+      container.removeEventListener('wheel', wheel);
+      container.removeEventListener('keydown', keyDown);
+      container.removeEventListener('keyup', keyUp);
+      container.removeEventListener('focusout', focusOut);
+      container.removeEventListener('pointerdown', pointerDown, true);
+      container.removeEventListener('pointermove', pointerMove);
+      container.removeEventListener('pointerup', finish);
+      container.removeEventListener('pointercancel', finish);
+      container.removeEventListener('lostpointercapture', finish);
+      container.removeEventListener('click', click, true);
+      window.removeEventListener('blur', resetInput);
+      document.removeEventListener('visibilitychange', visibility);
+    };
+  }, [setOffset, setZoom, zoomBy, resetView, step]);
 
-  return { containerRef, contentRef, zoom, position, transform, resetView };
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(pendingFrame.current);
+      pendingFrame.current = 0;
+    },
+    [],
+  );
+
+  return { containerRef, contentRef, ...view, ...dimensions, isDragging, isSpacePressed, setOffset, setZoom, zoomBy, resetView };
 }
