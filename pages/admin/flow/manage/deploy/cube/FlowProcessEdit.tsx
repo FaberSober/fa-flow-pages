@@ -161,7 +161,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
               />
             </Splitter.Panel>
             <Splitter.Panel defaultSize={400} min={320} max="45%" collapsible>
-              <div className="fa-full fa-flex-column fa-bg-white fa-p12">
+              <div className="fa-full fa-flex-column fa-bg-white fa-p12 fa-scroll-auto-y">
                 <div className="fa-h3 fa-mb12">节点配置</div>
                 <div className="fa-flex-1 fa-flex-center fa-text-light100">请从画布选择节点查看配置</div>
               </div>
