@@ -25,18 +25,23 @@ export interface InclusiveNodeProps {
 export default function InclusiveNode({ node, index, elseNode, onDel, conditionText }: InclusiveNodeProps) {
   const readOnly = useWorkFlowStore(state => state.readOnly);
   const [form] = Form.useForm();
-  const [open, show, hide] = useOpen()
+  const [open, , hide] = useOpen()
 
   const updateNodeProps = useWorkFlowStore(state => state.updateNodeProps);
+  const selectedNodeKey = useWorkFlowStore(state => state.selectedNodeKey);
+  const selectNode = useWorkFlowStore(state => state.selectNode);
 
-  function showDrawer() {
-    if (elseNode) return;
-    show()
+  function handleNodeClick() {
+    selectNode(node.nodeKey);
   }
 
   return (
     <>
-      <div className="fa-flex-column" onClick={showDrawer}>
+      <div
+        className={clsx('fa-flex-column', selectedNodeKey === node.nodeKey && 'fa-workflow-node-selected-target')}
+        data-flow-node-key={node.nodeKey}
+        onClick={handleNodeClick}
+      >
         <div className="branch-title">
           <span className="node-title">{node.nodeName}</span>
           <span className="priority-title">优先级{node.priorityLevel}</span>

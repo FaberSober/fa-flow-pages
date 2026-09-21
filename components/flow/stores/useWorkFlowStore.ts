@@ -1,10 +1,10 @@
 // useWorkFlowStore.ts
 import { Flow, Flw } from '@features/fa-flow-pages/types';
+import { set as lodashSet } from 'lodash';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { findNodeByKey, loopNode } from '../utils';
-import { set as lodashSet } from 'lodash';
 
 
 // 1. 定义状态和方法结构
@@ -13,12 +13,16 @@ interface WorkFlowState {
   flowProcess: Flow.FlowProcess;
   /** workflow config */
   processModel: Flw.ProcessModel;
+  /** 当前选中的节点 key */
+  selectedNodeKey?: string;
   /** 外部 onChange 回调函数，用于通知父组件数据变化 */
   onChange: ((v: Flw.ProcessModel) => void) | undefined;
 
   // 动作方法
   setFlowProcess: (v: Flow.FlowProcess) => void;
   setProcessModel: (v: Flw.ProcessModel) => void;
+  selectNode: (nodeKey: string) => void;
+  clearSelectedNode: () => void;
   setExternalOnChange: (cb: ((v: Flw.ProcessModel) => void) | undefined) => void;
   refreshNode: () => void;
   deleteNode: (node: Flw.Node) => void;
@@ -42,6 +46,7 @@ export const useWorkFlowStore = create<WorkFlowState>()(
       // ✅ 状态属性初始值
       flowProcess: {} as Flow.FlowProcess,
       processModel: {} as Flw.ProcessModel,
+      selectedNodeKey: undefined,
       renderNodes: {},
       readOnly: false,
       onChange: undefined,
@@ -50,6 +55,8 @@ export const useWorkFlowStore = create<WorkFlowState>()(
       setFlowProcess: (v) => set((state) => { state.flowProcess = v; }),
       setExternalOnChange: (cb) => set((state) => { state.onChange = cb; }),
       setProcessModel: (v) => set((state) => { state.processModel = v; }),
+      selectNode: (nodeKey) => set((state) => { state.selectedNodeKey = nodeKey; }),
+      clearSelectedNode: () => set((state) => { state.selectedNodeKey = undefined; }),
       setRenderNodes: (v) => set((state) => { state.renderNodes = v || {}; }),
       setReadOnly: (v) => set((state) => { state.readOnly = v; }),
 
@@ -103,6 +110,7 @@ export const useWorkFlowStore = create<WorkFlowState>()(
         set({
           flowProcess: {} as Flow.FlowProcess,
           processModel: {} as Flw.ProcessModel,
+          selectedNodeKey: undefined,
           renderNodes: {},
           readOnly: false,
           onChange: undefined,

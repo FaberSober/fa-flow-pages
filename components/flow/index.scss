@@ -443,6 +443,17 @@ body {
     border: 1px solid #3296fa;
     box-shadow: 0 0 6px 0 rgba(50, 150, 250, 0.3);
   }
+
+  .fa-workflow-node-selected > .node-wrap > .node-wrap-box,
+  .fa-workflow-node-selected > .branch-wrap > .branch-box-wrap > .branch-box,
+  .auto-judge:has(> .fa-workflow-node-selected-target) {
+    outline: 2px solid #3296fa;
+    outline-offset: 2px;
+  }
+
+  .fa-workflow-node-selected > .branch-wrap > .branch-box-wrap > .branch-box {
+    z-index: 2;
+  }
 }
 
 .tags-list {

@@ -21,17 +21,23 @@ export interface ParallelNodeProps {
 export default function ParallelNode({ node, index, onDel, conditionText }: ParallelNodeProps) {
   const readOnly = useWorkFlowStore(state => state.readOnly);
   const [form] = Form.useForm();
-  const [open, show, hide] = useOpen()
+  const [open, , hide] = useOpen()
 
   const updateNodeProps = useWorkFlowStore(state => state.updateNodeProps);
+  const selectedNodeKey = useWorkFlowStore(state => state.selectedNodeKey);
+  const selectNode = useWorkFlowStore(state => state.selectNode);
 
-  function showDrawer() {
-    show()
+  function handleNodeClick() {
+    selectNode(node.nodeKey);
   }
 
   return (
     <>
-      <div className="fa-flex-column" onClick={showDrawer}>
+      <div
+        className={clsx('fa-flex-column', selectedNodeKey === node.nodeKey && 'fa-workflow-node-selected-target')}
+        data-flow-node-key={node.nodeKey}
+        onClick={handleNodeClick}
+      >
         <div className="branch-title">
           <span className="node-title">{node.nodeName}</span>
           <NodeCloseBtn onClick={onDel} />

@@ -14,10 +14,6 @@
   touch-action: none;
   overscroll-behavior: contain;
 
-  &:focus-visible {
-    box-shadow: inset 0 0 0 2px var(--zoom-primary);
-  }
-
   &.cursor-grab, &.cursor-grab * { cursor: grab !important; }
   &.cursor-grabbing, &.cursor-grabbing * { cursor: grabbing !important; }
 }
