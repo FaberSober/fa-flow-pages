@@ -1,9 +1,9 @@
 import { FaIconPro } from "@/components";
-import { BaseDrawer, FaFlexRestLayout, useOpen, UserSearchSelect } from '@fa/ui';
+import { FaFlexRestLayout, UserSearchSelect } from '@fa/ui';
 import { userApi } from "@features/fa-admin-pages/services";
 import { useWorkFlowStore } from "@features/fa-flow-pages/components/flow/stores/useWorkFlowStore";
 import { Flw } from "@features/fa-flow-pages/types";
-import { Form, Input } from "antd";
+import { Form } from "antd";
 import { useMemo } from 'react';
 import { NodeCloseBtn } from '../cubes';
 import { useDelNode } from "../hooks";
@@ -14,12 +14,13 @@ import AddNode from './AddNode';
  * @author xu.pengfei
  * @date 2025/8/19 22:11
  */
-export default function Send({ node, parentNode }: Flw.BasicNodeProps) {
-  const [form] = Form.useForm();
-  const [open, show, hide] = useOpen()
+interface SendProps extends Flw.BasicNodeProps {
+  configOnly?: boolean;
+}
+
+export default function Send({ node, parentNode, configOnly }: SendProps) {
 
   const updateNode = useWorkFlowStore(state => state.updateNode);
-  const updateNodeProps = useWorkFlowStore(state => state.updateNodeProps);
   const readOnly = useWorkFlowStore(state => state.readOnly);
 
   const { delNode } = useDelNode(node, parentNode);
@@ -38,13 +39,6 @@ export default function Send({ node, parentNode }: Flw.BasicNodeProps) {
     }
   }
 
-  function showDrawer() {
-    show()
-    form.setFieldsValue({
-      nodeAssigneeIds: node.nodeAssigneeList ? node.nodeAssigneeList.map(item => item.id) : []
-    })
-  }
-
   const text = useMemo(() => {
     if (node.nodeAssigneeList && node.nodeAssigneeList.length > 0) {
       return node.nodeAssigneeList.map(item => item.name).join("、")
@@ -53,9 +47,29 @@ export default function Send({ node, parentNode }: Flw.BasicNodeProps) {
     }
   }, [node])
 
+  const configContent = (
+    <Form
+      layout="vertical"
+      className="fa-flex-column fa-full"
+      disabled={readOnly}
+      initialValues={{ nodeAssigneeIds: node.nodeAssigneeList?.map(item => item.id) || [] }}
+      onValuesChange={(_cv, av) => {
+        handleValuesChange(av)
+      }}
+    >
+      <FaFlexRestLayout>
+        <Form.Item name="nodeAssigneeIds" label="抄送人员" tooltip="抄送以站内信的形式发送给选定人员">
+          <UserSearchSelect mode="multiple" />
+        </Form.Item>
+      </FaFlexRestLayout>
+    </Form>
+  );
+
+  if (configOnly) return configContent;
+
   return (
     <div className="node-wrap">
-      <div className="node-wrap-box start-node" onClick={showDrawer}>
+      <div className="node-wrap-box start-node">
         <div className="title">
           <FaIconPro icon="fa-solid fa-user-large" />
           <span>{node.nodeName}</span>
@@ -65,26 +79,6 @@ export default function Send({ node, parentNode }: Flw.BasicNodeProps) {
           {text ? text : '请选择人员'}
         </div>
       </div>
-
-      <BaseDrawer
-        open={open}
-        onClose={() => hide()}
-        title={(
-          <Input value={node.nodeName} variant="filled" onChange={e => updateNodeProps(node, 'nodeName', e.target.value)} />
-        )}
-      >
-        <Form form={form} layout="vertical" className="fa-flex-column fa-full" disabled={readOnly}
-          onValuesChange={(cv, av) => {
-            handleValuesChange(av)
-          }}
-        >
-          <FaFlexRestLayout>
-            <Form.Item name="nodeAssigneeIds" label="抄送人员" tooltip="抄送以站内信的形式发送给选定人员">
-              <UserSearchSelect mode="multiple" />
-            </Form.Item>
-          </FaFlexRestLayout>
-        </Form>
-      </BaseDrawer>
 
       <AddNode parentNode={node} />
     </div>

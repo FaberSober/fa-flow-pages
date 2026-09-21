@@ -1,10 +1,9 @@
 import { FaIconPro } from "@/components";
-import { BaseDrawer, FaFlexRestLayout, useOpen } from '@fa/ui';
+import { FaFlexRestLayout } from '@fa/ui';
 import { NodeCloseBtn } from "@features/fa-flow-pages/components/flow/cubes";
 import AddNode from "@features/fa-flow-pages/components/flow/nodes/AddNode";
-import { useWorkFlowStore } from "@features/fa-flow-pages/components/flow/stores/useWorkFlowStore";
 import { Flw, FlwEnums } from "@features/fa-flow-pages/types";
-import { Input, Tabs } from "antd";
+import { Tabs } from "antd";
 import { useMemo, useState } from 'react';
 import { useDelNode } from "../hooks";
 import ApproverNodeBasicForm from './property/ApproverNodeBasicForm';
@@ -16,11 +15,13 @@ const { NodeSetType } = FlwEnums;
  * @author xu.pengfei
  * @date 2025/8/19 22:11
  */
-export default function Approver({ node, parentNode }: Flw.BasicNodeProps) {
-  const [open, show, hide] = useOpen()
+interface ApproverProps extends Flw.BasicNodeProps {
+  configOnly?: boolean;
+}
+
+export default function Approver({ node, parentNode, configOnly }: ApproverProps) {
   const [tab, setTab] = useState('basic');
 
-  const updateNodeProps = useWorkFlowStore(state => state.updateNodeProps);
   const { delNode } = useDelNode(node, parentNode);
 
   function toText(nodeConfig: Flw.Node) {
@@ -61,13 +62,41 @@ export default function Approver({ node, parentNode }: Flw.BasicNodeProps) {
 
   const text = useMemo(() => toText(node), [node])
 
-  function showDrawer() {
-    show()
-  }
+  const configContent = (
+    <div className="fa-full fa-flex-column" style={{ minWidth: 0 }}>
+      <Tabs
+        // 基础设置,高级设置,表单权限,流程事件,流程通知,超时处理
+        className='fa-tabs-block'
+        items={[
+          { key: 'basic', label: '基础设置' },
+          { key: 'advance', label: '高级设置' },
+          { key: 'formAuth', label: '表单权限' },
+          { key: 'flowEvent', label: '流程事件' },
+          { key: 'flowNotify', label: '流程通知' },
+          { key: 'overtime', label: '超时处理' },
+        ]}
+        activeKey={tab}
+        onChange={setTab}
+        size='small'
+        tabBarGutter={0}
+        styles={{
+          header: {marginBottom: 0}
+        }}
+      />
+
+      <FaFlexRestLayout>
+        {tab === 'basic' && (<ApproverNodeBasicForm node={node} />)}
+        {/* {tab === 'advance' && (<StartNodeAdvanceForm node={nodeCopy} />)} */}
+        {tab === 'formAuth' && (<NodeFormAuth node={node} />)}
+      </FaFlexRestLayout>
+    </div>
+  );
+
+  if (configOnly) return configContent;
 
   return (
     <div className="node-wrap">
-      <div className="node-wrap-box start-node" onClick={showDrawer}>
+      <div className="node-wrap-box start-node">
         <div className="title">
           <FaIconPro icon="fa-solid fa-user-large" />
           <span>{node.nodeName}</span>
@@ -78,43 +107,6 @@ export default function Approver({ node, parentNode }: Flw.BasicNodeProps) {
           {text ? <span>{text}</span> : <span className="placeholder">请选择</span>}
         </div>
       </div>
-
-      <BaseDrawer
-        open={open}
-        onClose={() => hide()}
-        title={(
-          <Input value={node.nodeName} variant="filled" onChange={e => updateNodeProps(node, 'nodeName', e.target.value)} />
-        )}
-        size={600}
-      >
-        <div className="fa-flex-column fa-full-content">
-          <Tabs
-            // 基础设置,高级设置,表单权限,流程事件,流程通知,超时处理
-            className='fa-tabs-block'
-            items={[
-              { key: 'basic', label: '基础设置' },
-              { key: 'advance', label: '高级设置' },
-              { key: 'formAuth', label: '表单权限' },
-              { key: 'flowEvent', label: '流程事件' },
-              { key: 'flowNotify', label: '流程通知' },
-              { key: 'overtime', label: '超时处理' },
-            ]}
-            activeKey={tab}
-            onChange={setTab}
-            size='small'
-            tabBarGutter={0}
-            styles={{
-              header: {marginBottom: 0}
-            }}
-          />
-
-          <FaFlexRestLayout>
-            {tab === 'basic' && (<ApproverNodeBasicForm node={node} />)}
-            {/* {tab === 'advance' && (<StartNodeAdvanceForm node={nodeCopy} />)} */}
-            {tab === 'formAuth' && (<NodeFormAuth node={node} />)}
-          </FaFlexRestLayout>
-        </div>
-      </BaseDrawer>
 
       <AddNode parentNode={node} />
     </div>

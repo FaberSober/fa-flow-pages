@@ -1,5 +1,5 @@
 import { FaIconPro } from "@/components";
-import { BaseDrawer, FaFlexRestLayout, useOpen } from '@fa/ui';
+import { FaFlexRestLayout } from '@fa/ui';
 import { useWorkFlowStore } from "@features/fa-flow-pages/components/flow/stores/useWorkFlowStore";
 import { Flw } from "@features/fa-flow-pages/types";
 import { Checkbox, Form, Input } from "antd";
@@ -14,12 +14,13 @@ import AddNode from './AddNode';
  * @author xu.pengfei
  * @date 2025/8/19 22:11
  */
-export default function CallProcess({ node, parentNode }: Flw.BasicNodeProps) {
-  const [form] = Form.useForm();
-  const [open, show, hide] = useOpen()
+interface CallProcessProps extends Flw.BasicNodeProps {
+  configOnly?: boolean;
+}
+
+export default function CallProcess({ node, parentNode, configOnly }: CallProcessProps) {
 
   const updateNode = useWorkFlowStore(state => state.updateNode);
-  const updateNodeProps = useWorkFlowStore(state => state.updateNodeProps);
   const readOnly = useWorkFlowStore(state => state.readOnly);
 
   const { delNode } = useDelNode(node, parentNode);
@@ -33,21 +34,36 @@ export default function CallProcess({ node, parentNode }: Flw.BasicNodeProps) {
     updateNode(nodeNew)
   }
 
-  function showDrawer() {
-    show()
-    form.setFieldsValue({
-      callProcess: node.callProcess,
-      callAsync: node.callAsync,
-    })
-  }
-
   const text = useMemo(() => {
     return undefined;
   }, [node])
 
+  const configContent = (
+    <Form
+      layout="vertical"
+      className="fa-flex-column fa-full"
+      disabled={readOnly}
+      initialValues={{ callProcess: node.callProcess, callAsync: node.callAsync }}
+      onValuesChange={(_cv, av) => {
+        handleValuesChange(av)
+      }}
+    >
+      <FaFlexRestLayout>
+        <Form.Item name="callProcess" label="子流程" rules={[{ required: true }]}>
+          <Input />
+        </Form.Item>
+        <Form.Item name="callAsync" valuePropName="checked">
+          <Checkbox>异步执行</Checkbox>
+        </Form.Item>
+      </FaFlexRestLayout>
+    </Form>
+  );
+
+  if (configOnly) return configContent;
+
   return (
     <div className="node-wrap">
-      <div className="node-wrap-box start-node" onClick={showDrawer}>
+      <div className="node-wrap-box start-node">
         <div className="title">
           <FaIconPro icon="fa-solid fa-user-large" />
           <span>{node.nodeName}</span>
@@ -57,29 +73,6 @@ export default function CallProcess({ node, parentNode }: Flw.BasicNodeProps) {
           {text ? text : '请选择子流程'}
         </div>
       </div>
-
-      <BaseDrawer
-        open={open}
-        onClose={() => hide()}
-        title={(
-          <Input value={node.nodeName} variant="filled" onChange={e => updateNodeProps(node, 'nodeName', e.target.value)} />
-        )}
-      >
-        <Form form={form} layout="vertical" className="fa-flex-column fa-full" disabled={readOnly}
-          onValuesChange={(cv, av) => {
-            handleValuesChange(av)
-          }}
-        >
-          <FaFlexRestLayout>
-            <Form.Item name="callProcess" label="子流程" rules={[{required: true}]}>
-              <Input />
-            </Form.Item>
-            <Form.Item name="callAsync" valuePropName="checked">
-              <Checkbox>异步执行</Checkbox>
-            </Form.Item>
-          </FaFlexRestLayout>
-        </Form>
-      </BaseDrawer>
 
       <AddNode parentNode={node} />
     </div>

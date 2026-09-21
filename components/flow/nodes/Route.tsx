@@ -1,9 +1,8 @@
 import { FaIconPro } from "@/components";
 import { PlusOutlined } from "@ant-design/icons";
-import { BaseDrawer, useOpen } from '@fa/ui';
 import { useWorkFlowStore } from "@features/fa-flow-pages/components/flow/stores/useWorkFlowStore";
 import { Flw, FlwEnums } from "@features/fa-flow-pages/types";
-import { Button, Input } from "antd";
+import { Button } from "antd";
 import { cloneDeep } from "lodash";
 import { useMemo } from 'react';
 import { NodeCloseBtn } from '../cubes';
@@ -17,17 +16,15 @@ import RouteNode from "./RouteNode";
  * @author xu.pengfei
  * @date 2025/8/19 22:11
  */
-export default function Route({ node, parentNode }: Flw.BasicNodeProps) {
-  const [open, show, hide] = useOpen()
+interface RouteProps extends Flw.BasicNodeProps {
+  configOnly?: boolean;
+}
 
-  const updateNodeProps = useWorkFlowStore(state => state.updateNodeProps);
+export default function Route({ node, parentNode, configOnly }: RouteProps) {
+
   const updateNode = useWorkFlowStore(state => state.updateNode);
 
   const { delNode } = useDelNode(node, parentNode);
-
-  function showDrawer() {
-    show()
-  }
 
   const text = useMemo(() => {
     if (!node.routeNodes || node.routeNodes.length === 0) {
@@ -38,7 +35,7 @@ export default function Route({ node, parentNode }: Flw.BasicNodeProps) {
 
   function handleAddRoute() {
     const nodeNew = cloneDeep(node)
-    let len = nodeNew.routeNodes!.length + 1
+    const len = nodeNew.routeNodes!.length + 1
     nodeNew.routeNodes!.push({
       nodeName: '路由' + len,
       nodeKey: undefined!,
@@ -62,9 +59,26 @@ export default function Route({ node, parentNode }: Flw.BasicNodeProps) {
     updateNode(nodeNew);
   }
 
+  const configContent = (
+    <div className="fa-flex-column fa-gap12">
+      <div className="fa-flex-column fa-gap12">
+        {node.routeNodes && node.routeNodes.map((routeNode, index) => {
+          return (
+            <div key={index}>
+              <RouteNode routeNode={routeNode} onDel={() => handleDelRoute(index)} onChange={(v) => handleRouteNodeChange(index, v)} />
+            </div>
+          )
+        })}
+      </div>
+      <Button onClick={handleAddRoute} icon={<PlusOutlined />}>添加路由分支</Button>
+    </div>
+  );
+
+  if (configOnly) return configContent;
+
   return (
     <div className="node-wrap">
-      <div className="node-wrap-box start-node" onClick={showDrawer}>
+      <div className="node-wrap-box start-node">
         <div className="title">
           <FaIconPro icon="fa-solid fa-user-large" />
           <span>{node.nodeName}</span>
@@ -74,27 +88,6 @@ export default function Route({ node, parentNode }: Flw.BasicNodeProps) {
           {text}
         </div>
       </div>
-
-      <BaseDrawer
-        open={open}
-        onClose={() => hide()}
-        title={(
-          <Input value={node.nodeName} variant="filled" onChange={e => updateNodeProps(node, 'nodeName', e.target.value)} />
-        )}
-      >
-        <div className="fa-flex-column fa-gap12">
-          <div className="fa-flex-column fa-gap12">
-            {node.routeNodes && node.routeNodes.map((routeNode, index) => {
-              return (
-                <div key={index}>
-                  <RouteNode routeNode={routeNode} onDel={() => handleDelRoute(index)} onChange={(v) => handleRouteNodeChange(index, v)} />
-                </div>
-              )
-            })}
-          </div>
-          <Button onClick={handleAddRoute} icon={<PlusOutlined />}>添加路由分支</Button>
-        </div>
-      </BaseDrawer>
 
       <AddNode parentNode={node} />
     </div>

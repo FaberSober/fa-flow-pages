@@ -1,5 +1,6 @@
 import { Fa, FaFlexRestLayout, FaFullContentModal, FaUtils, useApiLoading } from '@fa/ui';
 import { FaWorkFlow } from '@features/fa-flow-pages/components';
+import NodeConfigPanel from '@features/fa-flow-pages/components/flow/NodeConfigPanel';
 import { flowProcessApi } from '@features/fa-flow-pages/services';
 import { Button, Checkbox, Form, Modal, message, Splitter, Steps, Typography } from 'antd';
 import { get } from 'lodash';
@@ -161,9 +162,9 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
               />
             </Splitter.Panel>
             <Splitter.Panel defaultSize={400} min={320} max="45%" collapsible>
-              <div className="fa-full fa-flex-column fa-bg-white fa-p12 fa-scroll-auto-y">
+              <div className="fa-full fa-flex-column fa-bg-white fa-p12 fa-scroll-auto-y" style={{ minWidth: 0, minHeight: 0 }}>
                 <div className="fa-h3 fa-mb12">节点配置</div>
-                <div className="fa-flex-1 fa-flex-center fa-text-light100">请从画布选择节点查看配置</div>
+                <NodeConfigPanel />
               </div>
             </Splitter.Panel>
           </Splitter>

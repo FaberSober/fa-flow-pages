@@ -1,7 +1,5 @@
-import { BaseDrawer, FaFlexRestLayout, useOpen } from "@fa/ui";
 import { NodeCloseBtn } from "@features/fa-flow-pages/components/flow/cubes";
 import { Flw } from "@features/fa-flow-pages/types";
-import { Form, Input } from "antd";
 import clsx from 'clsx';
 import { ReactNode } from 'react';
 import { useWorkFlowStore } from '../stores/useWorkFlowStore';
@@ -12,24 +10,23 @@ export interface ParallelNodeProps {
   index: number;
   onDel?: () => void;
   conditionText: string | ReactNode;
+  configOnly?: boolean;
 }
 
 /**
  * @author xu.pengfei
  * @date 2026-01-19 14:10:20
  */
-export default function ParallelNode({ node, index, onDel, conditionText }: ParallelNodeProps) {
-  const readOnly = useWorkFlowStore(state => state.readOnly);
-  const [form] = Form.useForm();
-  const [open, , hide] = useOpen()
+export default function ParallelNode({ node, onDel, conditionText, configOnly }: ParallelNodeProps) {
 
-  const updateNodeProps = useWorkFlowStore(state => state.updateNodeProps);
   const selectedNodeKey = useWorkFlowStore(state => state.selectedNodeKey);
   const selectNode = useWorkFlowStore(state => state.selectNode);
 
   function handleNodeClick() {
     selectNode(node.nodeKey);
   }
+
+  if (configOnly) return null;
 
   return (
     <>
@@ -48,26 +45,6 @@ export default function ParallelNode({ node, index, onDel, conditionText }: Para
         </div>
       </div>
 
-      <BaseDrawer
-        open={open}
-        onClose={() => hide()}
-        title={(
-          <Input value={node.nodeName} variant="filled" onChange={e => updateNodeProps(node, 'nodeName', e.target.value)} />
-        )}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          className={clsx('fa-flex-column fa-full', readOnly && 'sc-workflow-design-readonly')}
-          // onFinish={onFinish}
-          disabled={readOnly}
-        >
-          <FaFlexRestLayout>
-            <div className="fa-flex-column">
-            </div>
-          </FaFlexRestLayout>
-        </Form>
-      </BaseDrawer>
     </>
   )
 }

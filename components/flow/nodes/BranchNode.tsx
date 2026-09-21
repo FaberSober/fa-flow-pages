@@ -1,5 +1,5 @@
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
-import { BaseDrawer, FaArrUtils, FaFlexRestLayout, useOpen } from "@fa/ui";
+import { FaArrUtils, FaFlexRestLayout } from "@fa/ui";
 import { NodeCloseBtn } from "@features/fa-flow-pages/components/flow/cubes";
 import { Flw } from "@features/fa-flow-pages/types";
 import { Button, Form, Input, Select } from "antd";
@@ -15,6 +15,7 @@ export interface BranchNodeProps {
   elseNode?: boolean; // 是否为 else 节点
   onDel?: () => void;
   conditionText: string | ReactNode;
+  configOnly?: boolean;
 }
 
 /**
@@ -23,10 +24,9 @@ export interface BranchNodeProps {
  * @author xu.pengfei
  * @date 2025/8/21 17:08
  */
-export default function BranchNode({ node, index, elseNode, onDel, conditionText }: BranchNodeProps) {
+export default function BranchNode({ node, elseNode, onDel, conditionText, configOnly }: BranchNodeProps) {
   const readOnly = useWorkFlowStore(state => state.readOnly);
   const [form] = Form.useForm();
-  const [open, , hide] = useOpen()
 
   const updateNodeProps = useWorkFlowStore(state => state.updateNodeProps);
   const selectedNodeKey = useWorkFlowStore(state => state.selectedNodeKey);
@@ -38,29 +38,25 @@ export default function BranchNode({ node, index, elseNode, onDel, conditionText
 
   return (
     <>
-      <div
-        className={clsx('fa-flex-column', selectedNodeKey === node.nodeKey && 'fa-workflow-node-selected-target')}
-        data-flow-node-key={node.nodeKey}
-        onClick={handleNodeClick}
-      >
-        <div className="branch-title">
-          <span className="node-title">{node.nodeName}</span>
-          <span className="priority-title">优先级{node.priorityLevel}</span>
-          {!elseNode && <NodeCloseBtn onClick={onDel} />}
-        </div>
+      {!configOnly && (
+        <div
+          className={clsx('fa-flex-column', selectedNodeKey === node.nodeKey && 'fa-workflow-node-selected-target')}
+          data-flow-node-key={node.nodeKey}
+          onClick={handleNodeClick}
+        >
+          <div className="branch-title">
+            <span className="node-title">{node.nodeName}</span>
+            <span className="priority-title">优先级{node.priorityLevel}</span>
+            {!elseNode && <NodeCloseBtn onClick={onDel} />}
+          </div>
 
-        <div className="content">
-          {conditionText ? <span>{conditionText}</span> : <span className="placeholder">请设置条件</span>}
+          <div className="content">
+            {conditionText ? <span>{conditionText}</span> : <span className="placeholder">请设置条件</span>}
+          </div>
         </div>
-      </div>
+      )}
 
-      <BaseDrawer
-        open={open}
-        onClose={() => hide()}
-        title={(
-          <Input value={node.nodeName} variant="filled" onChange={e => updateNodeProps(node, 'nodeName', e.target.value)} />
-        )}
-      >
+      {configOnly && (
         <Form
           form={form}
           layout="vertical"
@@ -183,7 +179,7 @@ export default function BranchNode({ node, index, elseNode, onDel, conditionText
 
           </FaFlexRestLayout>
         </Form>
-      </BaseDrawer>
+      )}
     </>
   )
 }

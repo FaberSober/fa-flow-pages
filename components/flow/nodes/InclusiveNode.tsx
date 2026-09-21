@@ -1,10 +1,10 @@
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
-import { BaseDrawer, FaArrUtils, FaFlexRestLayout, useOpen } from "@fa/ui";
+import { FaArrUtils, FaFlexRestLayout } from "@fa/ui";
 import { NodeCloseBtn } from "@features/fa-flow-pages/components/flow/cubes";
 import { Flw } from "@features/fa-flow-pages/types";
 import { Button, Form, Input, Select } from "antd";
 import clsx from 'clsx';
-import { ReactNode, useState } from 'react';
+import { ReactNode } from 'react';
 import { useWorkFlowStore } from '../stores/useWorkFlowStore';
 
 
@@ -15,6 +15,7 @@ export interface InclusiveNodeProps {
   elseNode?: boolean; // 是否为 else 节点
   onDel?: () => void;
   conditionText: string | ReactNode;
+  configOnly?: boolean;
 }
 
 /**
@@ -22,10 +23,9 @@ export interface InclusiveNodeProps {
  * @author xu.pengfei
  * @date 2026/01/19 16:00
  */
-export default function InclusiveNode({ node, index, elseNode, onDel, conditionText }: InclusiveNodeProps) {
+export default function InclusiveNode({ node, elseNode, onDel, conditionText, configOnly }: InclusiveNodeProps) {
   const readOnly = useWorkFlowStore(state => state.readOnly);
   const [form] = Form.useForm();
-  const [open, , hide] = useOpen()
 
   const updateNodeProps = useWorkFlowStore(state => state.updateNodeProps);
   const selectedNodeKey = useWorkFlowStore(state => state.selectedNodeKey);
@@ -37,29 +37,25 @@ export default function InclusiveNode({ node, index, elseNode, onDel, conditionT
 
   return (
     <>
-      <div
-        className={clsx('fa-flex-column', selectedNodeKey === node.nodeKey && 'fa-workflow-node-selected-target')}
-        data-flow-node-key={node.nodeKey}
-        onClick={handleNodeClick}
-      >
-        <div className="branch-title">
-          <span className="node-title">{node.nodeName}</span>
-          <span className="priority-title">优先级{node.priorityLevel}</span>
-          {!elseNode && <NodeCloseBtn onClick={onDel} />}
-        </div>
+      {!configOnly && (
+        <div
+          className={clsx('fa-flex-column', selectedNodeKey === node.nodeKey && 'fa-workflow-node-selected-target')}
+          data-flow-node-key={node.nodeKey}
+          onClick={handleNodeClick}
+        >
+          <div className="branch-title">
+            <span className="node-title">{node.nodeName}</span>
+            <span className="priority-title">优先级{node.priorityLevel}</span>
+            {!elseNode && <NodeCloseBtn onClick={onDel} />}
+          </div>
 
-        <div className="content">
-          {conditionText ? <span>{conditionText}</span> : <span className="placeholder">请设置条件</span>}
+          <div className="content">
+            {conditionText ? <span>{conditionText}</span> : <span className="placeholder">请设置条件</span>}
+          </div>
         </div>
-      </div>
+      )}
 
-      <BaseDrawer
-        open={open}
-        onClose={() => hide()}
-        title={(
-          <Input value={node.nodeName} variant="filled" onChange={e => updateNodeProps(node, 'nodeName', e.target.value)} />
-        )}
-      >
+      {configOnly && (
         <Form
           form={form}
           layout="vertical"
@@ -182,7 +178,7 @@ export default function InclusiveNode({ node, index, elseNode, onDel, conditionT
 
           </FaFlexRestLayout>
         </Form>
-      </BaseDrawer>
+      )}
     </>
   )
 }
