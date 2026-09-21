@@ -54,18 +54,25 @@ export const useWorkFlowStore = create<WorkFlowState>()(
       // ✅ 动作方法实现
       setFlowProcess: (v) => set((state) => { state.flowProcess = v; }),
       setExternalOnChange: (cb) => set((state) => { state.onChange = cb; }),
-      setProcessModel: (v) => set((state) => { state.processModel = v; }),
+      setProcessModel: (v) => set((state) => {
+        state.processModel = v;
+        if (state.selectedNodeKey && (!v?.nodeConfig || !findNodeByKey(v.nodeConfig, state.selectedNodeKey))) {
+          state.selectedNodeKey = undefined;
+        }
+      }),
       selectNode: (nodeKey) => set((state) => { state.selectedNodeKey = nodeKey; }),
       clearSelectedNode: () => set((state) => { state.selectedNodeKey = undefined; }),
       setRenderNodes: (v) => set((state) => { state.renderNodes = v || {}; }),
       setReadOnly: (v) => set((state) => { state.readOnly = v; }),
 
       refreshNode: () => {
+        if (get().readOnly) return;
         set(() => {}); // 强制刷新（Immer 下空更新触发渲染）
         get().onChange?.(get().processModel);
       },
 
       deleteNode: (node) => {
+        if (get().readOnly) return;
         set((state) => {
           // loopNode 内部必须是修改 state.processModel.nodeConfig 的逻辑
           loopNode(state.processModel.nodeConfig, (n) => {
@@ -73,12 +80,14 @@ export const useWorkFlowStore = create<WorkFlowState>()(
               n.childNode = n.childNode.childNode;
             }
           });
+          if (state.selectedNodeKey === node.nodeKey) state.selectedNodeKey = undefined;
         });
         // ✅ 触发外部 onChange
         get().onChange?.(get().processModel);
       },
 
       updateNode: (node) => {
+        if (get().readOnly) return;
         set((state) => {
           const foundNode: any = findNodeByKey(state.processModel.nodeConfig, node.nodeKey);
           if (foundNode) {
@@ -89,6 +98,7 @@ export const useWorkFlowStore = create<WorkFlowState>()(
       },
 
       updateNodeProps: (node: Flw.ParentNode, path: keyof Flw.Node | any, value: any) => {
+        if (get().readOnly) return;
         set((state) => {
           const foundNode: any = findNodeByKey(state.processModel.nodeConfig, node.nodeKey);
           if (foundNode) {
@@ -100,6 +110,7 @@ export const useWorkFlowStore = create<WorkFlowState>()(
       },
 
       updateNodeConfig: (updater: (draft: Flw.ProcessModel) => void) => {
+        if (get().readOnly) return;
         set((state) => {
           updater(state.processModel); // 在 draft.processModel 上执行 updater
         });

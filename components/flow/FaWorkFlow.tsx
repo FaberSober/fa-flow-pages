@@ -101,7 +101,7 @@ export default function FaWorkFlow({ flowProcess, processModel, onChange, render
       )}
     >
       <div className={clsx('sc-workflow-design', readOnly && 'sc-workflow-design-readonly')}>
-        <div className="box-scale" ref={element => { element?.toggleAttribute('inert', readOnly); }}>
+        <div className="box-scale">
           <NodeWrap node={processModel.nodeConfig} />
         </div>
       </div>

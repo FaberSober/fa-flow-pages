@@ -23,6 +23,7 @@ interface RouteProps extends Flw.BasicNodeProps {
 export default function Route({ node, parentNode, configOnly }: RouteProps) {
 
   const updateNode = useWorkFlowStore(state => state.updateNode);
+  const readOnly = useWorkFlowStore(state => state.readOnly);
 
   const { delNode } = useDelNode(node, parentNode);
 
@@ -34,6 +35,7 @@ export default function Route({ node, parentNode, configOnly }: RouteProps) {
   }, [node])
 
   function handleAddRoute() {
+    if (readOnly) return;
     const nodeNew = cloneDeep(node)
     const len = nodeNew.routeNodes!.length + 1
     nodeNew.routeNodes!.push({
@@ -48,12 +50,14 @@ export default function Route({ node, parentNode, configOnly }: RouteProps) {
   }
 
   function handleDelRoute(index: number) {
+    if (readOnly) return;
     const nodeNew = cloneDeep(node)
     nodeNew.routeNodes!.splice(index, 1)
     updateNode(nodeNew);
   }
 
   function handleRouteNodeChange(index: number, newRouteNode: Flw.ConditionNode) {
+    if (readOnly) return;
     const nodeNew = cloneDeep(node)
     nodeNew.routeNodes![index] = newRouteNode;
     updateNode(nodeNew);
@@ -65,12 +69,12 @@ export default function Route({ node, parentNode, configOnly }: RouteProps) {
         {node.routeNodes && node.routeNodes.map((routeNode, index) => {
           return (
             <div key={index}>
-              <RouteNode routeNode={routeNode} onDel={() => handleDelRoute(index)} onChange={(v) => handleRouteNodeChange(index, v)} />
+              <RouteNode routeNode={routeNode} readOnly={readOnly} onDel={() => handleDelRoute(index)} onChange={(v) => handleRouteNodeChange(index, v)} />
             </div>
           )
         })}
       </div>
-      <Button onClick={handleAddRoute} icon={<PlusOutlined />}>添加路由分支</Button>
+      <Button disabled={readOnly} onClick={handleAddRoute} icon={<PlusOutlined />}>添加路由分支</Button>
     </div>
   );
 
