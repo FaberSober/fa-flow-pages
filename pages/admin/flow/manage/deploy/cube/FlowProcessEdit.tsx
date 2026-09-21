@@ -1,10 +1,10 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { get } from 'lodash';
-import { Flow } from '@/types';
 import { Fa, FaFlexRestLayout, FaFullContentModal, FaUtils, useApiLoading } from '@fa/ui';
-import { Button, Modal, Steps, Form, Checkbox, Typography, message } from 'antd';
-import { flowProcessApi } from '@features/fa-flow-pages/services';
 import { FaWorkFlow } from '@features/fa-flow-pages/components';
+import { flowProcessApi } from '@features/fa-flow-pages/services';
+import { Button, Checkbox, Form, Modal, message, Splitter, Steps, Typography } from 'antd';
+import { get } from 'lodash';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Flow } from '@/types';
 import FlowProcessForm from './FlowProcessForm';
 
 const { Text } = Typography;
@@ -151,12 +151,22 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
           />
         </div>
         {current === 1 && (
-          <FaWorkFlow
-            flowProcess={data}
-            readOnly={viewOnly}
-            processModel={JSON.parse(data.modelContent)}
-            onChange={(v) => setData((prev) => ({ ...prev, modelContent: JSON.stringify(v) }))}
-          />
+          <Splitter className="fa-full-content" style={{ minWidth: 0, minHeight: 0 }}>
+            <Splitter.Panel>
+              <FaWorkFlow
+                flowProcess={data}
+                readOnly={viewOnly}
+                processModel={JSON.parse(data.modelContent)}
+                onChange={(v) => setData((prev) => ({ ...prev, modelContent: JSON.stringify(v) }))}
+              />
+            </Splitter.Panel>
+            <Splitter.Panel defaultSize={400} min={320} max="45%" collapsible>
+              <div className="fa-full fa-flex-column fa-bg-white fa-p12">
+                <div className="fa-h3 fa-mb12">节点配置</div>
+                <div className="fa-flex-1 fa-flex-center fa-text-light100">请从画布选择节点查看配置</div>
+              </div>
+            </Splitter.Panel>
+          </Splitter>
         )}
         <div
           className="fa-bg-white fa-mt12 fa-mb12 fa-radius"
