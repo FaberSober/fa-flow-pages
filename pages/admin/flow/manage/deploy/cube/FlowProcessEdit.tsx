@@ -7,6 +7,7 @@ import { get } from 'lodash';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Flow } from '@/types';
 import FlowProcessForm from './FlowProcessForm';
+import './FlowProcessEdit.scss';
 
 const { Text } = Typography;
 
@@ -126,8 +127,8 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
   }
 
   const editorContent = (
-    <div className="fa-full-content fa-flex-column fa-bg-grey2">
-      <FaFlexRestLayout className="fa-full-content fa-flex-column">
+    <div className="fa-full-content fa-flex-column fa-bg-grey2 fa-flow-process-editor">
+      <FaFlexRestLayout className="fa-full-content fa-flex-column fa-scroll-hidden" style={{ overflow: 'hidden' }}>
         <div
           className="fa-bg-white fa-mt12 fa-mb12 fa-radius"
           style={{
@@ -152,7 +153,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
           />
         </div>
         {current === 1 && (
-          <Splitter className="fa-full-content" style={{ minWidth: 0, minHeight: 0 }}>
+          <Splitter className="fa-full-content fa-flow-design-splitter" style={{ minWidth: 0, minHeight: 0 }}>
             <Splitter.Panel>
               <FaWorkFlow
                 flowProcess={data}
@@ -162,8 +163,8 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
               />
             </Splitter.Panel>
             <Splitter.Panel defaultSize={400} min={320} max="45%" collapsible>
-              <div className="fa-full fa-flex-column fa-bg-white fa-p12 fa-scroll-auto-y" style={{ minWidth: 0, minHeight: 0 }}>
-                <div className="fa-h3 fa-mb12">节点配置</div>
+              <div className="fa-full fa-flex-column fa-p12 fa-flow-node-config-panel">
+                <div className="fa-h3 fa-mb12 fa-flow-node-config-title">节点配置</div>
                 <NodeConfigPanel />
               </div>
             </Splitter.Panel>

@@ -1,0 +1,43 @@
+.fa-flow-process-editor {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fa-flow-design-splitter {
+  min-width: 0;
+  min-height: 0;
+  background: var(--fa-bg-grey2);
+
+  .ant-splitter-panel {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+
+.fa-flow-node-config-panel {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--fa-bg-color);
+  border-left: 1px solid var(--fa-border-color);
+  color: var(--fa-text-color);
+}
+
+.fa-flow-node-config-title {
+  flex: 0 0 auto;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--fa-border-color);
+}
+
+@media (max-width: 900px) {
+  .fa-flow-node-config-panel {
+    padding: 8px;
+  }
+
+  .fa-flow-node-config-title {
+    padding-bottom: 8px;
+  }
+}
