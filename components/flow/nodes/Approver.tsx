@@ -54,6 +54,9 @@ export default function Approver({ node, parentNode, configOnly }: ApproverProps
       return "发起人自己"
     } else if (nodeConfig.setType === NodeSetType.multiLevelSupervisors) {
       return "连续多级主管"
+    } else if (nodeConfig.setType === NodeSetType.designatedCandidate) {
+      const candidates = nodeConfig.nodeCandidate?.assignees || nodeConfig.nodeAssigneeList || [];
+      return candidates.length > 0 ? '候选人：' + candidates.map(item => item.name).join("、") : false;
     } else if (nodeConfig.setType === NodeSetType.code) {
       return "代码接口指定"
     }
@@ -65,15 +68,11 @@ export default function Approver({ node, parentNode, configOnly }: ApproverProps
   const configContent = (
     <div className="fa-full fa-flex-column" style={{ minWidth: 0 }}>
       <Tabs
-        // 基础设置,高级设置,表单权限,流程事件,流程通知,超时处理
+        // 当前后端契约支持的审批人配置
         className='fa-tabs-block'
         items={[
           { key: 'basic', label: '基础设置' },
-          { key: 'advance', label: '高级设置' },
           { key: 'formAuth', label: '表单权限' },
-          { key: 'flowEvent', label: '流程事件' },
-          { key: 'flowNotify', label: '流程通知' },
-          { key: 'overtime', label: '超时处理' },
         ]}
         activeKey={tab}
         onChange={setTab}
@@ -86,7 +85,6 @@ export default function Approver({ node, parentNode, configOnly }: ApproverProps
 
       <FaFlexRestLayout>
         {tab === 'basic' && (<ApproverNodeBasicForm node={node} />)}
-        {/* {tab === 'advance' && (<StartNodeAdvanceForm node={nodeCopy} />)} */}
         {tab === 'formAuth' && (<NodeFormAuth node={node} />)}
       </FaFlexRestLayout>
     </div>

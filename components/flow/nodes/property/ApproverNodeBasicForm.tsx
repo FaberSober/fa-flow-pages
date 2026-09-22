@@ -3,7 +3,6 @@ import { departmentApi, rbacRoleApi, userApi } from '@/services';
 import { Flw, FlwEnums } from '@/types';
 import { FaUtils, FormNumber, UserSearchSelect } from '@fa/ui';
 import { Checkbox, Divider, Form, Input, InputNumber, Radio } from 'antd';
-import { cloneDeep } from 'lodash';
 import { useEffect } from 'react';
 import { NodeSetTypeRadio } from '../../cubes';
 import { useWorkFlowStore } from '../../stores/useWorkFlowStore';
@@ -21,6 +20,9 @@ export interface ApproverNodeBasicFormProps {
  */
 export default function ApproverNodeBasicForm({ node }: ApproverNodeBasicFormProps) {
   const [form] = Form.useForm();
+  const setType = Form.useWatch('setType', form);
+  const directorMode = Form.useWatch('directorMode', form);
+  const termAuto = Form.useWatch('termAuto', form);
 
   const updateNode = useWorkFlowStore(state => state.updateNode);
   const readOnly = useWorkFlowStore(state => state.readOnly);
@@ -29,7 +31,10 @@ export default function ApproverNodeBasicForm({ node }: ApproverNodeBasicFormPro
     form.resetFields();
     const initValues: any = {
       ...node,
-      nodeAssigneeIds: node.nodeAssigneeList ? node.nodeAssigneeList.map(item => item.id) : [],
+      nodeAssigneeIds: node.setType === NodeSetType.designatedCandidate
+        ? []
+        : (node.nodeAssigneeList || []).map(item => item.id),
+      nodeCandidateIds: (node.nodeCandidate?.assignees || node.nodeAssigneeList || []).map(item => item.id),
     }
     if (initValues.setType === NodeSetType.code) {
       initValues.nodeAssigneeCodePath = node.extendConfig?.nodeAssigneeCodePath
@@ -39,30 +44,40 @@ export default function ApproverNodeBasicForm({ node }: ApproverNodeBasicFormPro
 
   async function onChange(fieldsValue: any) {
     try {
-      const { nodeAssigneeIds, nodeAssigneeCodePath, ...restFv } = fieldsValue;
+      const { nodeAssigneeIds = [], nodeCandidateIds = [], nodeAssigneeCodePath, ...restFv } = fieldsValue;
 
-      let nodeAssigneeList: Flw.FlowActor[] = []
-      if (nodeAssigneeIds && nodeAssigneeIds.length > 0) {
-        if (restFv.setType === NodeSetType.specifyMembers) {
-          const res = await userApi.getByIds(fieldsValue.nodeAssigneeIds);
-          nodeAssigneeList = res.data.map(i => ({ id: i.id, name: i.name }))
-        } else if (restFv.setType === NodeSetType.role) {
-          const res = await rbacRoleApi.getByIds(fieldsValue.nodeAssigneeIds);
-          nodeAssigneeList = res.data.map(i => ({ id: i.id, name: i.name }))
-        } else if (restFv.setType === NodeSetType.department) {
-          const res = await departmentApi.getByIds(fieldsValue.nodeAssigneeIds);
-          nodeAssigneeList = res.data.map(i => ({ id: i.id, name: i.name }))
-        }
+      let nodeAssigneeList: Flw.FlowActor[] = [];
+      let nodeCandidate: Flw.NodeCandidate | undefined;
+      if (restFv.setType === NodeSetType.specifyMembers && nodeAssigneeIds.length > 0) {
+        const res = await userApi.getByIds(nodeAssigneeIds);
+        nodeAssigneeList = res.data.map(i => ({ id: i.id, name: i.name }));
+      } else if (restFv.setType === NodeSetType.role && nodeAssigneeIds.length > 0) {
+        const res = await rbacRoleApi.getByIds(nodeAssigneeIds);
+        nodeAssigneeList = res.data.map(i => ({ id: i.id, name: i.name }));
+      } else if (restFv.setType === NodeSetType.department && nodeAssigneeIds.length > 0) {
+        const res = await departmentApi.getByIds(nodeAssigneeIds);
+        nodeAssigneeList = res.data.map(i => ({ id: i.id, name: i.name }));
+      } else if (restFv.setType === NodeSetType.designatedCandidate && nodeCandidateIds.length > 0) {
+        const res = await userApi.getByIds(nodeCandidateIds);
+        nodeAssigneeList = res.data.map(i => ({ id: i.id, name: i.name }));
+        nodeCandidate = {
+          ...node.nodeCandidate,
+          assignees: nodeAssigneeList,
+        };
       }
 
       const nodeNew = {
         ...node,
         ...restFv,
         nodeAssigneeList,
+        nodeCandidate,
         extendConfig: {
           ...node.extendConfig,
           ...(nodeAssigneeCodePath === undefined ? {} : { nodeAssigneeCodePath }),
         },
+      }
+      if (restFv.setType !== NodeSetType.code) {
+        delete nodeNew.extendConfig?.nodeAssigneeCodePath;
       }
       delete (nodeNew as Flw.Node & { nodeAssigneeCodePath?: string }).nodeAssigneeCodePath;
       updateNode(nodeNew);
@@ -74,39 +89,39 @@ export default function ApproverNodeBasicForm({ node }: ApproverNodeBasicFormPro
   return (
     <Form form={form} layout="vertical" disabled={readOnly} className='fa-p12'
       onValuesChange={(cv, av) => {
-        console.log('cv, av', cv, av)
-        const avClone = cloneDeep(av)
+        const values = { ...av };
         if (FaUtils.hasAnyProp(cv, ['setType'])) {
-          form.setFieldsValue({ nodeAssigneeIds: [] })
-          avClone.nodeAssigneeIds = []
+          form.setFieldsValue({ nodeAssigneeIds: [], nodeCandidateIds: [] });
+          values.nodeAssigneeIds = [];
+          values.nodeCandidateIds = [];
         }
-        onChange(avClone)
+        onChange(values)
       }}
     >
       <Form.Item name="setType" label="审批人员类型" rules={[{ required: true }]}>
         <NodeSetTypeRadio />
       </Form.Item>
-      {node.setType === NodeSetType.specifyMembers && (
+      {setType === NodeSetType.specifyMembers && (
         <Form.Item name="nodeAssigneeIds" label="审批人员" rules={[{ required: true }]}>
           <UserSearchSelect mode="multiple" />
         </Form.Item>
       )}
-      {node.setType === NodeSetType.supervisor && (
+      {setType === NodeSetType.supervisor && (
         <Form.Item name="examineLevel" label="指定主管" rules={[{ required: true }]}>
           <InputNumber style={{ width: 230 }} addonBefore="发起人的第" addonAfter="级主管" min={1} max={100} changeOnWheel />
         </Form.Item>
       )}
-      {node.setType === NodeSetType.role && (
+      {setType === NodeSetType.role && (
         <Form.Item name="nodeAssigneeIds" label="选择角色" rules={[{ required: true }]}>
           <RbacRoleSelect mode="multiple" />
         </Form.Item>
       )}
-      {node.setType === NodeSetType.department && (
+      {setType === NodeSetType.department && (
         <Form.Item name="nodeAssigneeIds" label="选择部门" rules={[{ required: true }]}>
           <DepartmentCascade multiple changeOnSelect={false} />
         </Form.Item>
       )}
-      {node.setType === NodeSetType.initiatorSelected && (
+      {setType === NodeSetType.initiatorSelected && (
         <Form.Item name="selectMode" label="发起人自选">
           <Radio.Group
             options={[
@@ -116,7 +131,7 @@ export default function ApproverNodeBasicForm({ node }: ApproverNodeBasicFormPro
           />
         </Form.Item>
       )}
-      {node.setType === NodeSetType.multiLevelSupervisors && (
+      {setType === NodeSetType.multiLevelSupervisors && (
         <>
           <Form.Item name="directorMode" label="连续主管审批终点">
             <Radio.Group
@@ -126,14 +141,19 @@ export default function ApproverNodeBasicForm({ node }: ApproverNodeBasicFormPro
               ]}
             />
           </Form.Item>
-          {node.directorMode === 1 && (
+          {directorMode === 1 && (
             <Form.Item name="directorLevel" label="指定主管" rules={[{ required: true }]}>
               <FormNumber style={{ width: 230 }} addonBefore="直到发起人的第" addonAfter="级主管" min={1} max={100} changeOnWheel />
             </Form.Item>
           )}
         </>
       )}
-      {node.setType === NodeSetType.code && (
+      {setType === NodeSetType.designatedCandidate && (
+        <Form.Item name="nodeCandidateIds" label="候选人" rules={[{ required: true }]}>
+          <UserSearchSelect mode="multiple" />
+        </Form.Item>
+      )}
+      {setType === NodeSetType.code && (
         <Form.Item name="nodeAssigneeCodePath" label="代码接口" rules={[{ required: true }]}>
           <Input placeholder='请输入代码接口地址' />
         </Form.Item>
@@ -144,7 +164,7 @@ export default function ApproverNodeBasicForm({ node }: ApproverNodeBasicFormPro
       <Form.Item name="termAuto" valuePropName="checked">
         <Checkbox>超时自动审批</Checkbox>
       </Form.Item>
-      {node.termAuto && (
+      {termAuto && (
         <>
           <Form.Item name="term" label="审批期限" tooltip="为 0 则不生效" rules={[{ required: true }]}>
             <FormNumber style={{ width: 230 }} addonAfter="小时" min={0} max={1000} changeOnWheel />
