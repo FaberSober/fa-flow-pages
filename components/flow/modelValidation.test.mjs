@@ -60,6 +60,34 @@ test('rejects incomplete approval and timer configuration', () => {
   assert.match(timerResult.errors[0], /固定时长/);
 });
 
+test('validates approval rule configuration including vote weight', () => {
+  const model = simpleModel();
+  model.nodeConfig.childNode = {
+    nodeName: '审批',
+    nodeKey: 'approval',
+    type: 1,
+    setType: 1,
+    nodeAssigneeList: [{ id: 'u1', name: '审批人' }],
+    examineMode: 4,
+    passWeight: 50,
+    groupStrategy: 0,
+    termAuto: true,
+    term: 8,
+    termMode: 1,
+    remind: true,
+    approveSelf: 1,
+    rejectStrategy: 2,
+    rejectStart: 1,
+    childNode: { nodeName: '结束', nodeKey: 'end', type: -1 },
+  };
+  assert.equal(validateProcessModel(model).valid, true);
+
+  model.nodeConfig.childNode.passWeight = 101;
+  const result = validateProcessModel(model);
+  assert.equal(result.valid, false);
+  assert.match(result.errors[0], /票签通过比例/);
+});
+
 test('rejects a route that points to a missing node', () => {
   const model = simpleModel();
   model.nodeConfig.childNode = {

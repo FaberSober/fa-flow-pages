@@ -40,7 +40,13 @@ export default function AddNode({parentNode}: AddNodeProps) {
           term: 0,			//审批期限
           termMode: 1,		//审批期限超时后执行类型
           examineMode: 1,		//多人审批时审批方式
+          groupStrategy: 0,		//角色、部门审批策略
+          passWeight: 50,		//票签通过比例
           directorMode: 0,	//连续主管审批方式
+          remind: false,		//审批提醒
+          approveSelf: 1,		//审批人与提交人为同一人时自动跳过
+          rejectStrategy: 2,	//驳回到上一节点
+          rejectStart: 1,		//驳回后继续往下执行
           childNode: parentNode.childNode,
           extendConfig: {
             btnSubmitValid: true,

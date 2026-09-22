@@ -164,6 +164,28 @@ function validateApprovalNode(node: JsonObject, path: string, context: Validatio
       addError(context.errors, `${path}.termMode`, '超时处理方式不合法');
     }
   }
+
+  if (node.examineMode !== undefined && ![1, 2, 3, 4].includes(integer(node.examineMode) ?? -1)) {
+    addError(context.errors, `${path}.examineMode`, '多人审批方式不合法');
+  }
+  if (node.examineMode === 4 && (!integer(node.passWeight) || Number(node.passWeight) < 1 || Number(node.passWeight) > 100)) {
+    addError(context.errors, `${path}.passWeight`, '票签通过比例必须在 1 到 100 之间');
+  }
+  if (node.groupStrategy !== undefined && ![0, 1].includes(integer(node.groupStrategy) ?? -1)) {
+    addError(context.errors, `${path}.groupStrategy`, '多人处理方式不合法');
+  }
+  if (node.remind !== undefined && typeof node.remind !== 'boolean') {
+    addError(context.errors, `${path}.remind`, '审批提醒必须是布尔值');
+  }
+  if (node.approveSelf !== undefined && ![0, 1, 2, 3].includes(integer(node.approveSelf) ?? -1)) {
+    addError(context.errors, `${path}.approveSelf`, '同人审批策略不合法');
+  }
+  if (node.rejectStrategy !== undefined && ![1, 2, 3, 4, 5].includes(integer(node.rejectStrategy) ?? -1)) {
+    addError(context.errors, `${path}.rejectStrategy`, '驳回策略不合法');
+  }
+  if (node.rejectStart !== undefined && ![1, 2].includes(integer(node.rejectStart) ?? -1)) {
+    addError(context.errors, `${path}.rejectStart`, '驳回重新审批策略不合法');
+  }
 }
 
 function validateTimer(node: JsonObject, path: string, context: ValidationContext) {

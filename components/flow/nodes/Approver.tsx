@@ -7,6 +7,7 @@ import { Tabs } from "antd";
 import { useMemo, useState } from 'react';
 import { useDelNode } from "../hooks";
 import ApproverNodeBasicForm from './property/ApproverNodeBasicForm';
+import ApproverNodeRuleForm from './property/ApproverNodeRuleForm';
 import NodeFormAuth from './property/NodeFormAuth';
 
 const { NodeSetType } = FlwEnums;
@@ -72,6 +73,7 @@ export default function Approver({ node, parentNode, configOnly }: ApproverProps
         className='fa-tabs-block'
         items={[
           { key: 'basic', label: '基础设置' },
+          { key: 'rule', label: '审批规则' },
           { key: 'formAuth', label: '表单权限' },
         ]}
         activeKey={tab}
@@ -85,6 +87,7 @@ export default function Approver({ node, parentNode, configOnly }: ApproverProps
 
       <FaFlexRestLayout>
         {tab === 'basic' && (<ApproverNodeBasicForm node={node} />)}
+        {tab === 'rule' && (<ApproverNodeRuleForm node={node} />)}
         {tab === 'formAuth' && (<NodeFormAuth node={node} />)}
       </FaFlexRestLayout>
     </div>

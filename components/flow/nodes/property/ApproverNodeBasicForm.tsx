@@ -2,7 +2,7 @@ import { DepartmentCascade, RbacRoleSelect } from '@/components';
 import { departmentApi, rbacRoleApi, userApi } from '@/services';
 import { Flw, FlwEnums } from '@/types';
 import { FaUtils, FormNumber, UserSearchSelect } from '@fa/ui';
-import { Checkbox, Divider, Form, Input, InputNumber, Radio } from 'antd';
+import { Form, Input, InputNumber, Radio } from 'antd';
 import { useEffect } from 'react';
 import { NodeSetTypeRadio } from '../../cubes';
 import { useWorkFlowStore } from '../../stores/useWorkFlowStore';
@@ -22,7 +22,6 @@ export default function ApproverNodeBasicForm({ node }: ApproverNodeBasicFormPro
   const [form] = Form.useForm();
   const setType = Form.useWatch('setType', form);
   const directorMode = Form.useWatch('directorMode', form);
-  const termAuto = Form.useWatch('termAuto', form);
 
   const updateNode = useWorkFlowStore(state => state.updateNode);
   const readOnly = useWorkFlowStore(state => state.readOnly);
@@ -159,39 +158,6 @@ export default function ApproverNodeBasicForm({ node }: ApproverNodeBasicFormPro
         </Form.Item>
       )}
 
-      <Divider />
-
-      <Form.Item name="termAuto" valuePropName="checked">
-        <Checkbox>超时自动审批</Checkbox>
-      </Form.Item>
-      {termAuto && (
-        <>
-          <Form.Item name="term" label="审批期限" tooltip="为 0 则不生效" rules={[{ required: true }]}>
-            <FormNumber style={{ width: 230 }} addonAfter="小时" min={0} max={1000} changeOnWheel />
-          </Form.Item>
-          <Form.Item name="termMode" label="审批期限超时后执行">
-            <Radio.Group
-              options={[
-                { label: '自动通过', value: 0 },
-                { label: '自动拒绝', value: 1 },
-              ]}
-            />
-          </Form.Item>
-        </>
-      )}
-
-      <Divider />
-
-      <Form.Item name="examineMode" label="多人审批时审批方式" rules={[{ required: true }]}>
-        <Radio.Group
-          style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
-          options={[
-            { label: '按顺序依次审批', value: 1 },
-            { label: '会签 (可同时审批，每个人必须审批通过)', value: 2 },
-            { label: '或签 (有一人审批通过即可)', value: 3 },
-          ]}
-        />
-      </Form.Item>
     </Form>
   );
 }
