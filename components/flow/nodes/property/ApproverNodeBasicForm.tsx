@@ -3,7 +3,7 @@ import { departmentApi, rbacRoleApi, userApi } from '@/services';
 import { Flw, FlwEnums } from '@/types';
 import { FaUtils, FormNumber, UserSearchSelect } from '@fa/ui';
 import { Checkbox, Divider, Form, Input, InputNumber, Radio } from 'antd';
-import { cloneDeep, get } from 'lodash';
+import { cloneDeep } from 'lodash';
 import { useEffect } from 'react';
 import { NodeSetTypeRadio } from '../../cubes';
 import { useWorkFlowStore } from '../../stores/useWorkFlowStore';
@@ -26,19 +26,20 @@ export default function ApproverNodeBasicForm({ node }: ApproverNodeBasicFormPro
   const readOnly = useWorkFlowStore(state => state.readOnly);
 
   useEffect(() => {
+    form.resetFields();
     const initValues: any = {
       ...node,
       nodeAssigneeIds: node.nodeAssigneeList ? node.nodeAssigneeList.map(item => item.id) : [],
     }
     if (initValues.setType === NodeSetType.code) {
-      initValues.nodeAssigneeCodePath = get(node, 'extendConfig.nodeAssigneeCodePath')
+      initValues.nodeAssigneeCodePath = node.extendConfig?.nodeAssigneeCodePath
     }
     form.setFieldsValue(initValues)
-  }, []);
+  }, [form, node]);
 
   async function onChange(fieldsValue: any) {
     try {
-      const { nodeAssigneeIds, ...restFv } = fieldsValue;
+      const { nodeAssigneeIds, nodeAssigneeCodePath, ...restFv } = fieldsValue;
 
       let nodeAssigneeList: Flw.FlowActor[] = []
       if (nodeAssigneeIds && nodeAssigneeIds.length > 0) {
@@ -58,7 +59,12 @@ export default function ApproverNodeBasicForm({ node }: ApproverNodeBasicFormPro
         ...node,
         ...restFv,
         nodeAssigneeList,
+        extendConfig: {
+          ...node.extendConfig,
+          ...(nodeAssigneeCodePath === undefined ? {} : { nodeAssigneeCodePath }),
+        },
       }
+      delete (nodeNew as Flw.Node & { nodeAssigneeCodePath?: string }).nodeAssigneeCodePath;
       updateNode(nodeNew);
     } catch (e) {
       console.error(e);

@@ -3,7 +3,6 @@ import { Checkbox, Form, Input, Radio, Select, Switch } from 'antd';
 import React, { useEffect } from 'react';
 import { useWorkFlowStore } from '../../stores/useWorkFlowStore';
 import './index.scss'
-import { useNode } from '../../hooks';
 
 
 export interface StartNodeAdvanceFormProps {
@@ -20,14 +19,9 @@ export default function StartNodeAdvanceForm({ node }: StartNodeAdvanceFormProps
   const updateNode = useWorkFlowStore(state => state.updateNode);
   const readOnly = useWorkFlowStore(state => state.readOnly);
 
-  const { nodeCopy, setNodeCopy } = useNode(node)
-
-  useEffect(() => {
-    console.log('node change', node)
-  }, [node]);
-
   useEffect(() => {
     const extendConfig = node.extendConfig || {}
+    form.resetFields();
     form.setFieldsValue({
       btnSubmitValid: extendConfig.btnSubmitValid,
       btnSubmitText: extendConfig.btnSubmitText,
@@ -50,13 +44,12 @@ export default function StartNodeAdvanceForm({ node }: StartNodeAdvanceFormProps
   async function onChange(av: any) {
     try {
       const nodeNew = {
-        ...nodeCopy,
+        ...node,
         extendConfig: {
-          ...nodeCopy.extendConfig,
+          ...node.extendConfig,
           ...av,
         }
       }
-      setNodeCopy(nodeNew)
       updateNode(nodeNew);
     } catch (e) {
       console.error(e)

@@ -20,10 +20,11 @@ export default function StartNodeBasicForm({ node }: StartNodeBasicFormProps) {
   const readOnly = useWorkFlowStore(state => state.readOnly);
 
   useEffect(() => {
+    form.resetFields();
     form.setFieldsValue({
       nodeAssigneeIds: (node.nodeAssigneeList||[]).map(i => i.id),
     })
-  }, []);
+  }, [form, node]);
 
   async function onChange(fieldsValue: any) {
     try {

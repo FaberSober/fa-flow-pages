@@ -2,11 +2,15 @@ import { FaIconPro } from "@/components";
 import { useWorkFlowStore } from "@features/fa-flow-pages/components/flow/stores/useWorkFlowStore";
 import { Flw, FlwEnums } from "@features/fa-flow-pages/types";
 import { Form, Input, InputNumber, Radio, Select, Space, TimePicker } from "antd";
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { get } from "lodash";
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { NodeCloseBtn } from '../cubes';
 import { useDelNode } from "../hooks";
 import AddNode from './AddNode';
+
+dayjs.extend(customParseFormat);
 
 
 /**
@@ -20,6 +24,7 @@ interface TriggerProps extends Flw.BasicNodeProps {
 
 export default function Trigger({ node, parentNode, configOnly }: TriggerProps) {
 
+  const [form] = Form.useForm();
   const updateNode = useWorkFlowStore(state => state.updateNode);
   const readOnly = useWorkFlowStore(state => state.readOnly);
 
@@ -62,20 +67,26 @@ export default function Trigger({ node, parentNode, configOnly }: TriggerProps) 
   }, [node])
 
   const time = get(node, 'extendConfig.time');
+  useEffect(() => {
+    const fixedTime = time?.match(/^(\d+):([dhm])$/);
+    form.resetFields();
+    form.setFieldsValue({
+      triggerType: node.triggerType,
+      delayType: node.delayType,
+      args: get(node, 'extendConfig.args'),
+      trigger: get(node, 'extendConfig.trigger'),
+      timeNum: node.delayType === FlwEnums.NodeDelayType.FIXED && fixedTime ? Number(fixedTime[1]) : undefined,
+      timeType: node.delayType === FlwEnums.NodeDelayType.FIXED && fixedTime ? fixedTime[2] : undefined,
+      timeCal: node.delayType === FlwEnums.NodeDelayType.CAL && time ? dayjs(time, 'HH:mm:ss') : undefined,
+    });
+  }, [form, node, time]);
+
   const configContent = (
     <Form
+      form={form}
       layout="vertical"
       className="fa-flex-column fa-full"
       disabled={readOnly}
-      initialValues={{
-        triggerType: node.triggerType,
-        delayType: node.delayType,
-        args: get(node, 'extendConfig.args'),
-        trigger: get(node, 'extendConfig.trigger'),
-        timeNum: time ? parseInt(time, 10) : undefined,
-        timeType: time ? time.replace(/^\d+:/, '') : undefined,
-        timeCal: node.delayType === FlwEnums.NodeDelayType.CAL ? time : undefined,
-      }}
       onValuesChange={(_cv, av) => {
         handleValuesChange(av)
       }}
