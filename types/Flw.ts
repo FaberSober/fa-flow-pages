@@ -19,6 +19,9 @@ namespace Flw {
   export interface FlowActor {
     id: string;
     name: string;
+    tenantId?: string;
+    weight?: number;
+    extendConfig?: Record<string, any>;
   }
 
   export type ParentNode = Node | ConditionNode
@@ -37,14 +40,20 @@ namespace Flw {
     nodeName?: string;
     /** 节点 key */
     nodeKey: string;
+    /** 节点状态，FlowLong 运行时字段 */
+    nodeState?: number;
     /** 调用外部流程 */
     callProcess?: string;
     /** 是否异步调用【例如：子流程该参数为 true 则为异步子流程】 */
     callAsync?: boolean;
+    /** AI 路由处理器标识 */
+    callAi?: string;
     /** 任务关联的表单url */
     actionUrl?: string;
     /** 审核分配到任务的处理者，过 setType 区分个人角色或部门 */
     nodeAssigneeList?: FlowActor[];
+    /** 指定候选人配置 */
+    nodeCandidate?: NodeCandidate;
     /** 指定主管层级 */
     examineLevel?: number;
     /**
@@ -102,6 +111,8 @@ namespace Flw {
     routeNodes?: ConditionNode[];
     /** 审批提醒 */
     remind?: boolean;
+    /** 是否由当前处理人继续处理任务 */
+    asHandler?: boolean;
     /** 允许发起人自选抄送人 */
     allowSelection?: boolean;
     /** 允许转交 */
@@ -118,7 +129,7 @@ namespace Flw {
      */
     approveSelf?: number;
     /** 扩展配置，用于存储表单权限、操作权限 等控制参数配置 */
-    extendConfig: NodeExtendConfig;
+    extendConfig?: NodeExtendConfig;
     /** 子节点 */
     childNode?: Node;
     /** 父节点 */
@@ -134,6 +145,12 @@ namespace Flw {
      * 2，自动计算: "time": "17:02:53"
      */
     delayType?: FlwEnums.NodeDelayType;
+  }
+
+  /** FlowLong 1.2.7 候选人配置 */
+  export interface NodeCandidate {
+    type?: number;
+    assignees?: FlowActor[];
   }
 
   export interface NodeExtendConfig {
@@ -187,7 +204,8 @@ namespace Flw {
      * 1. 条件模式：默认/标准模式。通过解析 conditionList 里的字段、操作符和值来决定分支去向。
      * 2. 默认分支：Else/Default 模式。当其他所有分支的条件都不满足时，强制走这个分支（通常用于兜底）。
      */
-    conditionMode: number;
+    /** 仅作为旧设计器扩展字段，FlowLong 1.2.7 不解析该字段 */
+    conditionMode?: number;
     /**
      * 节点条件表达式列表
      * 外层 Array 为条件组或关系、内层 Array 为具体条件且关系

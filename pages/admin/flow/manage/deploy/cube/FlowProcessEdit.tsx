@@ -1,5 +1,6 @@
 import { Fa, FaFlexRestLayout, FaFullContentModal, FaUtils, useApiLoading } from '@fa/ui';
 import { FaWorkFlow } from '@features/fa-flow-pages/components';
+import { validateProcessModelContent } from '@features/fa-flow-pages/components/flow/modelValidation';
 import NodeConfigPanel from '@features/fa-flow-pages/components/flow/NodeConfigPanel';
 import { flowProcessApi } from '@features/fa-flow-pages/services';
 import { Button, Checkbox, Form, Modal, message, Splitter, Steps, Typography } from 'antd';
@@ -91,6 +92,14 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
         ...formValues,
         ...extendValues,
       };
+
+      const modelValidation = validateProcessModelContent(publishData.modelContent, publishData.processKey);
+      if (!modelValidation.valid) {
+        publishConfirmOpen.current = false;
+        setCurrent(1);
+        message.error(`流程模型校验失败：${modelValidation.errors[0]}`);
+        return;
+      }
 
       Modal.confirm({
         title: '发布流程',
