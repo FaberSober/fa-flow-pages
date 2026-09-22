@@ -29,15 +29,12 @@ export default function Promoter({ node, configOnly }: PromoterProps) {
   const configContent = (
     <div className="fa-full fa-flex-column" style={{ minWidth: 0 }}>
       <Tabs
-        // 基础设置,高级设置,表单权限,流程事件,流程通知,超时处理
+        // 当前后端契约支持的发起节点配置
         className='fa-tabs-block'
         items={[
           { key: 'basic', label: '基础设置' },
           { key: 'advance', label: '高级设置' },
           { key: 'formAuth', label: '表单权限' },
-          { key: 'flowEvent', label: '流程事件' },
-          { key: 'flowNotify', label: '流程通知' },
-          { key: 'overtime', label: '超时处理' },
         ]}
         activeKey={tab}
         onChange={setTab}
