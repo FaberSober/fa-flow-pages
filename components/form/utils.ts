@@ -1,4 +1,18 @@
-import { Flow } from '@/types';
+import { Flow, Flw } from '@/types';
+
+export function getFormItemAuth(
+  flowNode: Flw.Node | undefined,
+  formItemId: string,
+  disabled = false,
+): Flw.NodeExtendConfigFormAuth {
+  const auth = flowNode?.extendConfig?.formAuth?.[formItemId];
+  return {
+    name: auth?.name,
+    view: auth?.view ?? true,
+    edit: disabled ? false : auth?.edit ?? true,
+    required: disabled ? false : auth?.required ?? false,
+  };
+}
 
 /**
  * 递归查找表单项

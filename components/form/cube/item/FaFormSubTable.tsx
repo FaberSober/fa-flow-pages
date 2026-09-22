@@ -1,4 +1,4 @@
-import { Flow } from '@/types';
+import { Flow, Flw } from '@/types';
 import { DepartmentCascade, UserSearchSelect } from '@/components';
 import { Button, Cascader, Checkbox, ColorPicker, DatePicker, Input, InputNumber, Popconfirm, Radio, Rate, Select, Slider, Switch, Table, TimePicker } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { FaUtils } from '@fa/ui';
 import dayjs from 'dayjs';
+import { getFormItemAuth } from '../../utils';
 
 
 export interface FaFormSubTableProps {
@@ -14,13 +15,17 @@ export interface FaFormSubTableProps {
   value?: any[];
   /** 更新Form表单数值 */
   onChange?: (v: any[]) => void;
+  /** 流程节点，用于读取子表字段权限 */
+  flowNode?: Flw.Node;
+  /** 是否禁止编辑子表 */
+  disabled?: boolean;
 }
 
 /**
  * @author xu.pengfei
  * @date 2026-02-01 20:38:53
  */
-export default function FaFormSubTable({ formItem, value, onChange }: FaFormSubTableProps) {
+export default function FaFormSubTable({ formItem, value, onChange, flowNode, disabled = false }: FaFormSubTableProps) {
   // 数据源状态
   const [dataSource, setDataSource] = useState<any[]>([]);
 
@@ -68,35 +73,38 @@ export default function FaFormSubTable({ formItem, value, onChange }: FaFormSubT
 
   // 根据字段类型渲染可编辑单元格
   const renderEditableCell = (child: Flow.FlowFormItem, record: any, index: number) => {
+    const auth = getFormItemAuth(flowNode, child.id, disabled);
+    if (!auth.view) return null;
     const fieldName = child.name || child.id;
     const value = record[fieldName];
     const onChange = (val: any) => handleCellChange(index, fieldName, val);
 
     switch (child.type) {
       case 'input':
-        return <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={child.placeholder} />;
+        return <Input disabled={!auth.edit} value={value} onChange={(e) => onChange(e.target.value)} placeholder={child.placeholder} />;
       
       case 'inputnumber':
-        return <InputNumber value={value} onChange={onChange} placeholder={child.placeholder} style={{ width: '100%' }} />;
+        return <InputNumber disabled={!auth.edit} value={value} onChange={onChange} placeholder={child.placeholder} style={{ width: '100%' }} />;
       
       case 'textarea':
-        return <Input.TextArea value={value} onChange={(e) => onChange(e.target.value)} placeholder={child.placeholder} rows={2} />;
+        return <Input.TextArea disabled={!auth.edit} value={value} onChange={(e) => onChange(e.target.value)} placeholder={child.placeholder} rows={2} />;
       
       case 'select':
-        return <Select value={value} onChange={onChange} placeholder={child.placeholder} style={{ width: '100%' }} />;
+        return <Select disabled={!auth.edit} value={value} onChange={onChange} placeholder={child.placeholder} style={{ width: '100%' }} />;
       
       case 'cascader':
-        return <Cascader value={value} onChange={onChange} placeholder={child.placeholder} style={{ width: '100%' }} />;
+        return <Cascader disabled={!auth.edit} value={value} onChange={onChange} placeholder={child.placeholder} style={{ width: '100%' }} />;
       
       case 'checkbox':
-        return <Checkbox checked={value} onChange={(e) => onChange(e.target.checked)}>{child.placeholder || '勾选'}</Checkbox>;
+        return <Checkbox disabled={!auth.edit} checked={value} onChange={(e) => onChange(e.target.checked)}>{child.placeholder || '勾选'}</Checkbox>;
       
       case 'radio':
-        return <Radio.Group value={value} onChange={(e) => onChange(e.target.value)} />;
+        return <Radio.Group disabled={!auth.edit} value={value} onChange={(e) => onChange(e.target.value)} />;
       
       case 'datepicker':
         return (
           <DatePicker 
+            disabled={!auth.edit}
             value={value ? dayjs(value) : undefined} 
             onChange={(date) => onChange(date ? date.format('YYYY-MM-DD') : undefined)} 
             style={{ width: '100%' }} 
@@ -106,6 +114,7 @@ export default function FaFormSubTable({ formItem, value, onChange }: FaFormSubT
       case 'timepicker':
         return (
           <TimePicker 
+            disabled={!auth.edit}
             value={value ? dayjs(value, 'HH:mm:ss') : undefined} 
             onChange={(time) => onChange(time ? time.format('HH:mm:ss') : undefined)} 
             style={{ width: '100%' }} 
@@ -113,31 +122,36 @@ export default function FaFormSubTable({ formItem, value, onChange }: FaFormSubT
         );
       
       case 'switch':
-        return <Switch checked={value} onChange={onChange} />;
+        return <Switch disabled={!auth.edit} checked={value} onChange={onChange} />;
       
       case 'rating':
-        return <Rate value={value} onChange={onChange} />;
+        return <Rate disabled={!auth.edit} value={value} onChange={onChange} />;
       
       case 'slider':
-        return <Slider value={value} onChange={onChange} style={{ width: '100%' }} />;
+        return <Slider disabled={!auth.edit} value={value} onChange={onChange} style={{ width: '100%' }} />;
       
       case 'colorpicker':
-        return <ColorPicker value={value} onChange={onChange} showText />;
+        return <ColorPicker disabled={!auth.edit} value={value} onChange={onChange} showText />;
       
       case 'biz_user_select':
-        return <UserSearchSelect value={value} onChange={onChange} placeholder={child.placeholder || '请选择用户'} />;
+        return <UserSearchSelect disabled={!auth.edit} value={value} onChange={onChange} placeholder={child.placeholder || '请选择用户'} />;
       
       case 'biz_dept_select':
-        return <DepartmentCascade value={value} onChange={onChange} placeholder={child.placeholder || '请选择部门'} />;
+        return <DepartmentCascade disabled={!auth.edit} value={value} onChange={onChange} placeholder={child.placeholder || '请选择部门'} />;
       
       default:
-        return <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={child.placeholder} />;
+        return <Input disabled={!auth.edit} value={value} onChange={(e) => onChange(e.target.value)} placeholder={child.placeholder} />;
     }
   };
 
+  const canEdit = !disabled && (formItem.children || []).some((child) => {
+    const auth = getFormItemAuth(flowNode, child.id, disabled);
+    return auth.view && auth.edit;
+  });
+
   // 根据 formItem.children 生成表格列配置
   const columns: ColumnsType<any> = useMemo(() => {
-    const childColumns = formItem.children?.map((child) => ({
+    const childColumns = formItem.children?.filter((child) => getFormItemAuth(flowNode, child.id, disabled).view).map((child) => ({
       title: child.label || '列',
       dataIndex: child.name || child.id,
       key: child.id,
@@ -167,13 +181,13 @@ export default function FaFormSubTable({ formItem, value, onChange }: FaFormSubT
           okText="确定"
           cancelText="取消"
         >
-          <Button type="link" danger icon={<DeleteOutlined />} />
+          <Button disabled={!canEdit} type="link" danger icon={<DeleteOutlined />} />
         </Popconfirm>
       ),
     };
 
     return [indexColumn, ...childColumns, actionColumn];
-  }, [formItem.children, dataSource]);
+  }, [formItem.children, dataSource, flowNode, disabled, canEdit]);
 
   return (
     <div className='fa-flex-column'>
@@ -189,8 +203,9 @@ export default function FaFormSubTable({ formItem, value, onChange }: FaFormSubT
         rowKey="_key"
       />
 
-      <Button 
-        icon={<PlusOutlined />} 
+      <Button
+        disabled={!canEdit}
+        icon={<PlusOutlined />}
         onClick={handleAdd}
         style={{ marginTop: 8 }}
       >

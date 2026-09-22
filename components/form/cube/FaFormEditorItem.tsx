@@ -17,11 +17,11 @@ import {
   Switch,
   TimePicker
 } from 'antd';
-import { get } from 'lodash';
 import { useMemo } from 'react';
 import { FaFormItemsDecoratorTypes } from '../config';
 import FaFormDragLayout from '../FaFormDragLayout';
 import { useFaFormStore } from '../stores/useFaFormStore';
+import { getFormItemAuth } from '../utils';
 import FaFormItemDecoAlert from './item/FaFormItemDecoAlert';
 import FaFormItemDecoHr from './item/FaFormItemDecoHr';
 import FaFormItemDecoHref from './item/FaFormItemDecoHref';
@@ -44,16 +44,7 @@ export interface FaFormEditorItemProps {
 export default function FaFormEditorItem({ formItem, flowNode, disabled, showMode }: FaFormEditorItemProps) {
 
   const formItemConfig: Flw.NodeExtendConfigFormAuth = useMemo(() => {
-    const defaultConfig = { view: true, edit: disabled ? false : true, required: disabled ? false : false };
-    if (!flowNode) return defaultConfig;
-    const formAuth = flowNode.extendConfig?.formAuth || {};
-    const formItemAuth = formAuth[formItem.id || ''];
-    if (!formItemAuth) return defaultConfig;
-    return {
-      view: get(formItemAuth, 'view', true),
-      edit: disabled ? false : get(formItemAuth, 'edit', true),
-      required: disabled ? false : get(formItemAuth, 'required', false),
-    };
+    return getFormItemAuth(flowNode, formItem.id || '', disabled);
   }, [formItem, flowNode, disabled]);
   // console.log('formItemConfig', formItem.name, flowNode, formItemConfig);
 
@@ -69,12 +60,27 @@ export default function FaFormEditorItem({ formItem, flowNode, disabled, showMod
 
   if (formItem.type === 'high_subtable') {
     const updateFormItemChildren = useFaFormStore((state) => state.updateFormItemChildren);
+    const requiredChildren = editable
+      ? (formItem.children || []).filter((child) => {
+        const auth = getFormItemAuth(flowNode, child.id, disabled);
+        return auth.view && auth.edit && auth.required;
+      })
+      : [];
+    const subTableRules = requiredChildren.length > 0 ? [{
+      validator: (_: unknown, value: any[] = []) => {
+        const hasMissingValue = value.some((row) => requiredChildren.some((child) => {
+          const fieldValue = row?.[child.name || child.id];
+          return fieldValue === undefined || fieldValue === null || fieldValue === '' || (Array.isArray(fieldValue) && fieldValue.length === 0);
+        }));
+        return hasMissingValue ? Promise.reject(new Error('请完善子表必填字段')) : Promise.resolve();
+      },
+    }] : undefined;
     
     // 展示模式:使用 FaFormShowLayout
     if (showMode) {
       return (
-        <Form.Item name={formItem.name}>
-          <FaFormSubTable formItem={formItem} />
+        <Form.Item name={formItem.name} rules={subTableRules}>
+          <FaFormSubTable formItem={formItem} flowNode={flowNode} disabled={!editable} />
         </Form.Item>
       );
     }
