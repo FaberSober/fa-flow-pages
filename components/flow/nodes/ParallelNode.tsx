@@ -26,7 +26,9 @@ export default function ParallelNode({ node, onDel, conditionText, configOnly }:
     selectNode(node.nodeKey);
   }
 
-  if (configOnly) return null;
+  if (configOnly) {
+    return <div className="fa-p12 fa-text-light100">并行分支无需配置条件，分支内节点将同时执行。</div>;
+  }
 
   return (
     <>

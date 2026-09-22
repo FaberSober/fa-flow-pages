@@ -1,7 +1,6 @@
 import { Flw, FlwEnums } from '@features/fa-flow-pages/types';
 import { Input } from 'antd';
-import { findNodeByKey } from './utils';
-import { useWorkFlowStore } from './stores/useWorkFlowStore';
+import { findNodeContextByKey, type NodeLookupContext } from './nodeLookup';
 import {
   Approver,
   AutoPass,
@@ -17,11 +16,52 @@ import {
 import BranchNode from './nodes/BranchNode';
 import InclusiveNode from './nodes/InclusiveNode';
 import ParallelNode from './nodes/ParallelNode';
+import { useWorkFlowStore } from './stores/useWorkFlowStore';
 
 const emptyConfig = <div className="fa-p12 fa-text-light100">当前节点暂无其他配置</div>;
 
-function renderNodeConfig(node: Flw.Node) {
+function renderNodeConfig({ node, parentNode, branchKind }: NodeLookupContext) {
   const key = node.nodeKey;
+
+  if (branchKind === 'condition') {
+    return (
+      <BranchNode
+        key={key}
+        node={node as unknown as Flw.ConditionNode}
+        parentNode={parentNode as Flw.Node}
+        index={0}
+        conditionText=""
+        configOnly
+      />
+    );
+  }
+  if (branchKind === 'parallel') {
+    return (
+      <ParallelNode
+        key={key}
+        node={node as unknown as Flw.ConditionNode}
+        parentNode={parentNode as Flw.Node}
+        index={0}
+        conditionText=""
+        configOnly
+      />
+    );
+  }
+  if (branchKind === 'inclusive') {
+    return (
+      <InclusiveNode
+        key={key}
+        node={node as unknown as Flw.ConditionNode}
+        parentNode={parentNode as Flw.Node}
+        index={0}
+        conditionText=""
+        configOnly
+      />
+    );
+  }
+  if (branchKind === 'route' && parentNode) {
+    return <Route key={key} node={parentNode as Flw.Node} parentNode={parentNode as Flw.Node} configOnly />;
+  }
 
   switch (node.type) {
     case FlwEnums.NodeType.major:
@@ -93,13 +133,14 @@ export default function NodeConfigPanel() {
   const processModel = useWorkFlowStore(state => state.processModel);
   const updateNodeProps = useWorkFlowStore(state => state.updateNodeProps);
   const readOnly = useWorkFlowStore(state => state.readOnly);
-  const node = selectedNodeKey && processModel?.nodeConfig
-    ? findNodeByKey(processModel.nodeConfig, selectedNodeKey)
+  const nodeContext = selectedNodeKey && processModel?.nodeConfig
+    ? findNodeContextByKey(processModel.nodeConfig, selectedNodeKey)
     : undefined;
 
-  if (!node) {
+  if (!nodeContext) {
     return <div className="fa-flex-1 fa-flex-center fa-text-light100" style={{ minWidth: 0, minHeight: 0 }}>请从画布选择节点查看配置</div>;
   }
+  const { node } = nodeContext;
 
   return (
     <div className="fa-flex-1 fa-flex-column" style={{ minWidth: 0, minHeight: 0 }}>
@@ -110,7 +151,7 @@ export default function NodeConfigPanel() {
         onChange={event => updateNodeProps(node, 'nodeName', event.target.value)}
       />
       <div className="fa-flex-1 fa-scroll-auto-y" style={{ minWidth: 0, minHeight: 0 }}>
-        {renderNodeConfig(node)}
+        {renderNodeConfig(nodeContext)}
       </div>
     </div>
   );
