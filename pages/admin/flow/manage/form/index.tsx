@@ -1,8 +1,9 @@
-import { flowFormApi as api } from '@/services';
-import { Flow } from '@/types';
-import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { DownloadOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { AuthDelBtn, BaseBizTable, BaseTableUtils, clearForm, FaberTable, useDelete, useDeleteByQuery, useExport, useTableQueryParams } from '@fa/ui';
 import { Button, Form, Input, Space } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import { flowFormApi as api } from '@/services';
+import { Flow } from '@/types';
 import FlowFormConfigDrawer from './modal/FlowFormConfigDrawer';
 import FlowFormModal from './modal/FlowFormModal';
 import FlowFormViewDataDrawer from './modal/FlowFormViewDataDrawer';
@@ -14,6 +15,7 @@ const biz = 'flow_form';
  * FLOW-流程表单表格查询
  */
 export default function FlowFormList() {
+  const navigate = useNavigate();
   const [form] = Form.useForm();
 
   const { queryParams, setFormValues, handleTableChange, setSceneId, setConditionList, fetchPageList, loading, list, dicts, paginationProps } =
@@ -78,7 +80,9 @@ export default function FlowFormList() {
             <Space>
               <Button htmlType="submit" loading={loading} icon={<SearchOutlined />}>查询</Button>
               <Button onClick={() => clearForm(form)}>重置</Button>
-              <FlowFormModal addBtn title={`新增${serviceName}信息`} fetchFinish={fetchPageList} />
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/admin/flow/manage/form/designer')}>
+                新建表单
+              </Button>
               <Button loading={exporting} icon={<DownloadOutlined />} onClick={fetchExportExcel}>导出</Button>
             </Space>
           </Form>
