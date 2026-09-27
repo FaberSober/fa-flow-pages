@@ -1,4 +1,4 @@
-import { ArrowLeftOutlined, EyeOutlined, SaveOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, CheckCircleOutlined, EyeOutlined, SaveOutlined } from '@ant-design/icons';
 import type { CollisionDetection, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { DndContext, DragOverlay, PointerSensor, pointerWithin, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
@@ -13,6 +13,7 @@ import DesignerCanvas, { DESIGNER_CANVAS_DROP_ID } from './components/DesignerCa
 import DesignerControlPalette from './components/DesignerControlPalette';
 import DesignerPreviewModal from './components/DesignerPreviewModal';
 import DesignerPropertyPanel from './components/DesignerPropertyPanel';
+import DesignerPublishCheckModal from './components/DesignerPublishCheckModal';
 import { createDesignerItem, DESIGNER_CONTROLS, type DesignerControlType, type DesignerItem, isDesignerControlType } from './model';
 
 type DesignerDraftConfig = { version: 1; items: DesignerItem[] };
@@ -48,6 +49,7 @@ export default function FlowFormDesignerPage() {
   const [selectedId, setSelectedId] = useState<string>();
   const [draggingControl, setDraggingControl] = useState<DesignerControlType>();
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [publishCheckOpen, setPublishCheckOpen] = useState(false);
   const [draftRecord, setDraftRecord] = useState<Flow.FlowForm>();
   const [loadingDraft, setLoadingDraft] = useState(Boolean(draftId));
   const [draftLoadFailed, setDraftLoadFailed] = useState(false);
@@ -208,6 +210,11 @@ export default function FlowFormDesignerPage() {
             预览
           </Button>
         </Tooltip>
+        <Tooltip title="检查字段设置并查看摘要，不会创建数据库表">
+          <Button disabled={loadingDraft || draftLoadFailed} icon={<CheckCircleOutlined />} onClick={() => setPublishCheckOpen(true)}>
+            发布前检查
+          </Button>
+        </Tooltip>
         <Tooltip title="保存设计配置，不会创建或修改数据库表">
           <Button
             type="primary"
@@ -274,6 +281,7 @@ export default function FlowFormDesignerPage() {
         </DndContext>
       )}
       <DesignerPreviewModal open={previewOpen} items={items} onClose={() => setPreviewOpen(false)} />
+      <DesignerPublishCheckModal open={publishCheckOpen} items={items} onClose={() => setPublishCheckOpen(false)} />
       <Modal
         title="保存流程表单草稿"
         open={saveModalOpen}
