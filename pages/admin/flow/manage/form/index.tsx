@@ -1,4 +1,4 @@
-import { DownloadOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { DownloadOutlined, EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { AuthDelBtn, BaseBizTable, BaseTableUtils, clearForm, FaberTable, useDelete, useDeleteByQuery, useExport, useTableQueryParams } from '@fa/ui';
 import { Button, Form, Input, Space } from 'antd';
 import { useNavigate } from 'react-router-dom';
@@ -48,15 +48,25 @@ export default function FlowFormList() {
       {
         title: '操作',
         dataIndex: 'menu',
-        render: (_, r) => (
-          <Space>
-            <FlowFormViewDataDrawer item={r} />
-            <FlowFormConfigDrawer itemId={r.id} refresh={fetchPageList} />
-            <FlowFormModal editBtn title={`编辑${serviceName}信息`} record={r} fetchFinish={fetchPageList} />
-            <AuthDelBtn handleDelete={() => handleDelete(r.id)} />
-          </Space>
-        ),
-        width: 230,
+        render: (_, r) => {
+          const designer = (r.config as unknown as { designer?: { version?: unknown; items?: unknown } } | undefined)?.designer;
+          const hasDesignerDraft = designer?.version === 1 && Array.isArray(designer.items);
+          return (
+            <Space>
+              {!hasDesignerDraft && <FlowFormViewDataDrawer item={r} />}
+              {hasDesignerDraft ? (
+                <Button type="link" icon={<EditOutlined />} onClick={() => navigate(`/admin/flow/manage/form/designer?id=${r.id}`)}>
+                  设计
+                </Button>
+              ) : (
+                <FlowFormConfigDrawer itemId={r.id} refresh={fetchPageList} />
+              )}
+              <FlowFormModal editBtn title={`编辑${serviceName}信息`} record={r} fetchFinish={fetchPageList} />
+              <AuthDelBtn handleDelete={() => handleDelete(r.id)} />
+            </Space>
+          );
+        },
+        width: 300,
         fixed: 'right',
         tcRequired: true,
         tcType: 'menu',
