@@ -73,9 +73,11 @@ export default function DesignerItemCard({ item, selected, position, count, onSe
     >
       <Card
         size="small"
+        onClick={onSelect}
         style={{
           borderColor: selected ? token.colorPrimary : token.colorBorderSecondary,
           boxShadow: selected ? `0 0 0 1px ${token.colorPrimary}` : undefined,
+          cursor: 'pointer',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 10 }}>
@@ -90,7 +92,7 @@ export default function DesignerItemCard({ item, selected, position, count, onSe
           >
             <HolderOutlined />
           </button>
-          <Button type="link" aria-pressed={selected} onClick={onSelect} style={{ flex: 1, padding: 0, textAlign: 'left' }}>
+          <Button type="link" aria-pressed={selected} style={{ flex: 1, padding: 0, textAlign: 'left' }}>
             {item.label}
             {item.kind === 'field' && item.required && <Typography.Text type="danger"> *</Typography.Text>}
           </Button>
