@@ -1,5 +1,5 @@
 import { DownloadOutlined, EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
-import { AuthDelBtn, BaseBizTable, BaseTableUtils, clearForm, FaberTable, useDelete, useDeleteByQuery, useExport, useTableQueryParams } from '@fa/ui';
+import { AuthDelBtn, BaseBizTable, BaseTableUtils, clearForm, FaberTable, FaHref, useDelete, useDeleteByQuery, useExport, useTableQueryParams } from '@fa/ui';
 import { Button, Form, Input, Space } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { flowFormApi as api } from '@/services';
@@ -55,9 +55,7 @@ export default function FlowFormList() {
             <Space>
               {!hasDesignerDraft && <FlowFormViewDataDrawer item={r} />}
               {hasDesignerDraft ? (
-                <Button type="link" icon={<EditOutlined />} onClick={() => navigate(`/admin/flow/manage/form/designer?id=${r.id}`)}>
-                  设计
-                </Button>
+                <FaHref icon={<EditOutlined />} text="设计" onClick={() => navigate(`/admin/flow/manage/form/designer?id=${r.id}`)} />
               ) : (
                 <FlowFormConfigDrawer itemId={r.id} refresh={fetchPageList} />
               )}
