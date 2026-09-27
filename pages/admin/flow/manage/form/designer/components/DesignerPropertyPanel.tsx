@@ -41,7 +41,7 @@ export default function DesignerPropertyPanel({ item, onChange, onDelete }: Desi
             <Form.Item label="必填">
               <Switch checked={item.required} onChange={(required) => update({ required })} />
             </Form.Item>
-            <Form.Item label="默认值">
+            <Form.Item label="默认值" extra={item.control === 'multiSelect' ? '多个选项用逗号分隔' : undefined}>
               <Input value={item.defaultValue} onChange={(event) => update({ defaultValue: event.target.value })} />
             </Form.Item>
             {(item.control === 'singleSelect' || item.control === 'multiSelect') && (

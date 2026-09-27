@@ -1,7 +1,7 @@
 import { ArrowDownOutlined, ArrowUpOutlined, HolderOutlined } from '@ant-design/icons';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Button, Card, Checkbox, DatePicker, Input, InputNumber, Select, Space, Tag, Typography, theme } from 'antd';
+import { Button, Card, DatePicker, Input, InputNumber, Select, Space, Tag, Typography, theme } from 'antd';
 import { type DesignerItem, getControlLabel } from '../model';
 
 interface DesignerItemCardProps {
@@ -50,9 +50,9 @@ function ItemPreview({ item }: { item: DesignerItem }) {
           options={item.options.map((option) => ({ label: option, value: option }))}
         />
       );
-    default:
-      return <Checkbox disabled>{item.label}</Checkbox>;
   }
+
+  return null;
 }
 
 export default function DesignerItemCard({ item, selected, position, count, onSelect, onMove }: DesignerItemCardProps) {

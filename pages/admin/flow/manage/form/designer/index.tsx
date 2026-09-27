@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DesignerCanvas, { DESIGNER_CANVAS_DROP_ID } from './components/DesignerCanvas';
 import DesignerControlPalette from './components/DesignerControlPalette';
+import DesignerPreviewModal from './components/DesignerPreviewModal';
 import DesignerPropertyPanel from './components/DesignerPropertyPanel';
 import { createDesignerItem, DESIGNER_CONTROLS, type DesignerControlType, type DesignerItem, isDesignerControlType } from './model';
 
@@ -32,6 +33,7 @@ export default function FlowFormDesignerPage() {
   const [items, setItems] = useState<DesignerItem[]>([]);
   const [selectedId, setSelectedId] = useState<string>();
   const [draggingControl, setDraggingControl] = useState<DesignerControlType>();
+  const [previewOpen, setPreviewOpen] = useState(false);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const selectedItem = items.find((item) => item.id === selectedId);
 
@@ -111,12 +113,10 @@ export default function FlowFormDesignerPage() {
           <Typography.Text type="secondary">添加控件并在属性面板中配置表单</Typography.Text>
         </div>
         <div style={{ flex: 1 }} />
-        <Tooltip title="表单预览将在后续阶段开放">
-          <span>
-            <Button disabled icon={<EyeOutlined />}>
-              预览
-            </Button>
-          </span>
+        <Tooltip title="切换查看填报表单和默认列表配置">
+          <Button icon={<EyeOutlined />} onClick={() => setPreviewOpen(true)}>
+            预览
+          </Button>
         </Tooltip>
         <Tooltip title="草稿保存将在后续阶段开放">
           <span>
@@ -155,6 +155,7 @@ export default function FlowFormDesignerPage() {
         </Splitter>
         <DragOverlay dropAnimation={null}>{draggingControl ? <Tag color="blue">添加{DESIGNER_CONTROLS[draggingControl].label}</Tag> : null}</DragOverlay>
       </DndContext>
+      <DesignerPreviewModal open={previewOpen} items={items} onClose={() => setPreviewOpen(false)} />
     </div>
   );
 }
