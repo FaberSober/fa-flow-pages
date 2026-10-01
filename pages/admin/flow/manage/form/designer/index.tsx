@@ -2,10 +2,10 @@ import { ArrowLeftOutlined, CheckCircleOutlined, EyeOutlined, SaveOutlined } fro
 import type { CollisionDetection, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { DndContext, DragOverlay, PointerSensor, pointerWithin, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { FaUtils } from '@fa/ui';
+import { Fa, FaUtils } from '@fa/ui';
 import { FlowCatagoryCascader } from '@features/fa-flow-pages/components';
 import { Alert, Button, Form, Input, Modal, message, Space, Spin, Splitter, Tag, Tooltip, Typography, theme } from 'antd';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { flowFormApi } from '@/services';
 import type { Flow } from '@/types';
@@ -17,6 +17,11 @@ import DesignerPublishCheckModal from './components/DesignerPublishCheckModal';
 import { createDesignerItem, DESIGNER_CONTROLS, type DesignerControlType, type DesignerItem, isDesignerControlType } from './model';
 
 type DesignerDraftConfig = { version: 1; items: DesignerItem[] };
+type DraftMetadata = { name: string; catagoryId: number };
+
+function draftSnapshot(metadata: Partial<DraftMetadata>, items: DesignerItem[]) {
+  return JSON.stringify({ name: metadata.name ?? '', catagoryId: metadata.catagoryId, items });
+}
 
 function readDesignerDraft(config: Flow.FlowForm['config']): DesignerDraftConfig | undefined {
   const designer = (config as unknown as { designer?: DesignerDraftConfig } | undefined)?.designer;
@@ -54,13 +59,26 @@ export default function FlowFormDesignerPage() {
   const [loadingDraft, setLoadingDraft] = useState(Boolean(draftId));
   const [draftLoadFailed, setDraftLoadFailed] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
-  const [saveModalOpen, setSaveModalOpen] = useState(false);
-  const [metadataForm] = Form.useForm<{ name: string; catagoryId: number }>();
+  const savingRef = useRef(false);
+  const [metadataForm] = Form.useForm<DraftMetadata>();
+  const name = Form.useWatch('name', metadataForm);
+  const catagoryId = Form.useWatch('catagoryId', metadataForm);
+  const [savedSnapshot, setSavedSnapshot] = useState(() => draftSnapshot({}, []));
+  const hasChanges = !loadingDraft && !draftLoadFailed && savedSnapshot !== draftSnapshot({ name, catagoryId }, items);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const selectedItem = items.find((item) => item.id === selectedId);
 
   useEffect(() => {
-    if (!draftId) return;
+    if (!draftId) {
+      setDraftRecord(undefined);
+      setItems([]);
+      setSelectedId(undefined);
+      metadataForm.resetFields();
+      setSavedSnapshot(draftSnapshot({}, []));
+      setLoadingDraft(false);
+      setDraftLoadFailed(false);
+      return;
+    }
     let active = true;
     setLoadingDraft(true);
     setDraftLoadFailed(false);
@@ -68,12 +86,15 @@ export default function FlowFormDesignerPage() {
       .getById(draftId)
       .then((res) => {
         if (!active) return;
-        if (!res.data) {
-          setDraftLoadFailed(true);
-          return;
+        if (res.status !== Fa.RES_CODE.OK || !res.data) {
+          throw new Error(res.message || '读取草稿失败');
         }
+        const draftItems = readDesignerDraft(res.data.config)?.items ?? [];
+        const metadata = { name: res.data.name, catagoryId: res.data.catagoryId };
         setDraftRecord(res.data);
-        setItems(readDesignerDraft(res.data.config)?.items ?? []);
+        setItems(draftItems);
+        metadataForm.setFieldsValue(metadata);
+        setSavedSnapshot(draftSnapshot(metadata, draftItems));
         setSelectedId(undefined);
       })
       .catch((error: unknown) => {
@@ -87,15 +108,43 @@ export default function FlowFormDesignerPage() {
     return () => {
       active = false;
     };
-  }, [draftId]);
+  }, [draftId, metadataForm]);
+
+  useEffect(() => {
+    if (!hasChanges) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasChanges]);
+
+  const handleBack = () => {
+    if (savingRef.current) return;
+    const goBack = () => navigate('/admin/flow/manage/form');
+    if (!hasChanges) {
+      goBack();
+      return;
+    }
+    Modal.confirm({
+      title: '还有未保存的修改',
+      content: '返回列表会丢弃本次修改。你可以留在这里保存草稿。',
+      okText: '放弃修改并返回',
+      cancelText: '继续编辑',
+      onOk: goBack,
+    });
+  };
 
   const addItem = (control: Parameters<typeof createDesignerItem>[0]) => {
+    if (savingRef.current) return;
     const item = createDesignerItem(control, items);
     setItems((current) => [...current, item]);
     setSelectedId(item.id);
   };
 
   const moveItem = (id: string, offset: -1 | 1) => {
+    if (savingRef.current) return;
     const from = items.findIndex((item) => item.id === id);
     const to = from + offset;
     if (from < 0 || to < 0 || to >= items.length) return;
@@ -109,7 +158,7 @@ export default function FlowFormDesignerPage() {
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     setDraggingControl(undefined);
-    if (!over) return;
+    if (savingRef.current || !over) return;
     const dragData = active.data.current as { source?: string; control?: unknown } | undefined;
 
     if (dragData?.source === 'palette' && isDesignerControlType(dragData.control)) {
@@ -132,12 +181,12 @@ export default function FlowFormDesignerPage() {
   };
 
   const updateSelectedItem = (patch: Partial<DesignerItem>) => {
-    if (!selectedItem) return;
+    if (savingRef.current || !selectedItem) return;
     setItems((current) => current.map((item) => (item.id === selectedItem.id ? ({ ...item, ...patch } as DesignerItem) : item)));
   };
 
   const deleteSelectedItem = () => {
-    if (!selectedItem) return;
+    if (savingRef.current || !selectedItem) return;
     setItems((current) => current.filter((item) => item.id !== selectedItem.id));
     setSelectedId(undefined);
   };
@@ -147,18 +196,23 @@ export default function FlowFormDesignerPage() {
     designer: { version: 1, items } satisfies DesignerDraftConfig,
   });
 
-  const saveDraft = async (metadata?: { name: string; catagoryId: number }) => {
+  const saveDraft = async (values: DraftMetadata) => {
+    if (savingRef.current || loadingDraft || draftLoadFailed) return;
+    savingRef.current = true;
     setSavingDraft(true);
     try {
+      const metadata = { ...values, name: values.name.trim() };
       const config = getDraftConfig();
       if (draftRecord) {
-        const res = await flowFormApi.update(draftRecord.id, { config });
+        const res = await flowFormApi.update(draftRecord.id, { ...metadata, config });
+        if (res.status !== Fa.RES_CODE.OK) throw new Error(res.message || '保存草稿失败');
+        setDraftRecord({ ...draftRecord, ...metadata, config: config as unknown as Flow.FlowForm['config'] });
+        metadataForm.setFieldsValue(metadata);
+        setSavedSnapshot(draftSnapshot(metadata, items));
         FaUtils.showResponse(res, '保存草稿');
-        setDraftRecord({ ...draftRecord, config: config as unknown as Flow.FlowForm['config'] });
         return;
       }
 
-      if (!metadata) return;
       const res = await flowFormApi.save({
         ...metadata,
         no: `designer_${crypto.randomUUID().replaceAll('-', '')}`,
@@ -167,46 +221,46 @@ export default function FlowFormDesignerPage() {
         sort: 0,
         config,
       });
+      if (res.status !== Fa.RES_CODE.OK || !res.data?.id) throw new Error(res.message || '保存草稿失败');
+      setSavedSnapshot(draftSnapshot(metadata, items));
       FaUtils.showResponse(res, '保存草稿');
-      if (!res.data?.id) return;
-      setSaveModalOpen(false);
       navigate(`/admin/flow/manage/form/designer?id=${res.data.id}`, { replace: true });
     } catch (error) {
       message.error(error instanceof Error ? error.message : '保存草稿失败');
     } finally {
+      savingRef.current = false;
       setSavingDraft(false);
     }
   };
 
-  const handleCreateDraft = (metadata: { name: string; catagoryId: number }) => {
-    void saveDraft(metadata);
-  };
-
   return (
-    <div className="fa-full fa-flex-column fa-bg-white">
+    <div className="fa-full fa-flex-column fa-bg-white" style={{ position: 'relative' }}>
       <header
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: 12,
+          flexWrap: 'wrap',
           padding: '12px 16px',
           borderBottom: `1px solid ${token.colorBorderSecondary}`,
           background: token.colorBgContainer,
         }}
       >
-        <Button type="text" icon={<ArrowLeftOutlined />} aria-label="返回流程表单列表" onClick={() => navigate('/admin/flow/manage/form')} />
+        <Button type="text" icon={<ArrowLeftOutlined />} aria-label="返回流程表单列表" disabled={savingDraft} onClick={handleBack} />
         <div style={{ minWidth: 0 }}>
           <Space size={8} wrap>
             <Typography.Title level={5} style={{ margin: 0 }}>
-              {draftRecord?.name ?? '新建流程表单'}
+              {name?.trim() || '新建表单'}
             </Typography.Title>
-            <Tag color="blue">交互预览</Tag>
+            <Tag color={hasChanges ? 'orange' : draftRecord ? 'green' : 'default'}>
+              {hasChanges ? '有未保存的修改' : draftRecord ? '草稿已保存' : '未保存草稿'}
+            </Tag>
           </Space>
-          <Typography.Text type="secondary">添加控件并在属性面板中配置表单{draftRecord ? ' · 草稿' : ''}</Typography.Text>
+          <Typography.Text type="secondary">添加字段、设置属性，保存后可随时继续编辑</Typography.Text>
         </div>
         <div style={{ flex: 1 }} />
         <Tooltip title="切换查看填报表单和默认列表配置">
-          <Button icon={<EyeOutlined />} onClick={() => setPreviewOpen(true)}>
+          <Button disabled={loadingDraft || draftLoadFailed} icon={<EyeOutlined />} onClick={() => setPreviewOpen(true)}>
             预览
           </Button>
         </Tooltip>
@@ -221,28 +275,28 @@ export default function FlowFormDesignerPage() {
             loading={savingDraft}
             disabled={loadingDraft || draftLoadFailed}
             icon={<SaveOutlined />}
-            onClick={() => {
-              if (draftRecord) {
-                void saveDraft();
-              } else {
-                metadataForm.resetFields();
-                setSaveModalOpen(true);
-              }
-            }}
+            onClick={() => metadataForm.submit()}
           >
             保存草稿
           </Button>
         </Tooltip>
       </header>
 
-      <Alert
-        banner
-        showIcon
-        type="info"
-        message={
-          draftRecord ? '正在编辑草稿；修改后请保存，数据库表结构将在后续发布步骤中处理。' : '添加控件并预览后保存草稿；首次保存只需填写表单名称和所属分类。'
-        }
-      />
+      <Form
+        form={metadataForm}
+        layout="inline"
+        disabled={loadingDraft || draftLoadFailed || savingDraft}
+        onFinish={saveDraft}
+        style={{ padding: '12px 16px', gap: 12, borderBottom: `1px solid ${token.colorBorderSecondary}`, flexWrap: 'wrap' }}
+      >
+        <Form.Item name="name" label="表单名称" rules={[{ required: true, whitespace: true, message: '请输入表单名称' }]}>
+          <Input maxLength={255} placeholder="例如：客户反馈登记" style={{ width: 260 }} />
+        </Form.Item>
+        <Form.Item name="catagoryId" label="所属分类" rules={[{ required: true, message: '请选择所属分类' }]}>
+          <FlowCatagoryCascader placeholder="请选择所属分类" style={{ width: 220 }} />
+        </Form.Item>
+      </Form>
+      <Alert banner showIcon type="info" message="填写名称和分类，添加字段后保存草稿。草稿可重新打开继续编辑，暂未开放实际发布与填报。" />
 
       {loadingDraft ? (
         <div style={{ flex: 1, display: 'grid', placeItems: 'center' }}>
@@ -282,23 +336,11 @@ export default function FlowFormDesignerPage() {
       )}
       <DesignerPreviewModal open={previewOpen} items={items} onClose={() => setPreviewOpen(false)} />
       <DesignerPublishCheckModal open={publishCheckOpen} items={items} onClose={() => setPublishCheckOpen(false)} />
-      <Modal
-        title="保存流程表单草稿"
-        open={saveModalOpen}
-        confirmLoading={savingDraft}
-        onOk={() => metadataForm.submit()}
-        onCancel={() => setSaveModalOpen(false)}
-      >
-        <Typography.Paragraph type="secondary">填写名称和所属分类即可。表单编码由系统生成；保存草稿不会创建或修改数据库表。</Typography.Paragraph>
-        <Form form={metadataForm} layout="vertical" onFinish={handleCreateDraft}>
-          <Form.Item name="name" label="表单名称" rules={[{ required: true, whitespace: true, message: '请输入表单名称' }]}>
-            <Input maxLength={255} placeholder="例如：客户反馈登记" />
-          </Form.Item>
-          <Form.Item name="catagoryId" label="所属分类" rules={[{ required: true, message: '请选择流程分类' }]}>
-            <FlowCatagoryCascader placeholder="请选择流程分类" />
-          </Form.Item>
-        </Form>
-      </Modal>
+      {savingDraft && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 20, display: 'grid', placeItems: 'center', background: token.colorBgMask }}>
+          <Spin description="正在保存草稿" />
+        </div>
+      )}
     </div>
   );
 }
