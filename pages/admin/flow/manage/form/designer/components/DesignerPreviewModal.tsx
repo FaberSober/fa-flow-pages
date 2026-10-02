@@ -2,6 +2,7 @@ import { Alert, Button, DatePicker, Divider, Empty, Form, Input, InputNumber, Mo
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import type { DataDesignerItem, DesignerItem } from '../model';
+import { getDesignerOptions } from '../model';
 
 interface DesignerPreviewModalProps {
   open: boolean;
@@ -15,6 +16,7 @@ function getDataFields(items: DesignerItem[]): DataDesignerItem[] {
 
 function getInitialValue(item: DataDesignerItem) {
   const value = item.defaultValue.trim();
+  const options = getDesignerOptions(item);
   if (!value) return undefined;
 
   if (item.control === 'number') {
@@ -25,17 +27,18 @@ function getInitialValue(item: DataDesignerItem) {
     const date = dayjs(value);
     return date.isValid() ? date : undefined;
   }
-  if (item.control === 'singleSelect') return item.options.includes(value) ? value : undefined;
+  if (item.control === 'singleSelect') return options.includes(value) ? value : undefined;
   if (item.control === 'multiSelect') {
     return value
       .split(/[,，\n]/)
       .map((option) => option.trim())
-      .filter((option) => item.options.includes(option));
+      .filter((option) => options.includes(option));
   }
   return value;
 }
 
 function renderFieldControl(item: DataDesignerItem, disabled = false) {
+  const options = getDesignerOptions(item).map((option) => ({ label: option, value: option }));
   switch (item.control) {
     case 'textarea':
       return <Input.TextArea disabled={disabled} rows={3} placeholder={`请输入${item.label}`} />;
@@ -44,14 +47,14 @@ function renderFieldControl(item: DataDesignerItem, disabled = false) {
     case 'date':
       return <DatePicker disabled={disabled} style={{ width: '100%' }} placeholder={`请选择${item.label}`} />;
     case 'singleSelect':
-      return <Select disabled={disabled} placeholder={`请选择${item.label}`} options={item.options.map((option) => ({ label: option, value: option }))} />;
+      return <Select disabled={disabled} placeholder={`请选择${item.label}`} options={options} />;
     case 'multiSelect':
       return (
         <Select
           disabled={disabled}
           mode="multiple"
           placeholder={`请选择${item.label}`}
-          options={item.options.map((option) => ({ label: option, value: option }))}
+          options={options}
         />
       );
     default:

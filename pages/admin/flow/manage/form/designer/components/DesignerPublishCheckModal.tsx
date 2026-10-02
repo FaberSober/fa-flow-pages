@@ -100,7 +100,7 @@ export default function DesignerPublishCheckModal({ open, items, onClose }: Desi
       <Alert
         type="info"
         showIcon
-        message="此步骤只检查配置并展示摘要，不会创建或修改数据库表。实际发布将在双数据库适配完成后接入。"
+        message="此步骤只检查配置并展示摘要，不会创建或修改数据库表。实际发布将在后续发布功能中接入。"
         style={{ marginTop: 16 }}
       />
     </Modal>

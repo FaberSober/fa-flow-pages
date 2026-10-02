@@ -74,3 +74,8 @@ export function createDesignerItem(control: DesignerControlType, items: Designer
 export function getControlLabel(control: DesignerControlType): string {
   return DESIGNER_CONTROLS[control].label;
 }
+
+/** 编辑时保留原始换行，预览和选择器使用有效选项。 */
+export function getDesignerOptions(item: DataDesignerItem): string[] {
+  return item.options.map((option) => option.trim()).filter(Boolean);
+}

@@ -2,7 +2,7 @@ import { ArrowDownOutlined, ArrowUpOutlined, HolderOutlined } from '@ant-design/
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Button, Card, DatePicker, Input, InputNumber, Select, Space, Tag, Typography, theme } from 'antd';
-import { type DesignerItem, getControlLabel } from '../model';
+import { type DesignerItem, getControlLabel, getDesignerOptions } from '../model';
 
 interface DesignerItemCardProps {
   item: DesignerItem;
@@ -37,7 +37,7 @@ function ItemPreview({ item }: { item: DesignerItem }) {
           disabled
           style={{ width: '100%' }}
           placeholder={`请选择${item.label}`}
-          options={item.options.map((option) => ({ label: option, value: option }))}
+          options={getDesignerOptions(item).map((option) => ({ label: option, value: option }))}
         />
       );
     case 'multiSelect':
@@ -47,7 +47,7 @@ function ItemPreview({ item }: { item: DesignerItem }) {
           mode="multiple"
           style={{ width: '100%' }}
           placeholder={`请选择${item.label}`}
-          options={item.options.map((option) => ({ label: option, value: option }))}
+          options={getDesignerOptions(item).map((option) => ({ label: option, value: option }))}
         />
       );
   }

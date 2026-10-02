@@ -1,7 +1,8 @@
 import { DeleteOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import { Button, Divider, Empty, Form, Input, Switch, Typography } from 'antd';
+import { Button, DatePicker, Divider, Empty, Form, Input, InputNumber, Select, Switch, Typography } from 'antd';
+import dayjs from 'dayjs';
 import type { DesignerItem } from '../model';
-import { getControlLabel } from '../model';
+import { getControlLabel, getDesignerOptions } from '../model';
 
 interface DesignerPropertyPanelProps {
   item?: DesignerItem;
@@ -24,6 +25,31 @@ export default function DesignerPropertyPanel({ item, onChange, onDelete }: Desi
   }
 
   const update = (patch: Partial<DesignerItem>) => onChange(patch);
+  const choiceOptions = item.kind === 'field' ? getDesignerOptions(item).map((option) => ({ label: option, value: option })) : [];
+
+  function renderDefaultValue() {
+    if (!item || item.kind !== 'field') return null;
+    if (item.control === 'number') {
+      const value = item.defaultValue.trim() === '' ? null : Number(item.defaultValue);
+      return <InputNumber style={{ width: '100%' }} value={value !== null && Number.isFinite(value) ? value : null}
+        onChange={(value) => update({ defaultValue: value == null ? '' : String(value) })} placeholder="不设置默认值" />;
+    }
+    if (item.control === 'date') {
+      const value = item.defaultValue ? dayjs(item.defaultValue) : null;
+      return <DatePicker style={{ width: '100%' }} value={value?.isValid() ? value : null}
+        onChange={(value) => update({ defaultValue: value?.format('YYYY-MM-DD') ?? '' })} placeholder="不设置默认日期" />;
+    }
+    if (item.control === 'singleSelect' || item.control === 'multiSelect') {
+      const multiple = item.control === 'multiSelect';
+      return <Select allowClear style={{ width: '100%' }} mode={multiple ? 'multiple' : undefined} options={choiceOptions}
+        value={multiple ? item.defaultValue.split(/[,，\n]/).map((value) => value.trim()).filter(Boolean) : item.defaultValue || undefined}
+        onChange={(value: string | string[] | undefined) => update({ defaultValue: Array.isArray(value) ? value.join(',') : value ?? '' })}
+        placeholder={choiceOptions.length ? '请选择默认选项' : '先填写下方选项'} />;
+    }
+    return item.control === 'textarea'
+      ? <Input.TextArea rows={3} value={item.defaultValue} onChange={(event) => update({ defaultValue: event.target.value })} />
+      : <Input value={item.defaultValue} onChange={(event) => update({ defaultValue: event.target.value })} />;
+  }
 
   return (
     <aside aria-label="控件属性" style={{ height: '100%', overflow: 'auto', padding: 16 }}>
@@ -41,8 +67,8 @@ export default function DesignerPropertyPanel({ item, onChange, onDelete }: Desi
             <Form.Item label="必填">
               <Switch checked={item.required} onChange={(required) => update({ required })} />
             </Form.Item>
-            <Form.Item label="默认值" extra={item.control === 'multiSelect' ? '多个选项用逗号分隔' : undefined}>
-              <Input value={item.defaultValue} onChange={(event) => update({ defaultValue: event.target.value })} />
+            <Form.Item label="默认值" extra="选填；填写表单时会自动带入">
+              {renderDefaultValue()}
             </Form.Item>
             {(item.control === 'singleSelect' || item.control === 'multiSelect') && (
               <Form.Item label="选项" extra="每行填写一个选项">
@@ -51,10 +77,7 @@ export default function DesignerPropertyPanel({ item, onChange, onDelete }: Desi
                   value={item.options.join('\n')}
                   onChange={(event) =>
                     update({
-                      options: event.target.value
-                        .split(/\r?\n/)
-                        .map((option) => option.trim())
-                        .filter(Boolean),
+                      options: event.target.value.split(/\r?\n/),
                     })
                   }
                 />
