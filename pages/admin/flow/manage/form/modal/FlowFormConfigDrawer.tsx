@@ -1,10 +1,11 @@
 import { flowFormApi } from '@/services';
 import { CalculatorOutlined, DatabaseOutlined, FormOutlined, OrderedListOutlined } from '@ant-design/icons';
-import { FaFlexRestLayout, FaHref, FaUtils } from '@fa/ui';
+import { Fa, FaFlexRestLayout, FaHref, FaUtils } from '@fa/ui';
 import { FaFormEditor } from '@features/fa-flow-pages/components';
-import { Button, Drawer, Segmented, Space, Tabs } from 'antd';
-import { debounce, isEqual } from 'lodash';
-import { useEffect, useMemo, useState } from 'react';
+import { Button, Drawer, Modal, Segmented, Space, Spin, message } from 'antd';
+import { isEqual } from 'lodash';
+import { useRef, useState } from 'react';
+import type { Flow } from '@/types';
 import FormTableEdit from '../cube/database/FormTableEdit';
 import TableShowDesign from '../cube/table/TableShowDesign';
 import { useFlowFormEditStore } from '../store/useFlowFormEditStore';
@@ -24,67 +25,70 @@ export default function FlowFormConfigDrawer({ itemId, refresh }: FlowFormConfig
   const [tab, setTab] = useState('database');
   const { flowForm, setFlowForm, clear } = useFlowFormEditStore()
 
-  useEffect(() => {
-    if (open) {
-      flowFormApi.getById(itemId).then((res) => {
-        setFlowForm(res.data);
-      });
-    }
-    return () => {
-      clear()
-    }
-  }, [itemId]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const requestId = useRef(0);
+  const savingRef = useRef(false);
+  const savedConfig = useRef<Flow.FlowFormConfig>();
 
-  // 1. 创建一个防抖的 API 更新函数
-  const debouncedApiUpdate = useMemo(
-    () =>
-      debounce((id: number, config: any) => {
-        flowFormApi.update(id, { config }).then(() => {
-          console.log('API updated');
-        });
-      }, 1000), // 设置 1 秒延迟
-    []
-  );
-
-  // 2. 在组件销毁时，取消防抖任务，防止内存泄漏或异常回调
-  useEffect(() => {
-    return () => debouncedApiUpdate.cancel();
-  }, [debouncedApiUpdate]);
-
-  function handleConfigChange(config: any) {
-    if (!flowForm) return;
-    // compare with previous config
-    if (!isEqual(flowForm?.config, config)) {
-      // A. 立即更新本地 State，确保拖拽和输入框不卡顿
-      setFlowForm({...flowForm!, config});
-
-      // B. 触发防抖 API 调用
-      // 注意：这里需要显式传入 id 和 config，不要直接在 debounce 内部闭包引用 flowForm
-      debouncedApiUpdate(flowForm.id, config);
-    }
+  function handleConfigChange(config: Flow.FlowFormConfig) {
+    const latest = useFlowFormEditStore.getState().flowForm;
+    if (latest && !isEqual(latest.config, config)) setFlowForm({ ...latest, config });
   }
 
-  function handleOpen() {
-    setOpen(true)
-    setTab('database')
-    flowFormApi.getById(itemId).then((res) => {
+  async function handleOpen() {
+    const request = ++requestId.current;
+    clear();
+    setOpen(true);
+    setTab('database');
+    setLoading(true);
+    try {
+      const res = await flowFormApi.getById(itemId);
+      if (request !== requestId.current) return;
+      if (res.status !== Fa.RES_CODE.OK) { message.error(res.message || '加载表单失败'); return; }
+      savedConfig.current = res.data.config;
       setFlowForm(res.data);
-    });
+    } catch {
+      if (request === requestId.current) message.error('加载表单失败，请重试');
+    } finally {
+      if (request === requestId.current) setLoading(false);
+    }
   }
 
-  function handleSave() {
-    if (!flowForm) return;
-    
-    // 取消防抖任务，确保立即保存
-    debouncedApiUpdate.cancel();
-    
-    // 调用保存接口
-    flowFormApi.update(flowForm.id, { config: flowForm.config }).then((res) => {
+  function closeDrawer() {
+    ++requestId.current;
+    setOpen(false);
+    clear();
+    refresh?.();
+  }
+
+  function handleClose() {
+    if (savingRef.current) return;
+    const latest = useFlowFormEditStore.getState().flowForm;
+    if (latest && !isEqual(latest.config, savedConfig.current)) {
+      Modal.confirm({ title: '表单设计有未保存的修改', content: '关闭会放弃本次表单设计修改。数据库结构和已同步的配置已单独保存。', okText: '放弃并关闭', cancelText: '继续编辑', onOk: closeDrawer });
+      return;
+    }
+    closeDrawer();
+  }
+
+  async function handleSave() {
+    const latest = useFlowFormEditStore.getState().flowForm;
+    if (!latest || savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      const res = await flowFormApi.update(latest.id, { config: latest.config });
+      if (res.status !== Fa.RES_CODE.OK) { message.error(res.message || '保存配置失败'); return; }
+      savedConfig.current = latest.config;
       FaUtils.showResponse(res, '保存配置');
-      setOpen(false);
-      clear();
-      refresh && refresh();
-    });
+      closeDrawer();
+    } catch {
+      message.error('保存配置失败，请重试');
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
   }
 
   return (
@@ -93,11 +97,7 @@ export default function FlowFormConfigDrawer({ itemId, refresh }: FlowFormConfig
       <Drawer
         title="配置表单"
         open={open}
-        onClose={() => {
-          setOpen(false)
-          clear()
-          refresh && refresh()
-        }}
+        onClose={handleClose}
         size={window.document.body.clientWidth}
         resizable
         extra={(
@@ -110,7 +110,7 @@ export default function FlowFormConfigDrawer({ itemId, refresh }: FlowFormConfig
                   setTab(steps[currentIndex - 1]);
                 }
               }}
-              disabled={tab === 'database'}
+              disabled={loading || saving || tab === 'database'}
             >
               上一步
             </Button>
@@ -122,11 +122,11 @@ export default function FlowFormConfigDrawer({ itemId, refresh }: FlowFormConfig
                   setTab(steps[currentIndex + 1]);
                 }
               }}
-              disabled={tab === 'table'}
+              disabled={loading || saving || tab === 'table'}
             >
               下一步
             </Button>
-            <Button type="primary" onClick={() => handleSave()} disabled={tab !== 'table'}>保存</Button>
+            <Button type="primary" loading={saving} onClick={() => handleSave()} disabled={loading || !flowForm}>保存配置</Button>
           </Space>
         )}
         styles={{
@@ -136,9 +136,10 @@ export default function FlowFormConfigDrawer({ itemId, refresh }: FlowFormConfig
         }}
         push={false}
       >
+        {loading && <Spin />}
         {(open) && flowForm && (
           <>
-            <div className="fa-full">
+            <div className="fa-full" style={{ pointerEvents: saving ? 'none' : undefined, opacity: saving ? 0.6 : 1 }}>
               <div className="fa-full-content fa-p12 fa-bg-grey fa-flex-column fa-tabs">
                 <div style={{position: 'fixed', top: 7, left: 'calc(50vw - 146px)' }}>
                   <Segmented
@@ -147,6 +148,7 @@ export default function FlowFormConfigDrawer({ itemId, refresh }: FlowFormConfig
                       { value: 'form', label: <span><FormOutlined style={{marginRight: 4}} />表单设计</span> },
                       { value: 'table', label: <span><OrderedListOutlined style={{marginRight: 4}} />列表设计</span> },
                     ]}
+                    disabled={saving}
                     value={tab}
                     onChange={setTab}
                   />

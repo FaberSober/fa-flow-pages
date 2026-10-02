@@ -2,7 +2,7 @@ import { Flow, Flw } from '@/types';
 import { DepartmentCascade, UserSearchSelect } from '@/components';
 import { Button, Cascader, Checkbox, ColorPicker, DatePicker, Input, InputNumber, Popconfirm, Radio, Rate, Select, Slider, Switch, Table, TimePicker } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { FaUtils } from '@fa/ui';
 import dayjs from 'dayjs';
@@ -26,18 +26,15 @@ export interface FaFormSubTableProps {
  * @date 2026-02-01 20:38:53
  */
 export default function FaFormSubTable({ formItem, value, onChange, flowNode, disabled = false }: FaFormSubTableProps) {
-  // 数据源状态
+  // Form 重置/清空后同步清空；数据库记录用真实 id，新记录用临时 key。
   const [dataSource, setDataSource] = useState<any[]>([]);
 
   useEffect(() => {
-    console.log('=== FaFormSubTable useEffect ===');
-    console.log('formItem.name:', formItem.name);
-    console.log('formItem.label:', formItem.label);
-    console.log('接收到的value:', value);
-    
-    if (value) {
-      setDataSource(value);
-    }
+    setDataSource((value || []).map((row) => (
+      (row.id !== undefined && row.id !== null) || row._key
+        ? row
+        : { ...row, _key: FaUtils.uuid() }
+    )));
   }, [value]);
 
   // 添加行
@@ -46,10 +43,12 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
       _key: FaUtils.uuid(), // 使用uuid作为唯一key
     };
     
-    // 为每个子字段初始化空值
+    // 使用设计器配置的默认值，避免多行共享可变数组。
     formItem.children?.forEach((child) => {
       const fieldName = child.name || child.id;
-      newRow[fieldName] = undefined;
+      newRow[fieldName] = Array.isArray(child.initialValue)
+        ? [...child.initialValue]
+        : child.initialValue ?? undefined;
     });
     
     setDataSource([...dataSource, newRow]);
@@ -65,8 +64,9 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
 
   // 更新单元格数据
   const handleCellChange = (index: number, fieldName: string, value: any) => {
-    const newData = [...dataSource];
-    newData[index][fieldName] = value;
+    const newData = dataSource.map((row, rowIndex) => (
+      rowIndex === index ? { ...row, [fieldName]: value } : row
+    ));
     setDataSource(newData);
     onChange?.(newData);
   };
@@ -90,7 +90,7 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
         return <Input.TextArea disabled={!auth.edit} value={value} onChange={(e) => onChange(e.target.value)} placeholder={child.placeholder} rows={2} />;
       
       case 'select':
-        return <Select disabled={!auth.edit} value={value} onChange={onChange} placeholder={child.placeholder} style={{ width: '100%' }} />;
+        return <Select disabled={!auth.edit} value={value} onChange={onChange} placeholder={child.placeholder} style={{ width: '100%' }} options={child.options} mode={child.mode} allowClear />;
       
       case 'cascader':
         return <Cascader disabled={!auth.edit} value={value} onChange={onChange} placeholder={child.placeholder} style={{ width: '100%' }} />;
@@ -99,7 +99,7 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
         return <Checkbox disabled={!auth.edit} checked={value} onChange={(e) => onChange(e.target.checked)}>{child.placeholder || '勾选'}</Checkbox>;
       
       case 'radio':
-        return <Radio.Group disabled={!auth.edit} value={value} onChange={(e) => onChange(e.target.value)} />;
+        return <Radio.Group disabled={!auth.edit} value={value} onChange={(e) => onChange(e.target.value)} options={child.options} />;
       
       case 'datepicker':
         return (
@@ -131,7 +131,7 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
         return <Slider disabled={!auth.edit} value={value} onChange={onChange} style={{ width: '100%' }} />;
       
       case 'colorpicker':
-        return <ColorPicker disabled={!auth.edit} value={value} onChange={onChange} showText />;
+        return <ColorPicker disabled={!auth.edit} value={value} onChange={(_color, hex) => onChange(hex)} showText />;
       
       case 'biz_user_select':
         return <UserSearchSelect disabled={!auth.edit} value={value} onChange={onChange} placeholder={child.placeholder || '请选择用户'} />;
@@ -150,7 +150,7 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
   });
 
   // 根据 formItem.children 生成表格列配置
-  const columns: ColumnsType<any> = useMemo(() => {
+  const columns: ColumnsType<any> = (() => {
     const childColumns = formItem.children?.filter((child) => getFormItemAuth(flowNode, child.id, disabled).view).map((child) => ({
       title: child.label || '列',
       dataIndex: child.name || child.id,
@@ -187,7 +187,7 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
     };
 
     return [indexColumn, ...childColumns, actionColumn];
-  }, [formItem.children, dataSource, flowNode, disabled, canEdit]);
+  })();
 
   return (
     <div className='fa-flex-column'>
@@ -200,7 +200,7 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
         dataSource={dataSource}
         pagination={false}
         size="small"
-        rowKey="_key"
+        rowKey={(record) => record.id ?? record._key}
       />
 
       <Button

@@ -13,6 +13,7 @@ import './index.scss';
 import FormItemDragPanel from './panel/FormItemDragPanel';
 import FormItemPropertyPanel from './panel/FormItemPropertyPanel';
 import FormPropertyPanel from './panel/FormPropertyPanel';
+import FormFieldGenerateModal from './panel/FormFieldGenerateModal';
 import { useFaFormStore } from './stores/useFaFormStore';
 
 
@@ -41,10 +42,8 @@ export default function FaFormEditor({ flowForm, config:outConfig, onChange, onC
 
   // 初始化 store 和清理
   useEffect(() => {
-    console.log('FaFormEditor mounted', flowForm);
     init(flowForm);
     return () => {
-      console.log('FaFormEditor unmounted, clearing form items');
       clearFormItems();
     };
   }, []);
@@ -61,13 +60,13 @@ export default function FaFormEditor({ flowForm, config:outConfig, onChange, onC
     // 只保存layout的i,x,y,w,h字段，其他字段不需要保存
     const filteredConfig = {
       ...config,
-      layout: config.layout?.map((item) => ({
+      ...(config.layout ? { layout: config.layout.map((item) => ({
         i: item.i,
         x: item.x,
         y: item.y,
         w: item.w,
         h: item.h,
-      })),
+      })) } : {}),
     };
     onChange?.(filteredConfig);
   }, [config, initialized]);
@@ -84,10 +83,11 @@ export default function FaFormEditor({ flowForm, config:outConfig, onChange, onC
         <div style={{ height: 40 }} className='fa-border-b fa-flex-row-center fa-gap12 fa-pl12 fa-pr12'>
           {config && (
             <Space>
+              <FormFieldGenerateModal />
               <FaFormShowModal title="预览表单" config={config}>
                 <Button size="small">预览</Button>
               </FaFormShowModal>
-              <BaseDrawer triggerDom={<Button size="small">查看JSON</Button>} title="流程配置JSON" size={600} forceRender push={false}>
+              <BaseDrawer triggerDom={<Button size="small">查看JSON</Button>} title="表单配置 JSON" size={600} forceRender push={false}>
                 <JsonView
                   value={config}
                   style={lightTheme}

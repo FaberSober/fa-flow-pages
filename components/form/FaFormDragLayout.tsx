@@ -1,5 +1,5 @@
 import { Flow } from '@features/fa-flow-pages/types';
-import { Button, Col, message, Row, Space } from 'antd';
+import { Button, Col, message, Row, Space, theme } from 'antd';
 import React from 'react';
 import FaFormEditorItem from './cube/FaFormEditorItem';
 import { FaUtils } from '@fa/ui';
@@ -27,6 +27,7 @@ export interface FaFormDragLayoutProps {
  * @date 2026-01-27 20:47:30
  */
 export default function FaFormDragLayout({ parentId, items, onChange, header, root = false, allowIn = false, allowOut = false }: FaFormDragLayoutProps) {
+  const { token } = theme.useToken();
   // 从 store 中获取拖拽状态
   const draggedId = useFaFormStore((state) => state.draggedId);
   const dragOverId = useFaFormStore((state) => state.dragOverId);
@@ -394,12 +395,12 @@ export default function FaFormDragLayout({ parentId, items, onChange, header, ro
           style={{
             width: '100%',
             minHeight: 60,
-            border: dragOverId === 'empty-container' ? '2px solid #1890ff' : '1px dashed #ccc',
-            backgroundColor: dragOverId === 'empty-container' ? '#e6f7ff' : 'transparent',
+            border: dragOverId === 'empty-container' ? `2px solid ${token.colorPrimary}` : `1px dashed ${token.colorBorder}`,
+            backgroundColor: dragOverId === 'empty-container' ? token.colorPrimaryBg : 'transparent',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#999',
+            color: token.colorTextSecondary,
             transition: 'all 0.2s',
           }}
           onDragOver={handleEmptyContainerDragOver}
@@ -428,16 +429,16 @@ export default function FaFormDragLayout({ parentId, items, onChange, header, ro
               <div
                 style={{
                   border: isSelected 
-                    ? '1px solid #ff9800' 
+                    ? `1px solid ${token.colorPrimary}`
                     : isDragOver 
-                    ? '1px solid #1890ff' 
-                    : '1px dashed #ccc',
+                    ? `1px solid ${token.colorPrimary}`
+                    : `1px dashed ${token.colorBorder}`,
                   padding: 6,
                   cursor: 'move',
                   backgroundColor: isSelected 
-                    ? '#fff3e0' 
+                    ? token.colorPrimaryBg
                     : isDragOver 
-                    ? '#e6f7ff' 
+                    ? token.colorPrimaryBg
                     : 'transparent',
                   transition: 'all 0.2s',
                 }}

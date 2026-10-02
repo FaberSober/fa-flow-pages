@@ -64,6 +64,10 @@ export const useFaFormStore = create<FaFormState>()(
           flowForm,
           config: flowForm?.config || {},
           initialized: true,
+          selectedItemId: null,
+          selectedFormItem: undefined,
+          draggedId: null,
+          dragOverId: null,
         })),
 
       addFormItem: (type, itemLayout, layout) =>
@@ -182,6 +186,8 @@ export const useFaFormStore = create<FaFormState>()(
             formItemMap: {},
             items: [],
           },
+          selectedItemId: null,
+          selectedFormItem: undefined,
         })),
 
       clearFormItems: () =>
@@ -191,6 +197,10 @@ export const useFaFormStore = create<FaFormState>()(
           config: {} as Flow.FlowFormConfig,
           layout: [],
           formItemMap: {},
+          selectedItemId: null,
+          selectedFormItem: undefined,
+          draggedId: null,
+          dragOverId: null,
         })),
 
       setDraggedId: (id) =>

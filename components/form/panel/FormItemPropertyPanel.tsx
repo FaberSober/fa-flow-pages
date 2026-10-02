@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useFaFormStore } from '../stores/useFaFormStore';
 import { findParentFormItem } from '../utils';
 import { cloneDeep, isNil } from 'lodash';
-import { Button, Empty, Form, Input, Select, Space, Tag } from 'antd';
+import { Button, Empty, Form, Input, InputNumber, Select, Space, Switch, Tag } from 'antd';
 import FormItemInputProperty from './item/FormItemInputProperty';
 import { SyncOutlined } from '@ant-design/icons';
 import { FaUtils } from '@fa/ui';
@@ -13,6 +13,7 @@ import FormItemDecoHrProperty from './item/FormItemDecoHrProperty';
 import FormItemDecoAlertProperty from './item/FormItemDecoAlertProperty';
 import FormItemHighSubtableProperty from './item/FormItemHighSubtableProperty';
 import { flowFormApi } from '@features/fa-flow-pages/services';
+import { tailFields } from '@features/fa-flow-pages/configs/form';
 
 /**
  * @author xu.pengfei
@@ -31,7 +32,11 @@ export default function FormItemPropertyPanel() {
   // 查找父节点
   const parentFormItem = useMemo(() => {
     if (!selectedFormItem?.id || !config.items) return undefined;
-    return findParentFormItem(config.items, selectedFormItem.id);
+    let parent = findParentFormItem(config.items, selectedFormItem.id);
+    while (parent && parent.type !== 'high_subtable') {
+      parent = findParentFormItem(config.items, parent.id);
+    }
+    return parent;
   }, [selectedFormItem?.id, config.items]);
 
   // 判断父节点是否为设计子表
@@ -40,23 +45,19 @@ export default function FormItemPropertyPanel() {
   // 如果父节点是设计子表,则 tableName 为父节点的 subtable_tableName
   const subtableTableName = isParentSubtable ? parentFormItem?.subtable_tableName : undefined;
 
+  const previousItemId = useRef<string>();
   useEffect(() => {
-    console.log('FormItemPropertyPanel selectedFormItem changed', selectedFormItem);
-    if (!selectedFormItem) return;
-    let tableName = selectedFormItem?.tableName;
-    if (isParentSubtable && subtableTableName) {
-      tableName = subtableTableName;
-      // 同步到 store
-      if (selectedFormItem?.tableName !== subtableTableName) {
-        updateSelectedFormItem({ tableName: subtableTableName });
-      }
+    if (previousItemId.current !== selectedFormItem?.id) {
+      form.resetFields();
+      previousItemId.current = selectedFormItem?.id;
     }
-    form.setFieldsValue({
-      tableName: tableName,
-      name: selectedFormItem?.name,
-      label: selectedFormItem?.label,
-      ...selectedFormItem,
-    });
+    if (!selectedFormItem) return;
+    const nextTableName = subtableTableName || selectedFormItem.tableName || flowForm.dataConfig?.main?.tableName;
+    form.setFieldsValue({ ...selectedFormItem, tableName: nextTableName,
+      required: selectedFormItem.rules?.some(rule => rule.required) || false });
+    if (isParentSubtable && nextTableName !== selectedFormItem.tableName) {
+      updateSelectedFormItem({ tableName: nextTableName });
+    }
   }, [selectedFormItem, isParentSubtable, subtableTableName]);
 
   const tableOptions = useMemo(() => {
@@ -64,18 +65,24 @@ export default function FormItemPropertyPanel() {
     if (flowForm && flowForm.dataConfig && flowForm?.dataConfig?.main) {
       options.push({ label: `${flowForm.dataConfig.main.tableName}(${flowForm.dataConfig.main.comment})`, value: flowForm.dataConfig.main.tableName });
     }
+    if (subtableTableName) {
+      options.push({ label: `${subtableTableName}（${parentFormItem?.label || '关联子表'}）`, value: subtableTableName });
+    }
     return options;
-  }, [flowForm]);
+  }, [flowForm, subtableTableName, parentFormItem?.label]);
 
   // 动态获取列信息
   const [columnOptions, setColumnOptions] = useState<Array<{label: string, value: string, originalComment: string}>>([]);
 
   // 监听 tableName 变化,调用接口获取列信息
   useEffect(() => {
+    let active = true;
+    setColumnOptions([]);
     if (tableName) {
       flowFormApi.queryTableStructure({ tableName }).then(res => {
+        if (!active) return;
         if (res.data && res.data.columns) {
-          const options = res.data.columns.map(col => ({
+          const options = res.data.columns.filter(col => !['id', ...tailFields].includes(col.field.toLowerCase()) || col.field === selectedFormItem?.name).map(col => ({
             label: `${col.field}(${col.comment})`,
             value: col.field,
             originalComment: col.comment,
@@ -97,12 +104,13 @@ export default function FormItemPropertyPanel() {
           setColumnOptions([]);
         }
       }).catch(() => {
-        setColumnOptions([]);
+        if (active) setColumnOptions([]);
       });
     } else {
       setColumnOptions([]);
     }
-  }, [tableName]);
+    return () => { active = false; };
+  }, [tableName, selectedFormItem?.id]);
 
   if (isNil(selectedFormItem)) {
     return <Empty description="未选择表单项" className='fa-mt12' />;
@@ -121,8 +129,9 @@ export default function FormItemPropertyPanel() {
         <Form form={form} styles={{ label: { width: 80 }}}
           // 1. 用户交互修改 → onValuesChange 自动同步 store
           onValuesChange={(cv, av) => {
-            console.log('FormItemPanel form values changed', cv, av);
-            const avCopy = cloneDeep(av);
+            const { required, ...values } = cloneDeep(av);
+            const avCopy = { ...values, rules: [...(selectedFormItem.rules || []).map(({ required: _required, ...rule }) => rule), { required: Boolean(required) }] };
+            if ('tableName' in cv) { avCopy.name = undefined; form.setFieldsValue({ name: undefined }); }
             // update label from name
             if ((!av.label || av.label.startsWith('新组件')) && cv.name) {
               const col = columnOptions.find(c => c.value === cv.name);
@@ -143,7 +152,7 @@ export default function FormItemPropertyPanel() {
                 <Select options={tableOptions} allowClear disabled={isParentSubtable} />
               </Form.Item>
               <Form.Item name="name" label="控件字段" rules={[{ required: true }]}>
-                <Select options={columnOptions} disabled={!tableName} allowClear />
+                <Select options={columnOptions} disabled={!tableName} allowClear showSearch optionFilterProp="label" />
               </Form.Item>
               <Space.Compact>
                 <Form.Item name="label" label="控件标题" rules={[{ required: true }]}>
@@ -151,17 +160,22 @@ export default function FormItemPropertyPanel() {
                 </Form.Item>
                 <Button icon={<SyncOutlined />} onClick={() => {
                   const col = columnOptions.find(c => c.value === form.getFieldValue('name'));
-                  console.log('Sync label from name', col);
                   if (col) {
                     form.setFieldsValue({ label: col.originalComment });
-                    updateSelectedFormItem(form.getFieldsValue()); // 关键：手动同步，这里不会触发 onValuesChange
+                    updateSelectedFormItem({ label: col.originalComment });
                   }
                 }}></Button>
               </Space.Compact>
+              <Form.Item name="required" label="必填" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+              {['input', 'textarea', 'inputnumber'].includes(selectedFormItem.type) && <Form.Item name="initialValue" label="默认值">
+                {selectedFormItem.type === 'inputnumber' ? <InputNumber style={{ width: '100%' }} /> : <Input allowClear placeholder="选填，填报时自动带入" />}
+              </Form.Item>}
             </>
           )}
 
-          {selectedFormItem.type === 'input' && (<FormItemInputProperty />)}
+          {['input', 'inputnumber', 'textarea'].includes(selectedFormItem.type) && (<FormItemInputProperty />)}
 
           {selectedFormItem.type === 'high_subtable' && (<FormItemHighSubtableProperty />)}
 

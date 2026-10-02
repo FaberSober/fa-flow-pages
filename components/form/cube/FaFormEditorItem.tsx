@@ -43,6 +43,8 @@ export interface FaFormEditorItemProps {
  */
 export default function FaFormEditorItem({ formItem, flowNode, disabled, showMode }: FaFormEditorItemProps) {
 
+  const updateFormItemChildren = useFaFormStore((state) => state.updateFormItemChildren);
+
   const formItemConfig: Flw.NodeExtendConfigFormAuth = useMemo(() => {
     return getFormItemAuth(flowNode, formItem.id || '', disabled);
   }, [formItem, flowNode, disabled]);
@@ -65,11 +67,13 @@ export default function FaFormEditorItem({ formItem, flowNode, disabled, showMod
   }
 
   if (formItem.type === 'high_subtable') {
-    const updateFormItemChildren = useFaFormStore((state) => state.updateFormItemChildren);
     const requiredChildren = editable
       ? (formItem.children || []).filter((child) => {
         const auth = getFormItemAuth(flowNode, child.id, disabled);
-        return auth.view && auth.edit && auth.required;
+        const childRequired = flowNode?.extendConfig?.formAuth?.[child.id]?.required
+          ?? child.rules?.some((rule) => rule.required)
+          ?? auth.required;
+        return auth.view && auth.edit && childRequired;
       })
       : [];
     const subTableRules = requiredChildren.length > 0 ? [{
@@ -85,7 +89,7 @@ export default function FaFormEditorItem({ formItem, flowNode, disabled, showMod
     // 展示模式:使用 FaFormShowLayout
     if (showMode) {
       return (
-        <Form.Item name={formItem.name} rules={subTableRules}>
+        <Form.Item name={formItem.name} rules={[...(rules || []), ...(subTableRules || [])]}>
           <FaFormSubTable formItem={formItem} flowNode={flowNode} disabled={!editable} />
         </Form.Item>
       );
@@ -114,7 +118,6 @@ export default function FaFormEditorItem({ formItem, flowNode, disabled, showMod
   }
 
   if (formItem.type === 'container_row') {
-    const updateFormItemChildren = useFaFormStore((state) => state.updateFormItemChildren);
     
     // 展示模式:使用 FaFormShowLayout
     if (showMode) {
@@ -161,7 +164,13 @@ export default function FaFormEditorItem({ formItem, flowNode, disabled, showMod
 
   return (
     <div>
-      <Form.Item label={formItem.label || '标签'} name={formItem.name} rules={rules} initialValue={initialValue}>
+      <Form.Item
+        label={formItem.label || '标签'}
+        name={formItem.name}
+        rules={rules}
+        initialValue={initialValue}
+        valuePropName={formItem.type === 'checkbox' || formItem.type === 'switch' ? 'checked' : 'value'}
+      >
         {formItem.type === 'input' && (
           <Input disabled={!editable} placeholder={formItem.placeholder} />
         )}
@@ -183,7 +192,7 @@ export default function FaFormEditorItem({ formItem, flowNode, disabled, showMod
           <Checkbox disabled={!editable}>{formItem.placeholder || '勾选'}</Checkbox>
         )}
         {formItem.type === 'radio' && (
-          <Radio.Group disabled={!editable} />
+          <Radio.Group disabled={!editable} options={formItem.options} />
         )}
         {/* 日期时间类组件 */}
         {formItem.type === 'datepicker' && (
