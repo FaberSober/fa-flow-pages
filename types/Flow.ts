@@ -485,6 +485,9 @@ namespace Flow {
     placeholder?: string;
     rules?: Array<Record<string, any>>;
     children?: FlowFormItem[];
+    options?: Array<{ label: string; value: string | number }>;
+    mode?: 'multiple' | 'tags';
+    initialValue?: string | number | string[] | null;
 
     // 布局属性
     md?: number;

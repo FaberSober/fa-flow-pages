@@ -1,7 +1,6 @@
-import { DownloadOutlined, EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
-import { AuthDelBtn, BaseBizTable, BaseTableUtils, clearForm, FaberTable, FaHref, useDelete, useDeleteByQuery, useExport, useTableQueryParams } from '@fa/ui';
-import { Button, Form, Input, Space, Tag, Typography } from 'antd';
-import { useNavigate } from 'react-router-dom';
+import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { AuthDelBtn, BaseBizTable, BaseTableUtils, clearForm, FaberTable, useDelete, useDeleteByQuery, useExport, useTableQueryParams } from '@fa/ui';
+import { Button, Form, Input, Space, Typography } from 'antd';
 import { flowFormApi as api } from '@/services';
 import { Flow } from '@/types';
 import FlowFormConfigDrawer from './modal/FlowFormConfigDrawer';
@@ -11,16 +10,10 @@ import FlowFormViewDataDrawer from './modal/FlowFormViewDataDrawer';
 const serviceName = '表单';
 const biz = 'flow_form';
 
-function hasDesignerDraft(record: Flow.FlowForm) {
-  const designer = (record.config as unknown as { designer?: { version?: unknown; items?: unknown } } | undefined)?.designer;
-  return designer?.version === 1 && Array.isArray(designer.items);
-}
-
 /**
  * FLOW-流程表单表格查询
  */
 export default function FlowFormList() {
-  const navigate = useNavigate();
   const [form] = Form.useForm();
 
   const { queryParams, setFormValues, handleTableChange, setSceneId, setConditionList, fetchPageList, loading, list, dicts, paginationProps } =
@@ -33,7 +26,6 @@ export default function FlowFormList() {
   /** 生成表格字段List */
   function genColumns() {
     const { sorter } = queryParams;
-    const statusColumn = BaseTableUtils.genEnumSorterColumn('状态', 'status', 100, sorter, dicts);
     return [
       BaseTableUtils.genIdColumn('ID', 'id', 70, sorter),
       {
@@ -41,12 +33,7 @@ export default function FlowFormList() {
         render: (_, record) => record.catagoryName || '未分类',
       },
       BaseTableUtils.genSimpleSorterColumn('表单名称', 'name', 240, sorter),
-      {
-        ...statusColumn,
-        render: (value, record, index) => hasDesignerDraft(record) && !record.tableName
-          ? <Tag color="blue">设计草稿</Tag>
-          : statusColumn.render?.(value, record, index),
-      },
+      BaseTableUtils.genEnumSorterColumn('状态', 'status', 100, sorter, dicts),
       ...BaseTableUtils.genUpdateColumns(sorter),
       BaseTableUtils.genSimpleSorterColumn('编码', 'no', 120, sorter),
       BaseTableUtils.genEnumSorterColumn('表单类型', 'type', 100, sorter, dicts),
@@ -58,21 +45,14 @@ export default function FlowFormList() {
       {
         title: '操作',
         dataIndex: 'menu',
-        render: (_, r) => {
-          const isDesignerDraft = hasDesignerDraft(r);
-          return (
-            <Space>
-              {!isDesignerDraft && <FlowFormViewDataDrawer item={r} />}
-              {isDesignerDraft ? (
-                <FaHref icon={<EditOutlined />} text="设计" onClick={() => navigate(`/admin/flow/manage/form/designer?id=${r.id}`)} />
-              ) : (
-                <FlowFormConfigDrawer itemId={r.id} refresh={fetchPageList} />
-              )}
-              <FlowFormModal editBtn title={`编辑${serviceName}信息`} record={r} fetchFinish={fetchPageList} />
-              <AuthDelBtn handleDelete={() => handleDelete(r.id)} />
-            </Space>
-          );
-        },
+        render: (_, r) => (
+          <Space>
+            {r.tableName && r.dataConfig?.main && <FlowFormViewDataDrawer item={r} />}
+            <FlowFormConfigDrawer itemId={r.id} refresh={fetchPageList} />
+            <FlowFormModal editBtn title={`编辑${serviceName}信息`} record={r} fetchFinish={fetchPageList} />
+            <AuthDelBtn handleDelete={() => handleDelete(r.id)} />
+          </Space>
+        ),
         width: 300,
         fixed: 'right',
         tcRequired: true,
@@ -86,7 +66,7 @@ export default function FlowFormList() {
       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, position: 'relative', padding: 8 }}>
         <div>
           <div className="fa-h3">表单管理</div>
-          <Typography.Text type="secondary">新建表单，添加字段，保存后可随时继续设计</Typography.Text>
+          <Typography.Text type="secondary">创建表单信息后，依次配置数据库表、表单和列表</Typography.Text>
         </div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
           <Form form={form} layout="inline" onFinish={setFormValues} style={{ flexWrap: 'wrap', gap: 8 }}>
@@ -100,9 +80,7 @@ export default function FlowFormList() {
             <Space wrap>
               <Button htmlType="submit" loading={loading} icon={<SearchOutlined />}>查询</Button>
               <Button onClick={() => clearForm(form)}>重置</Button>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/admin/flow/manage/form/designer')}>
-                新建表单
-              </Button>
+              <FlowFormModal addBtn title={`新增${serviceName}`} fetchFinish={fetchPageList} />
               <Button loading={exporting} icon={<DownloadOutlined />} onClick={fetchExportExcel}>导出</Button>
             </Space>
           </Form>

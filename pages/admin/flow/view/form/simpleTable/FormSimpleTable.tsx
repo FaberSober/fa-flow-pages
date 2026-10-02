@@ -1,10 +1,11 @@
 import { flowFormApi } from '@/services';
 import { Flow } from '@/types';
 import { EditOutlined, EyeOutlined, SearchOutlined } from '@ant-design/icons';
-import { AuthDelBtn, BaseBizTable, BaseTableUtils, clearForm, FaberTable, FaHref, useDelete, useTableQueryParams, FaUtils, useViewItemPro } from '@fa/ui';
+import { AuthDelBtn, BaseBizTable, BaseTableUtils, clearForm, FaberTable, FaHref, useDelete, useTableQueryParams, useViewItemPro } from '@fa/ui';
 import { Button, Form, Input, Space } from 'antd';
 import { each } from 'lodash';
-import React from 'react';
+import { useMemo } from 'react';
+import { normalizeFlowFormTableValues } from '@features/fa-flow-pages/components/formShow/utils';
 import FormAdd from './cube/FormAdd';
 import FormEdit from './cube/FormEdit';
 import FormView from './cube/FormView';
@@ -26,8 +27,9 @@ export default function FormSimpleTable({ flowForm }: FormSimpleTableProps) {
   const { queryParams, setFormValues, handleTableChange, fetchPageList, loading, list, paginationProps } =
     useTableQueryParams<any>(flowFormApi.pageFormData, { flowFormId: flowForm.id }, flowForm.name);
 
-  const viewItem = useViewItemPro<any>(list);
-  const editItem = useViewItemPro<any>(list);
+  const tableValues = useMemo(() => normalizeFlowFormTableValues(flowForm, list), [flowForm, list]);
+  const viewItem = useViewItemPro<any>(tableValues);
+  const editItem = useViewItemPro<any>(tableValues);
 
   const [handleDelete] = useDelete<number>((id) => flowFormApi.removeFormDataById(flowForm.id, id), fetchPageList, flowForm.name);
 
@@ -39,7 +41,7 @@ export default function FormSimpleTable({ flowForm }: FormSimpleTableProps) {
 
     if (flowForm.tableConfig) {
       each(flowForm.tableConfig.table.columns, col => {
-        const dataIndex = FaUtils.toHump(col.field);
+        const dataIndex = col.field;
         if ('date' === col.dataType) {
           columns.push(BaseTableUtils.genDateSorterColumn(col.label || col.field, dataIndex, col.width, sorter))
         } else if ('datetime' === col.dataType) {
@@ -57,11 +59,11 @@ export default function FormSimpleTable({ flowForm }: FormSimpleTableProps) {
         render: (_, r) => (
           <Space>
             <FaHref text='查看' icon={<EyeOutlined />} onClick={() => {
-              const index = list.findIndex((item: any) => item.id === r.id);
+              const index = tableValues.findIndex((item: any) => item.id === r.id);
               viewItem.show(r, index);
             }} />
             <FaHref text='编辑' icon={<EditOutlined />} onClick={() => {
-              const index = list.findIndex((item: any) => item.id === r.id);
+              const index = tableValues.findIndex((item: any) => item.id === r.id);
               editItem.show(r, index);
             }} />
             <AuthDelBtn handleDelete={() => handleDelete(r.id)} />
@@ -107,7 +109,7 @@ export default function FormSimpleTable({ flowForm }: FormSimpleTableProps) {
         columns={genColumns()}
         pagination={paginationProps}
         loading={loading}
-        dataSource={list}
+        dataSource={tableValues}
         onChange={handleTableChange}
         refreshList={() => fetchPageList()}
       />

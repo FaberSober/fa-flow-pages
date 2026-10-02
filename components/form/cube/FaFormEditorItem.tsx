@@ -1,6 +1,6 @@
 import { DepartmentCascade, UserSearchSelect } from '@/components';
 import { Flow, Flw } from '@/types';
-import { UploadFileLocal, UploadImgLocal } from '@fa/ui';
+import { FaUtils, UploadFileLocal, UploadImgLocal } from '@fa/ui';
 import {
   Cascader,
   Checkbox,
@@ -52,7 +52,13 @@ export default function FaFormEditorItem({ formItem, flowNode, disabled, showMod
 
   const viewable = isShowComponent || formItemConfig.view;
   const editable = !isShowComponent && formItemConfig.edit;
-  const required = !isShowComponent && formItemConfig.required;
+  const required = editable && (flowNode?.extendConfig?.formAuth?.[formItem.id]?.required ?? formItem.rules?.some((rule) => rule.required) ?? formItemConfig.required);
+  const initialValue = formItem.type === 'datepicker' || formItem.type === 'timepicker'
+    ? FaUtils.getInitialTimeValue(formItem.initialValue)
+    : formItem.initialValue;
+  const rules = editable
+    ? [...(formItem.rules || []).map(({ required: _required, ...rule }) => rule), { required }]
+    : undefined;
 
   if (!viewable) {
     return null;
@@ -155,7 +161,7 @@ export default function FaFormEditorItem({ formItem, flowNode, disabled, showMod
 
   return (
     <div>
-      <Form.Item label={formItem.label || '标签'} name={formItem.name} rules={[{ required }]}>
+      <Form.Item label={formItem.label || '标签'} name={formItem.name} rules={rules} initialValue={initialValue}>
         {formItem.type === 'input' && (
           <Input disabled={!editable} placeholder={formItem.placeholder} />
         )}
@@ -168,7 +174,7 @@ export default function FaFormEditorItem({ formItem, flowNode, disabled, showMod
         )}
         {/* 选择类组件 */}
         {formItem.type === 'select' && (
-          <Select disabled={!editable} placeholder={formItem.placeholder} />
+          <Select disabled={!editable} placeholder={formItem.placeholder} options={formItem.options} mode={formItem.mode} allowClear />
         )}
         {formItem.type === 'cascader' && (
           <Cascader disabled={!editable} placeholder={formItem.placeholder} />

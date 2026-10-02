@@ -1,11 +1,11 @@
 import { flowFormApi } from '@/services';
 import { Flow, Flw } from '@/types';
-import React, { useEffect, useState } from 'react';
-import { each, get, isNil, set } from 'lodash';
+import { useEffect, useState } from 'react';
+import { each, isNil } from 'lodash';
 import { FaUtils, PageLoading } from '@fa/ui';
 import FaFormShow from './FaFormShow';
 import { FormInstance } from 'antd';
-import { getTableKeyMap } from './utils';
+import { normalizeFlowFormValues } from './utils';
 
 export interface FaFlowFormProps<T = any> {
   formId: any;
@@ -21,12 +21,12 @@ export interface FaFlowFormProps<T = any> {
  * @author xu.pengfei
  * @date 2025-12-18 11:28:43
  */
-export default function FaFlowForm({ formId, form, flowNode, record, onLoadingChange, onSuccess, disabled }: FaFlowFormProps) {
+export default function FaFlowForm({ formId, form, flowNode, record, onSuccess, disabled }: FaFlowFormProps) {
   const [flowForm, setFlowForm] = useState<Flow.FlowForm>();
 
   useEffect(() => {
     if (record && flowForm) {
-      form.setFieldsValue(getInitialValues())
+      form.setFieldsValue(normalizeFlowFormValues(flowForm, record));
     }
   }, [record, flowForm]);
 
@@ -38,69 +38,22 @@ export default function FaFlowForm({ formId, form, flowNode, record, onLoadingCh
     }
   }, [formId]);
 
-  function getInitialValues() {
-    const initValues = {
-      ...(record||{}),
-    }
-    const mainTableMap = getTableKeyMap(flowForm?.dataConfig?.main)
-    // console.log('mainTableMap', mainTableMap)
-    if (flowForm && flowForm.config) {
-      each(flowForm.config.items, (fi) => {
-        // console.log('fi', fi)
-        const col = mainTableMap[fi.name!]
-        if (isNil(col)) return;
-        if (col.dataType === 'datetime') {
-          set(initValues, fi.name!, FaUtils.getInitialKeyTimeValue(initValues, fi.name!))
-        }
-      })
-    }
-    console.log('initValues', initValues)
-    return initValues
-  }
-
-  /** 新增Item */
-  function invokeInsertTask(params: any) {
-    // onLoadingChange?.(true);
-    onSuccess?.({
-      '_formId': formId,
-      ...params,
-    })
-    // flowFormApi.saveFormData({
-    //   formId,
-    //   formData: params,
-    //   // childFormDataList: [],
-    // }).then((res) => {
-    //   // FaUtils.showResponse(res, '新增流程');
-    //   const {formId, formData} = res.data;
-    //   if (onSuccess) onSuccess({
-    //     '_formId': formId,
-    //     ...formData,
-    //     // childFormDataList,
-    //   });
-    // }).finally(() => {
-    //   onLoadingChange?.(false);
-    // })
-  }
-
-  /** 更新Item */
-  function invokeUpdateTask(params: any) {
-    onLoadingChange?.(true);
-    // api.update(params.id, params).then((res) => {
-    //   // FaUtils.showResponse(res, '更新流程');
-    //   if (onSuccess) onSuccess(res.data);
-    // }).finally(() => {
-    //   onLoadingChange?.(false);
-    // })
-  }
-
   function onFinish(fieldsValue: any) {
     const values = FaUtils.formatDateValues(fieldsValue);
-    console.log('提交的values', values);
-    if (record) {
-      invokeUpdateTask({ ...record, ...values });
-    } else {
-      invokeInsertTask({ ...values });
+    // 清空字段显式提交 null，避免 JSON 丢失 undefined 后无法清除旧数据。
+    function normalizeSubmitted(items: Flow.FlowFormItem[] = []) {
+      each(items, (item) => {
+        if (item.type === 'container_row') normalizeSubmitted(item.children);
+        if (!item.name || !Object.hasOwn(values, item.name)) return;
+        if (values[item.name] === undefined) values[item.name] = null;
+        if (item.type === 'datepicker' && fieldsValue[item.name]?.format) {
+          values[item.name] = fieldsValue[item.name].format('YYYY-MM-DD');
+        }
+      });
     }
+    normalizeSubmitted(flowForm?.config?.items);
+    // 数据请求由调用方负责，新增和编辑均只回传当前表单值。
+    onSuccess?.({ ...record, _formId: formId, ...values });
   }
 
   if (isNil(flowForm)) return <PageLoading />;

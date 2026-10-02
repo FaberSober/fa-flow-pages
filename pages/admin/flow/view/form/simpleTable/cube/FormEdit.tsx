@@ -3,7 +3,7 @@ import { Flow } from '@/types';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { FaFlexRestLayout, FaUtils, Fa } from '@fa/ui';
 import { FaFlowForm } from '@features/fa-flow-pages/components';
-import { Button, Form, Space, Spin } from 'antd';
+import { Button, Form, message, Space, Spin } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { normalizeFlowFormValues } from './formValueUtils';
@@ -64,6 +64,7 @@ export default function FormEdit({ flowForm, record, open: openProp, onOpenChang
   }, [form]);
 
   const handleFormSubmit = React.useCallback((formValues: any) => {
+    if (formLoading) return;
     setFormLoading(true);
     // 更新表单数据
     flowFormApi.updateFormData({
@@ -73,14 +74,20 @@ export default function FormEdit({ flowForm, record, open: openProp, onOpenChang
         id: record.id,
       },
     }).then((res: Fa.Ret) => {
+      if (res.status !== Fa.RES_CODE.OK) {
+        message.error(res.message || '编辑失败，请重试');
+        return;
+      }
       FaUtils.showResponse(res, '编辑');
       // setOpen(false);
       // form.resetFields();
       onSuccess?.();
+    }).catch(() => {
+      // 请求失败由统一请求层提示，保留当前输入供重试。
     }).finally(() => {
       setFormLoading(false);
     });
-  }, [flowForm.id, record, form, onSuccess, setOpen]);
+  }, [flowForm.id, record, onSuccess, formLoading]);
 
   const handleOpen = React.useCallback(() => {
     setOpen(true);
