@@ -1,154 +1,121 @@
 import { Flow } from '@features/fa-flow-pages/types';
-import React, { useEffect, useState } from 'react';
-import { BaseDrawer, FaFlexRestLayout } from '@fa/ui';
+import { useEffect, useRef, useState } from 'react';
+import { BaseDrawer, Fa, FaFlexRestLayout, useApiLoading } from '@fa/ui';
 import { flowFormApi, flowFormTableApi } from '@features/fa-flow-pages/services';
-import { set } from 'lodash';
 import FormTableColumnTable from './FormTableColumnTable';
-import { Empty } from 'antd';
-import { resortColumnsByConfig } from '../utils';
+import { Empty, Spin, message } from 'antd';
 import './FormTableEdit.scss';
 import clsx from 'clsx';
 import FormTableSelectModal from './FormTableSelectModal';
 import FormTableLink from './FormTableLink';
 import { useFlowFormEditStore } from '../../store/useFlowFormEditStore';
 
-export interface FormTableEditProps {
-}
 
 /**
  * @author xu.pengfei
  * @date 2025-12-16 19:50:11
  */
-export default function FormTableEdit({ }: FormTableEditProps) {
+export default function FormTableEdit() {
 
-  const { flowForm, updateFlowFormDataConfig, clear } = useFlowFormEditStore()
-  
-  const [tableName, setTableName] = useState<string>(); // 选中查看的表
-  const [tableInfo, setTableInfo] = useState<Flow.TableInfoVo>(); // 选中表详细
-  const [isMainTableCreated, setIsMainTableCreated] = useState<boolean>(false);
-  const [linkTables, setLinkTables] = useState<Flow.FlowFormTable[]>([]); // 关联子表列表
-
-  useEffect(() => {
-    if (flowForm?.dataConfig?.main?.tableName) {
-      setIsMainTableCreated(true);
-      handleSelTable(flowForm?.dataConfig?.main?.tableName)
-    }
-    // 加载关联子表列表
-    handleGetLinkTables();
-  }, [flowForm]);
-
+  const { flowForm, updateFlowFormDataConfig } = useFlowFormEditStore();
+  const [tableName, setTableName] = useState<string>();
+  const [tableInfo, setTableInfo] = useState<Flow.TableInfoVo>();
+  const [linkTables, setLinkTables] = useState<Flow.FlowFormTable[]>([]);
+  const selectedTable = useRef<string>();
+  const selectionVersion = useRef(0);
+  const configSaving = useRef(false);
+  const loadedFormId = useRef(flowForm?.id);
+  const formIdRef = useRef(flowForm?.id);
+  formIdRef.current = flowForm?.id;
+  const loading = useApiLoading(flowFormApi.getUrl('queryTableStructure'));
   const hasMainTable = flowForm?.dataConfig?.main?.tableName;
 
-  async function handleSetMainTable(v: {tableName: string, comment: string}) {
-    console.log('create table finish', v);
-    if (!flowForm) return;
+  useEffect(() => {
+    const mainName = flowForm?.dataConfig?.main?.tableName;
+    if (mainName && (selectedTable.current !== mainName || loadedFormId.current !== flowForm?.id)) {
+      loadedFormId.current = flowForm?.id;
+      handleSelTable(mainName, true);
+    }
+    if (!mainName) { selectedTable.current = undefined; setTableName(undefined); setTableInfo(undefined); }
+    return () => { selectionVersion.current += 1; };
+  }, [flowForm?.id, hasMainTable]);
 
-    const res1 = await flowFormApi.queryTableStructure({ tableName: v.tableName });
-    const columns: Flow.FlowFormDataConfigColumn[] = res1.data.columns.map((col, index) => ({
-      ...col,
-      table: v.tableName,
-      sort: index,
-    }));
+  useEffect(() => { handleGetLinkTables(); }, [flowForm?.id]);
 
-    const newDataConfig = { ...flowForm?.dataConfig };
-    set(newDataConfig, 'main.tableName', v.tableName);
-    set(newDataConfig, 'main.comment', v.comment);
-    set(newDataConfig, 'main.columns', columns);
-    set(newDataConfig, 'main.pkField', res1.data.pkField);
-    updateFlowFormDataConfig(newDataConfig)
-
-    flowFormApi.update(flowForm.id, {
-      tableName: v.tableName,
-      dataConfig: {
+  async function handleSetMainTable(value: { tableName: string; comment: string }) {
+    if (!flowForm) throw new Error('未加载表单');
+    if (configSaving.current) { message.info('正在保存配置，请稍后重试'); throw new Error('配置保存中'); }
+    configSaving.current = true;
+    try {
+      const res = await flowFormApi.queryTableStructure({ tableName: value.tableName });
+      if (res.status !== Fa.RES_CODE.OK || !res.data?.exist) {
+        message.error(res.message || '数据表不存在');
+        throw new Error('数据表不存在');
+      }
+      const dataConfig = {
         ...flowForm.dataConfig,
-        main: {
-          tableName: v.tableName,
-          comment: v.comment,
-          columns,
-          pkField: res1.data.pkField,
-        }
-      }
-    })
-  }
-
-  function handleColumnsChange(columns: Flow.FlowFormDataConfigColumn[]) {
-    console.log('handleColumnsChange', columns, 'tableName', tableName);
-    if (!flowForm) return;
-    
-    // 判断当前选中的是主表还是子表
-    const isMainTable = tableName === flowForm?.dataConfig?.main?.tableName;
-    
-    if (isMainTable) {
-      // 更新主表配置
-      if (!tableInfo) return;
-      
-      const updatedMainConfig: Flow.FlowFormDataConfigTable = {
-        tableName: tableInfo.tableName,
-        pkField: tableInfo.pkField,
-        comment: tableInfo.tableComment || flowForm.dataConfig?.main?.comment || '',
-        columns,
+        main: { tableName: value.tableName, comment: value.comment, pkField: res.data.pkField,
+          columns: res.data.columns.map((column, sort) => ({ ...column, table: value.tableName, sort })) },
       };
-      const newDataConfig = { ...flowForm?.dataConfig };
-      set(newDataConfig, 'main', updatedMainConfig);
-      updateFlowFormDataConfig(newDataConfig);
-      
-      flowFormApi.update(flowForm.id, {
-        dataConfig: {
-          ...flowForm.dataConfig,
-          main: updatedMainConfig,
-        }
-      });
-    } else {
-      // 更新子表配置
-      const linkTable = linkTables.find(t => t.tableName === tableName);
-      if (!linkTable || !tableInfo) return;
-      
-      const updatedDataConfig: Flow.FlowFormDataConfigTable = {
-        tableName: tableInfo.tableName,
-        pkField: tableInfo.pkField,
-        comment: tableInfo.tableComment || linkTable.dataConfig?.comment || '',
-        columns,
-      };
-      
-      // 更新本地状态
-      setLinkTables(prev => prev.map(t => 
-        t.id === linkTable.id 
-          ? { ...t, dataConfig: updatedDataConfig }
-          : t
-      ));
-      
-      // 更新服务器数据
-      flowFormTableApi.update(linkTable.id, {
-        ...linkTable,
-        dataConfig: updatedDataConfig,
-      });
-    }
-  }
-
-  function handleSelTable(selTableName: string) {
-    if (selTableName === tableName) {
-      return;
-    }
-    setTableName(selTableName);
-    flowFormApi.queryTableStructure({ tableName: selTableName! }).then(res => {
-      resortColumnsByConfig(res.data.columns, flowForm?.dataConfig);
+      const saved = await flowFormApi.update(flowForm.id, { tableName: value.tableName, dataConfig });
+      if (saved.status !== Fa.RES_CODE.OK) { message.error(saved.message || '关联主表失败'); throw new Error('关联主表失败'); }
+      if (formIdRef.current !== flowForm.id) return;
+      selectionVersion.current += 1;
+      selectedTable.current = value.tableName;
+      setTableName(value.tableName);
       setTableInfo(res.data);
-      if (!res.data.exist) {
-        setIsMainTableCreated(false);
+      updateFlowFormDataConfig(dataConfig);
+      message.success('主表已关联');
+    } finally { configSaving.current = false; }
+  }
+
+  async function handleColumnsChange(columns: Flow.FlowFormDataConfigColumn[]) {
+    if (!flowForm || !tableInfo) throw new Error('表信息未加载');
+    if (configSaving.current) { message.info('正在保存配置，请稍后重试'); throw new Error('配置保存中'); }
+    configSaving.current = true;
+    try {
+      const updated = { tableName: tableInfo.tableName, pkField: tableInfo.pkField, comment: tableInfo.tableComment, columns };
+      if (tableName === flowForm.dataConfig?.main?.tableName) {
+        const dataConfig = { ...flowForm.dataConfig, main: updated };
+        const res = await flowFormApi.update(flowForm.id, { dataConfig });
+        if (res.status !== Fa.RES_CODE.OK) { message.error(res.message || '同步配置失败'); throw new Error('同步配置失败'); }
+        if (formIdRef.current === flowForm.id) updateFlowFormDataConfig(dataConfig);
+      } else {
+        const linked = linkTables.find(table => table.tableName === tableName);
+        if (!linked) throw new Error('关联子表不存在');
+        const res = await flowFormTableApi.update(linked.id, { ...linked, dataConfig: updated });
+        if (res.status !== Fa.RES_CODE.OK) { message.error(res.message || '同步子表配置失败'); throw new Error('同步子表配置失败'); }
+        if (formIdRef.current === flowForm.id) setLinkTables(previous => previous.map(table => table.id === linked.id ? { ...table, dataConfig: updated } : table));
       }
-    });
+    } finally { configSaving.current = false; }
   }
 
-  function handleGetLinkTables() {
+  async function handleSelTable(name: string, force = false) {
+    if (!force && name === selectedTable.current && tableInfo) return;
+    selectedTable.current = name;
+    setTableName(name);
+    setTableInfo(undefined);
+    const version = ++selectionVersion.current;
+    try {
+      const res = await flowFormApi.queryTableStructure({ tableName: name });
+      if (version !== selectionVersion.current) return;
+      if (res.status !== Fa.RES_CODE.OK) { message.error(res.message || '加载表结构失败'); return; }
+      const config = name === flowForm?.dataConfig?.main?.tableName ? flowForm?.dataConfig?.main : linkTables.find(table => table.tableName === name)?.dataConfig;
+      const sorts = new Map((config?.columns || []).map(column => [column.field, column.sort]));
+      res.data.columns.sort((a, b) => (sorts.get(a.field) ?? Number.MAX_SAFE_INTEGER) - (sorts.get(b.field) ?? Number.MAX_SAFE_INTEGER));
+      setTableInfo(res.data);
+    } catch { /* 请求层提示错误 */ }
+  }
+
+  async function handleGetLinkTables() {
     if (!flowForm?.id) return;
-    
-    flowFormTableApi.list({ query: { flowFormId: flowForm.id }, sorter: "sort asc" })
-      .then((res) => {
-        setLinkTables(res.data || []);
-      });
+    const id = flowForm.id;
+    try {
+      const res = await flowFormTableApi.list({ query: { flowFormId: id }, sorter: 'sort asc' });
+      if (formIdRef.current === id && res.status === Fa.RES_CODE.OK) setLinkTables(res.data || []);
+    } catch { /* 请求层提示错误 */ }
   }
 
-  // console.log('hasMainTable', hasMainTable);
   return (
     <div className='fa-full fa-flex-row fa-gap12'>
       <div style={{ width: 260, padding: 12 }} className='fa-card fa-flex-column'>
@@ -178,7 +145,7 @@ export default function FormTableEdit({ }: FormTableEditProps) {
           {hasMainTable && (
             <div 
               className={clsx('fa-form-table-item', tableName === flowForm?.dataConfig?.main?.tableName && 'fa-form-table-item-active')}
-              onClick={() => handleSelTable(flowForm?.dataConfig?.main?.tableName)}
+              onClick={() => hasMainTable && handleSelTable(hasMainTable)}
             >
               <div className="i-material-symbols:table fa-form-item-icon"/>
               <span>{flowForm?.dataConfig?.main?.tableName}</span>
@@ -219,8 +186,8 @@ export default function FormTableEdit({ }: FormTableEditProps) {
       <FaFlexRestLayout className="fa-full-content fa-card">
         <div className='fa-p-16 fa-full'>
           {flowForm && tableInfo && tableInfo.exist ? (
-            <FormTableColumnTable item={flowForm} tableInfo={tableInfo} onColumnsChange={handleColumnsChange} />
-          ) : <Empty description="表不存在" />}
+            <FormTableColumnTable key={tableInfo.tableName} item={flowForm} tableInfo={tableInfo} configuredColumns={tableName === hasMainTable ? flowForm.dataConfig?.main?.columns : linkTables.find(table => table.tableName === tableName)?.dataConfig?.columns} onColumnsChange={handleColumnsChange} />
+          ) : <Spin spinning={loading}><Empty description={loading ? '正在加载表结构' : hasMainTable ? '表结构未加载，请选择数据表' : '请先关联或新建业务数据表'} /></Spin>}
         </div>
       </FaFlexRestLayout>
     </div>

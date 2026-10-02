@@ -557,6 +557,7 @@ namespace Flow {
 
   // ------------------------------------------------- Database -------------------------------------------------
   export interface TableInfoVo {
+    databaseType?: 'mysql' | 'postgre';
     tableName: string;
     tableComment: string;
     pkField: string;
@@ -572,15 +573,17 @@ namespace Flow {
     /** 纯类型（如 varchar） */
     dataType: string;
     /** 字符长度（varchar 专用） */
-    length: number;
+    length: number | null;
     /** 数字精度 */
-    precision: number;
+    precision: number | null;
     /** 小数位数 */
-    scale: number;
+    scale: number | null;
     /** 是否可空（YES/NO） */
     nullable: string;
     /** 默认值 */
-    defaultValue: string;
+    defaultValue: string | null;
+    /** 是否为暂不支持修改的数据库默认表达式 */
+    defaultExpression?: boolean;
     /** 键类型（PRI 表示主键） */
     key: string;
     /** 自增等（auto_increment） */

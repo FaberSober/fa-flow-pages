@@ -1,151 +1,76 @@
-import { Flow } from '@/types';
-import { Checkbox, Form, Input, InputNumber, Popconfirm, Select, Space } from 'antd';
-import React, { useEffect, useState } from 'react';
-import { SHOW_PRECISION, SHOW_SCALE } from '../utils';
+import type { Flow } from '@/types';
+import { Button, Form, Popconfirm, Space, Tag, message } from 'antd';
+import { useEffect, useRef, useState } from 'react';
 import { flowFormApi } from '@/services';
-import { FaUtils } from '@fa/ui';
-
-
-const SYSTEM_FIELDS = ['id', 'crt_time', 'crt_user', 'upd_time', 'upd_user', 'deleted', 'flow_instance_id', 'tenant_id'];
+import { Fa, FaUtils, useApiLoading } from '@fa/ui';
+import ColumnFields from './ColumnFields';
+import { isSystemColumn, typeParameters, toColumn, type ColumnValues } from './columnUtils';
 
 export interface FormTableColumnEditProps {
   column: Flow.TableColumnVo;
   tableName: string;
-  onSuccess?: () => void;
+  databaseType: Flow.TableInfoVo['databaseType'];
+  onSuccess?: () => Promise<void>;
 }
 
-/**
- * @author xu.pengfei
- * @date 2025-12-17 16:34:38
- */
-export default function FormTableColumnEdit({ column, tableName, onSuccess }: FormTableColumnEditProps) {
-  const [form] = Form.useForm();
+export default function FormTableColumnEdit({ column, tableName, databaseType, onSuccess }: FormTableColumnEditProps) {
+  const [form] = Form.useForm<ColumnValues>();
   const [dataType, setDataType] = useState(column.dataType);
-
+  const busy = useRef(false);
+  const loading = useApiLoading([flowFormApi.getUrl('updateColumn'), flowFormApi.getUrl('deleteColumn')]);
+  const system = isSystemColumn(column);
+  const unsupported = Boolean(column.defaultExpression || column.key === 'PRI' || column.extra === 'auto_increment' || /unsigned/i.test(column.type));
+  const readOnlyReason = column.defaultExpression ? '默认表达式暂不支持编辑' : '主键、自增或 unsigned 字段暂不支持编辑';
   useEffect(() => {
     setDataType(column.dataType);
-    form.setFieldsValue({
-      ...column,
-      nullable: column.nullable === 'NO',
-    });
-  }, []);
+    form.resetFields();
+    form.setFieldsValue({ ...column, nullable: column.nullable === 'NO', defaultValue: column.defaultValue ?? '' });
+  }, [column, tableName, form]);
 
-  function onFinish(fieldsValue: any) {
-    flowFormApi.updateColumn({
-      tableName,
-      column: {
-        ...fieldsValue,
-        nullable: fieldsValue.nullable ? 'NO' : 'YES',
-      },
-    }).then(res => {
+  async function onFinish(values: ColumnValues) {
+    if (busy.current || unsupported) return;
+    busy.current = true;
+    try {
+      const res = await flowFormApi.updateColumn({ tableName, column: { ...toColumn(values), field: column.field, key: column.key, extra: column.extra } });
+      if (res.status !== Fa.RES_CODE.OK) { message.error(res.message || '更新字段失败'); return; }
       FaUtils.showResponse(res, '更新字段');
-      onSuccess && onSuccess();
-    })
+      await onSuccess?.();
+    } catch { /* 请求层提示；失败保留输入 */ }
+    finally { busy.current = false; }
   }
 
-  const isSystemField = SYSTEM_FIELDS.includes(column.field);
+  async function remove() {
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      const res = await flowFormApi.deleteColumn({ tableName, column: column.field });
+      if (res.status !== Fa.RES_CODE.OK) { message.error(res.message || '删除字段失败'); return; }
+      FaUtils.showResponse(res, '删除字段');
+      await onSuccess?.();
+    } catch { /* 请求层提示 */ }
+    finally { busy.current = false; }
+  }
 
-  const isPk = column.key === 'PRI';
-  const showPrecision = SHOW_PRECISION.includes(dataType);
-  const showScale = SHOW_SCALE.includes(dataType);
+  if (system) return <div className="fa-db-column-row fa-db-system-row">
+    <span>{column.field}</span><span>{column.comment || '—'}</span><span>{column.dataType}</span>
+    <span>{column.type}</span><span>{column.nullable === 'NO' ? '是' : '否'}</span>
+    <span>{column.defaultValue ?? '—'}</span><span>{column.key === 'PRI' ? column.extra === 'auto_increment' ? '主键 · 自增' : '主键' : '—'}</span>
+    <Tag>系统维护</Tag><span />
+  </div>;
 
-  return (
-    <Form form={form} onFinish={onFinish} disabled={isSystemField} style={{flex: 1}}
-      onValuesChange={(cv, av) => {
-        if (av.dataType && av.dataType !== dataType) {
-          setDataType(av.dataType);
-        }
-      }}
-    >
-      <div className='fa-flex-1 fa-flex-row-center fa-gap6 fa-form-view' style={{  }}>
-        <div style={{ width: 120 }}>
-          {isSystemField ? <span style={{ color: 'rgba(200, 0, 0, 1)' }}>{column.field}</span> : (
-            <Form.Item name="field" noStyle rules={[{ required: true }]}>
-              <Input variant="filled" />
-            </Form.Item>
-          )}
-        </div>
-        <div style={{ width: 120 }}>
-          <Form.Item name="dataType" noStyle rules={[{ required: true }]}>
-            <Select style={{ width: '100%' }}
-              options={[
-                { label: 'int', value: 'int' },
-                { label: 'bigint', value: 'bigint' },
-                { label: 'float', value: 'float' },
-                { label: 'double', value: 'double' },
-                { label: 'decimal', value: 'decimal' },
-                { label: 'varchar', value: 'varchar' },
-                { label: 'text', value: 'text' },
-                { label: 'datetime', value: 'datetime' },
-              ]}
-            />
-          </Form.Item>
-        </div>
-        <div style={{ width: 80 }}>
-          <Form.Item name="length" noStyle>
-            <InputNumber variant="filled" style={{width: '100%'}} />
-          </Form.Item>
-        </div>
-        <div style={{ width: 80 }}>
-          {showPrecision && (
-            <Form.Item name="precision" noStyle>
-              <InputNumber variant="filled" style={{width: '100%'}} />
-            </Form.Item>
-          )}
-        </div>
-        <div style={{ width: 80 }}>
-          {showScale && (
-            <Form.Item name="scale" noStyle>
-              <InputNumber variant="filled" style={{width: '100%'}} />
-            </Form.Item>
-          )}
-        </div>
-        <div style={{ width: 40, textAlign: 'center' }}>
-          <Form.Item name="nullable" valuePropName="checked" noStyle>
-            <Checkbox disabled={isPk} />
-          </Form.Item>
-        </div>
-        <div style={{ width: 200 }}>
-          <Form.Item name="defaultValue" noStyle>
-            <Input variant="filled" />
-          </Form.Item>
-        </div>
-        <div style={{ width: 40, textAlign: 'center' }}>
-          {isPk && <Checkbox checked={column.key === 'PRI'} />}
-        </div>
-        <div style={{ width: 40, textAlign: 'center' }}>
-          {isPk && <Checkbox checked={column.extra === 'auto_increment'} />}
-        </div>
-        <div style={{ flex: 1 }}>
-          <Form.Item name="comment" noStyle>
-            <Input variant="filled" />
-          </Form.Item>
-        </div>
-        <div style={{ width: 64 }}>
-          {!isSystemField && (
-            <Space>
-              <a onClick={() => form.submit()}>更新</a>
-              <Popconfirm
-                title="确定删除该字段吗？"
-                description="删除后数据将不可恢复，请谨慎操作！"
-                okButtonProps={{ danger: true }}
-                okText="删除"
-                onConfirm={() => {
-                  return flowFormApi.deleteColumn({
-                    tableName,
-                    column: column.field,
-                  }).then(res => {
-                    FaUtils.showResponse(res, '删除字段');
-                    onSuccess && onSuccess();
-                  });
-                }}
-              >
-                <a style={{color: 'red'}}>删除</a>
-              </Popconfirm>
-            </Space>
-          )}
-        </div>
-      </div>
-    </Form>
-  );
+  return <Form form={form} onFinish={onFinish} onFinishFailed={({ errorFields }) => message.warning(errorFields[0]?.errors[0] || '请检查字段设置')} disabled={loading || !databaseType || unsupported} style={{ flex: 1 }}
+    onValuesChange={changed => {
+      if (changed.dataType) { setDataType(changed.dataType); form.setFieldsValue({ ...typeParameters(changed.dataType), defaultValue: undefined }); }
+    }}>
+    <div className="fa-db-column-row">
+      <ColumnFields dataType={dataType} databaseType={databaseType} editing primaryKey={column.key === 'PRI'} autoIncrement={column.extra === 'auto_increment'} />
+      <Space size={0}>
+        <Button type="link" htmlType="submit" loading={loading} title={unsupported ? readOnlyReason : undefined}>更新</Button>
+        <Popconfirm title="确定删除该字段吗？" description="删除后字段数据不可恢复" okButtonProps={{ danger: true }} okText="删除" onConfirm={remove} disabled={loading || !databaseType}>
+          <Button type="link" danger disabled={loading || !databaseType}>删除</Button>
+        </Popconfirm>
+      </Space>
+    </div>
+    {unsupported && <div className="fa-text-secondary" style={{ padding: '0 8px 6px' }}>{readOnlyReason}</div>}
+  </Form>;
 }

@@ -1,0 +1,14 @@
+.fa-db-table-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.fa-db-table-hint { margin-bottom: 12px; font-size: 12px; }
+.fa-db-table-scroll { overflow: auto; flex: 1; min-height: 0; }
+.fa-db-table-grid { min-width: 1220px; }
+.fa-db-column-row { display: grid; grid-template-columns: 180px minmax(160px, 1fr) 145px 160px 40px 190px 90px 105px; align-items: center; gap: 8px; padding: 8px; min-height: 48px; }
+.fa-db-column-header { grid-template-columns: 180px minmax(160px, 1fr) 145px 160px 40px 190px 90px 105px 24px; font-weight: 600; background: var(--fa-bg-color); border-bottom: 1px solid var(--fa-border-color); }
+.fa-db-column-row .ant-select, .fa-db-column-row .ant-input-number { width: 100%; }
+.fa-db-column-params { display: flex; gap: 6px; }
+.fa-db-column-params .ant-input-number { min-width: 0; flex: 1; }
+.fa-db-column-row > .ant-checkbox-wrapper { justify-self: center; }
+.fa-db-column-add { grid-template-columns: 180px minmax(160px, 1fr) 145px 160px 40px 190px 90px 105px 24px; border-bottom: 1px solid var(--fa-border-color); }
+.fa-db-system-heading { display: flex; align-items: center; gap: 8px; padding: 12px 0 4px; }
+.fa-db-system-row { grid-template-columns: 180px minmax(160px, 1fr) 145px 160px 40px 190px 90px 105px 24px; color: var(--fa-text-color-secondary); border-bottom: 1px solid var(--fa-border-color); }
+.fa-db-system-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

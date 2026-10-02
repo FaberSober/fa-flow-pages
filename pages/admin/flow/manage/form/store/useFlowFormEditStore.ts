@@ -21,8 +21,8 @@ export const useFlowFormEditStore = create(
       flowForm: null,
       setFlowForm: (flowForm: Flow.FlowForm) => set({ flowForm }),
       updateFlowFormDataConfig: (dataConfig: Flow.FlowFormDataConfig) => set((state) => {
-        flowFormApi.update(state.flowForm!.id, { dataConfig })
-        return { flowForm: { ...state.flowForm, dataConfig } }
+        if (!state.flowForm) return {};
+        return { flowForm: { ...state.flowForm, tableName: dataConfig.main?.tableName, dataConfig } }
       }),
       updateFlowFormTableConfig: (flowForm: Flow.FlowForm) => set((state) => {
         flowFormApi.update(state.flowForm!.id, { tableConfig: flowForm.tableConfig })

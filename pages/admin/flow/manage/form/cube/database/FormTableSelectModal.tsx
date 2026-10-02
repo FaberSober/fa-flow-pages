@@ -1,14 +1,14 @@
-import { flowFormApi as api, generatorApi } from '@/services';
+import { generatorApi } from '@/services';
 import { Generator } from '@/types';
 import { SearchOutlined } from "@ant-design/icons";
 import { BaseBizTable, BaseTableUtils, DragModal, DragModalProps, useTableQueryParams, FaberTable, clearForm } from '@fa/ui';
-import { Button, Form, Input, Space } from 'antd';
-import { useState } from 'react';
+import { Button, Form, Input, Space, message } from 'antd';
+import { useRef, useState } from 'react';
 import FormTableCreateModal from './FormTableCreateModal';
 
 
 export interface FormTableSelectModalProps extends DragModalProps {
-  fetchFinish?: (v: {tableName: string, comment: string}) => void;
+  fetchFinish?: (v: {tableName: string, comment: string}) => void | Promise<void>;
 }
 
 /**
@@ -33,14 +33,23 @@ export default function FormTableSelectModal({ children, fetchFinish, ...props }
     ] as FaberTable.ColumnsProp<Generator.TableVo>[];
   }
 
-  function confirm() {
-    setOpen(false)
-    if (selItem && fetchFinish) {
-      fetchFinish({ tableName: selItem.tableName, comment: selItem.tableComment });
-    }
+  const busy = useRef(false);
+  const [binding, setBinding] = useState(false);
+  async function confirm() {
+    if (busy.current) return;
+    if (!selItem) { message.info('请先选择数据表'); return; }
+    if (!/^ff_[a-zA-Z0-9_]+$/.test(selItem.tableName)) { message.warning('请选择 ff_ 开头、使用英文、数字和下划线命名的业务表'); return; }
+    busy.current = true;
+    setBinding(true);
+    try {
+      await fetchFinish?.({ tableName: selItem.tableName, comment: selItem.tableComment });
+      setOpen(false);
+    } catch { /* 关联失败保留选择 */ }
+    finally { busy.current = false; setBinding(false); }
   }
 
   function showModal() {
+    setSelItem(undefined);
     setOpen(true)
   }
 
@@ -53,8 +62,8 @@ export default function FormTableSelectModal({ children, fetchFinish, ...props }
         title="选择数据表"
         open={open}
         onOk={confirm}
-        confirmLoading={loading}
-        onCancel={() => setOpen(false)}
+        confirmLoading={loading || binding}
+        onCancel={() => !binding && setOpen(false)}
         width={1000}
         styles={{
           body: { padding: 0 }
@@ -112,12 +121,10 @@ export default function FormTableSelectModal({ children, fetchFinish, ...props }
             rowClickSelected
             rowSelection={{
               type: 'radio',
+              selectedRowKeys: selItem ? [selItem.tableName] : [],
             }}
-            onSelectedRowsChange={(rowKeys, rows) => {
-              console.log('onSelectedRowsChange', rowKeys, rows);
-              if (rows && rows[0]) {
-                setSelItem(rows[0]);
-              }
+            onSelectedRowsChange={(_rowKeys, rows) => {
+              setSelItem(rows?.[0]);
             }}
           />
         </div>
