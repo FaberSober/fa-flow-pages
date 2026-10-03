@@ -220,7 +220,7 @@ export default function FormItemPropertyPanel() {
             {selectedFormItem.type === 'select' && <FormItemInputProperty />}
           </>}
 
-          {['input', 'inputnumber', 'textarea'].includes(selectedFormItem.type) && (<FormItemInputProperty />)}
+          {['input', 'inputnumber', 'textarea'].includes(selectedFormItem.type) && (<FormItemInputProperty type={selectedFormItem.type} />)}
 
           {selectedFormItem.type === 'inputnumber' && <FormItemNumberProperty />}
 

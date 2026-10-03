@@ -5,6 +5,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { FaUtils } from '@fa/ui';
+import { getTextAreaRows, getTextInputProps } from '../../textProperties';
 import { toBooleanFormValue } from '../../booleanValues';
 import { toTemporalValue } from '../../temporalValues';
 import { getNumberInputProps } from '../../numberProperties';
@@ -83,13 +84,13 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
 
     switch (child.type) {
       case 'input':
-        return <Input disabled={!auth.edit} value={value} onChange={(e) => onChange(e.target.value)} placeholder={child.placeholder} />;
+        return <Input {...getTextInputProps(child)} disabled={!auth.edit} value={value} onChange={(e) => onChange(e.target.value)} placeholder={child.placeholder} />;
       
       case 'inputnumber':
         return <InputNumber {...getNumberInputProps(child)} disabled={!auth.edit} value={value} onChange={onChange} placeholder={child.placeholder} style={{ width: '100%' }} />;
       
       case 'textarea':
-        return <Input.TextArea disabled={!auth.edit} value={value} onChange={(e) => onChange(e.target.value)} placeholder={child.placeholder} rows={2} />;
+        return <Input.TextArea {...getTextInputProps(child)} disabled={!auth.edit} value={value} onChange={(e) => onChange(e.target.value)} placeholder={child.placeholder} rows={getTextAreaRows(child, 2)} />;
       
       case 'select':
         return <Select disabled={!auth.edit} value={value} onChange={onChange} placeholder={child.placeholder} style={{ width: '100%' }} options={child.options} mode={child.mode} allowClear />;

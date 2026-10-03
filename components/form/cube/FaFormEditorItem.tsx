@@ -21,6 +21,7 @@ import { useMemo } from 'react';
 import { FaFormItemsDecoratorTypes } from '../config';
 import FaFormDragLayout from '../FaFormDragLayout';
 import { useFaFormStore } from '../stores/useFaFormStore';
+import { getTextAreaRows, getTextInputProps } from '../textProperties';
 import { toBooleanFormValue } from '../booleanValues';
 import { toTemporalValue } from '../temporalValues';
 import { getNumberInputProps } from '../numberProperties';
@@ -175,14 +176,14 @@ export default function FaFormEditorItem({ formItem, flowNode, disabled, showMod
         valuePropName={formItem.type === 'checkbox' || formItem.type === 'switch' ? 'checked' : 'value'}
       >
         {formItem.type === 'input' && (
-          <Input disabled={!editable} placeholder={formItem.placeholder} />
+          <Input {...getTextInputProps(formItem)} disabled={!editable} placeholder={formItem.placeholder} />
         )}
         {/* 基础输入类组件 */}
         {formItem.type === 'inputnumber' && (
           <InputNumber {...getNumberInputProps(formItem)} disabled={!editable} style={{ width: '100%' }} placeholder={formItem.placeholder} />
         )}
         {formItem.type === 'textarea' && (
-          <Input.TextArea disabled={!editable} rows={4} placeholder={formItem.placeholder} style={{ height: '100%', resize: 'none' }} />
+          <Input.TextArea {...getTextInputProps(formItem)} disabled={!editable} rows={getTextAreaRows(formItem, 4)} placeholder={formItem.placeholder} style={{ resize: 'none' }} />
         )}
         {/* 选择类组件 */}
         {formItem.type === 'select' && (

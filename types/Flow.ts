@@ -495,6 +495,10 @@ namespace Flow {
     numberPrecision?: number | null;
     numberStep?: number | null;
 
+    // 文本输入属性；留空保持原输入行为。
+    textMaxLength?: number | null;
+    textRows?: number | null;
+
     // 布局属性
     md?: number;
     
