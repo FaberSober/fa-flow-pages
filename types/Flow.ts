@@ -489,6 +489,12 @@ namespace Flow {
     mode?: 'multiple' | 'tags';
     initialValue?: string | number | string[] | null;
 
+    // 数字输入属性；null 表示在属性面板清空。
+    numberMin?: number | null;
+    numberMax?: number | null;
+    numberPrecision?: number | null;
+    numberStep?: number | null;
+
     // 布局属性
     md?: number;
     

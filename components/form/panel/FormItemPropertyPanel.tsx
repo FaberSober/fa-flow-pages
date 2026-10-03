@@ -3,6 +3,7 @@ import { useFaFormStore } from '../stores/useFaFormStore';
 import { findParentFormItem } from '../utils';
 import { cloneDeep, isNil } from 'lodash';
 import { Button, Empty, Form, Input, InputNumber, Select, Space, Switch, Tag } from 'antd';
+import FormItemNumberProperty from './item/FormItemNumberProperty';
 import FormItemOptionsEditor from './item/FormItemOptionsEditor';
 import FormItemInputProperty from './item/FormItemInputProperty';
 import { SyncOutlined } from '@ant-design/icons';
@@ -195,6 +196,8 @@ export default function FormItemPropertyPanel() {
           </>}
 
           {['input', 'inputnumber', 'textarea'].includes(selectedFormItem.type) && (<FormItemInputProperty />)}
+
+          {selectedFormItem.type === 'inputnumber' && <FormItemNumberProperty />}
 
           {selectedFormItem.type === 'high_subtable' && (<FormItemHighSubtableProperty />)}
 

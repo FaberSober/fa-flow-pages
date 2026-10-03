@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { FaUtils } from '@fa/ui';
 import dayjs from 'dayjs';
+import { getNumberInputProps } from '../../numberProperties';
 import { getFormItemAuth } from '../../utils';
 
 
@@ -84,7 +85,7 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
         return <Input disabled={!auth.edit} value={value} onChange={(e) => onChange(e.target.value)} placeholder={child.placeholder} />;
       
       case 'inputnumber':
-        return <InputNumber disabled={!auth.edit} value={value} onChange={onChange} placeholder={child.placeholder} style={{ width: '100%' }} />;
+        return <InputNumber {...getNumberInputProps(child)} disabled={!auth.edit} value={value} onChange={onChange} placeholder={child.placeholder} style={{ width: '100%' }} />;
       
       case 'textarea':
         return <Input.TextArea disabled={!auth.edit} value={value} onChange={(e) => onChange(e.target.value)} placeholder={child.placeholder} rows={2} />;

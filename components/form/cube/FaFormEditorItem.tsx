@@ -21,6 +21,7 @@ import { useMemo } from 'react';
 import { FaFormItemsDecoratorTypes } from '../config';
 import FaFormDragLayout from '../FaFormDragLayout';
 import { useFaFormStore } from '../stores/useFaFormStore';
+import { getNumberInputProps } from '../numberProperties';
 import { getFormItemAuth } from '../utils';
 import FaFormItemDecoAlert from './item/FaFormItemDecoAlert';
 import FaFormItemDecoHr from './item/FaFormItemDecoHr';
@@ -176,7 +177,7 @@ export default function FaFormEditorItem({ formItem, flowNode, disabled, showMod
         )}
         {/* 基础输入类组件 */}
         {formItem.type === 'inputnumber' && (
-          <InputNumber disabled={!editable} style={{ width: '100%' }} placeholder={formItem.placeholder} />
+          <InputNumber {...getNumberInputProps(formItem)} disabled={!editable} style={{ width: '100%' }} placeholder={formItem.placeholder} />
         )}
         {formItem.type === 'textarea' && (
           <Input.TextArea disabled={!editable} rows={4} placeholder={formItem.placeholder} style={{ height: '100%', resize: 'none' }} />
