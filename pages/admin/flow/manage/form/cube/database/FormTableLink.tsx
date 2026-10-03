@@ -1,10 +1,11 @@
 import { Flow } from '@/types';
-import React, { useEffect, useState } from 'react';
-import { Button, Table, Popconfirm, Empty, Input, Select, message } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useEffect, useRef, useState } from 'react';
+import { Button, Table, Popconfirm, Empty, Input, InputNumber, Select, Space, message } from 'antd';
+import { DeleteOutlined } from '@ant-design/icons';
 import { flowFormTableApi, flowFormApi } from '@/services';
-import { FaUtils } from '@fa/ui';
+import { Fa, FaUtils } from '@fa/ui';
 import FormTableSelectModal from './FormTableSelectModal';
+import { getLinkEditableValues, hasLinkChanges, mergeLinkDrafts } from './linkDrafts';
 import { sortFieldsByTail } from '@features/fa-flow-pages/configs/form';
 
 /** 表字段选择器组件 */
@@ -13,24 +14,28 @@ interface TableFieldSelectProps {
   tableName: string;
   onChange: (value: string) => void;
   getTableColumns: (tableName: string) => Promise<Flow.TableColumnVo[]>;
+  disabled?: boolean;
 }
 
-function TableFieldSelect({ value, tableName, onChange, getTableColumns }: TableFieldSelectProps) {
+function TableFieldSelect({ value, tableName, onChange, getTableColumns, disabled }: TableFieldSelectProps) {
   const [columns, setColumns] = useState<Flow.TableColumnVo[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    let active = true;
+    setColumns([]);
     if (tableName) {
       setLoading(true);
-      getTableColumns(tableName)
-        .then(setColumns)
-        .finally(() => setLoading(false));
+      getTableColumns(tableName).then(columns => { if (active) setColumns(columns); })
+        .catch(() => {}).finally(() => { if (active) setLoading(false); });
     }
+    return () => { active = false; };
   }, [tableName]);
 
   return (
     <Select
       value={value}
+      disabled={disabled}
       style={{ width: '100%' }}
       showSearch
       optionFilterProp="label"
@@ -56,11 +61,17 @@ export interface FormTableLinkProps {
  */
 export default function FormTableLink({ item, onRefresh }: FormTableLinkProps) {
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const busy = useRef(false);
+  const savedList = useRef<Flow.FlowFormTable[]>([]);
   const [list, setList] = useState<Flow.FlowFormTable[]>([]);
   const [tableColumnsCache, setTableColumnsCache] = useState<Record<string, Flow.TableColumnVo[]>>({});
 
   useEffect(() => {
     if (item?.id) {
+      savedList.current = [];
+      setList([]);
+      setTableColumnsCache({});
       fetchList();
     }
   }, [item?.id]);
@@ -68,32 +79,38 @@ export default function FormTableLink({ item, onRefresh }: FormTableLinkProps) {
   /** 获取关联子表列表 */
   function fetchList() {
     if (!item?.id) return;
-    
+
     setLoading(true);
-    flowFormTableApi.list({ query: { flowFormId: item.id }, sorter: "sort asc" })
+    return flowFormTableApi.list({ query: { flowFormId: item.id }, sorter: "sort asc" })
       .then((res) => {
-        setList(res.data || []);
+        if (res.status !== Fa.RES_CODE.OK) { message.error(res.message || '加载关联子表失败'); return; }
+        const previousSaved = savedList.current;
+        const next = res.data || [];
+        setList(previous => mergeLinkDrafts(next, previousSaved, previous));
+        savedList.current = next;
       })
+      .catch(() => {})
       .finally(() => {
         setLoading(false);
       });
   }
 
   /** 选择表后，直接创建关联子表记录 */
-  function handleTableSelect(v: { tableName: string; comment: string }) {
+  async function handleTableSelect(v: { tableName: string; comment: string }) {
     // 校验1：不能添加主表
     if (v.tableName === item.dataConfig?.main?.tableName) {
       message.error('不能添加主表作为关联子表');
-      return;
+      throw new Error('不能添加主表');
     }
 
     // 校验2：不能重复添加
     const existingTable = list.find(t => t.tableName === v.tableName);
     if (existingTable) {
       message.error(`表 "${v.tableName}" 已存在，不能重复添加`);
-      return;
+      throw new Error('关联子表重复');
     }
 
+    if (busy.current) throw new Error('正在保存关联配置');
     const params = {
       flowFormId: item.id,
       tableName: v.tableName,
@@ -103,34 +120,52 @@ export default function FormTableLink({ item, onRefresh }: FormTableLinkProps) {
       referenceKey: '', // 用户稍后在表格中选择
     };
 
-    flowFormTableApi.save(params).then((res) => {
+    busy.current = true;
+    setSaving(true);
+    try {
+      const res = await flowFormTableApi.save(params);
+      if (res.status !== Fa.RES_CODE.OK) { message.error(res.message || '新增关联子表失败'); throw new Error('新增失败'); }
       FaUtils.showResponse(res, '新增关联子表');
-      fetchList();
-      if (onRefresh) onRefresh();
-    });
+      await fetchList();
+      onRefresh?.();
+    } finally { busy.current = false; setSaving(false); }
   }
 
 
-
   /** 删除关联子表 */
-  function handleDelete(id: number) {
-    flowFormTableApi.remove(id).then((res) => {
+  async function handleDelete(id: number) {
+    if (busy.current) return;
+    busy.current = true;
+    setSaving(true);
+    try {
+      const res = await flowFormTableApi.remove(id);
+      if (res.status !== Fa.RES_CODE.OK) { message.error(res.message || '删除关联子表失败'); return; }
       FaUtils.showResponse(res, '删除关联子表');
-      fetchList();
-      if (onRefresh) onRefresh();
-    });
+      await fetchList();
+      onRefresh?.();
+    } catch { /* 请求层提示错误，保留关联配置 */ }
+    finally { busy.current = false; setSaving(false); }
   }
 
   /** 更新关联子表字段 */
   function handleUpdateField(id: number, field: 'foreignKey' | 'referenceKey' | 'sort' | 'remark', value: string | number) {
-    const record = list.find(item => item.id === id);
-    if (!record) return;
+    setList(previous => previous.map(row => row.id === id ? { ...row, [field]: value } : row));
+  }
 
-    flowFormTableApi.update(id, { ...record, [field]: value }).then((res) => {
+  async function handleUpdateRecord(record: Flow.FlowFormTable) {
+    if (busy.current) return;
+    if (Boolean(record.foreignKey) !== Boolean(record.referenceKey)) { message.info('请同时选择外键字段和关联主键'); return; }
+    busy.current = true;
+    setSaving(true);
+    try {
+      const res = await flowFormTableApi.update(record.id, getLinkEditableValues(record));
+      if (res.status !== Fa.RES_CODE.OK) { message.error(res.message || '更新关联子表失败'); return; }
+      savedList.current = savedList.current.map(row => row.id === record.id ? { ...row, ...getLinkEditableValues(record) } : row);
+      setList(previous => previous.map(row => row.id === record.id ? { ...row, ...getLinkEditableValues(record) } : row));
       FaUtils.showResponse(res, '更新关联子表');
-      fetchList();
-      if (onRefresh) onRefresh();
-    });
+      onRefresh?.();
+    } catch { /* 请求层提示错误，保留当前行输入供重试 */ }
+    finally { busy.current = false; setSaving(false); }
   }
 
   /** 获取表字段列表（带缓存） */
@@ -140,6 +175,7 @@ export default function FormTableLink({ item, onRefresh }: FormTableLinkProps) {
     }
 
     const res = await flowFormApi.queryTableStructure({ tableName });
+    if (res.status !== Fa.RES_CODE.OK || !res.data?.exist) { message.error(res.message || '加载子表字段失败'); throw new Error('加载字段失败'); }
     const columns = res.data.columns || [];
     sortFieldsByTail(columns);
     setTableColumnsCache(prev => ({ ...prev, [tableName]: columns }));
@@ -152,23 +188,8 @@ export default function FormTableLink({ item, onRefresh }: FormTableLinkProps) {
       dataIndex: 'sort',
       width: 80,
       render: (value: number, record: Flow.FlowFormTable) => (
-        <Input
-          value={value}
-          style={{ width: '100%' }}
-          onBlur={(e) => {
-            const newValue = parseInt(e.target.value, 10);
-            if (!isNaN(newValue) && newValue !== value) {
-              handleUpdateField(record.id, 'sort', newValue);
-            }
-          }}
-          onChange={(e) => {
-            // 实时更新显示，但不保存
-            const newList = list.map(item => 
-              item.id === record.id ? { ...item, sort: parseInt(e.target.value, 10) || 0 } : item
-            );
-            setList(newList);
-          }}
-        />
+        <InputNumber value={value} precision={0} disabled={saving || loading} style={{ width: '100%' }}
+          onChange={value => handleUpdateField(record.id, 'sort', value ?? 0)} />
       ),
     },
     {
@@ -186,6 +207,7 @@ export default function FormTableLink({ item, onRefresh }: FormTableLinkProps) {
           tableName={record.tableName}
           onChange={(newValue) => handleUpdateField(record.id, 'foreignKey', newValue)}
           getTableColumns={getTableColumns}
+          disabled={saving || loading}
         />
       ),
     },
@@ -196,6 +218,7 @@ export default function FormTableLink({ item, onRefresh }: FormTableLinkProps) {
       render: (value: string, record: Flow.FlowFormTable) => (
         <Select
           value={value}
+          disabled={saving || loading}
           style={{ width: '100%' }}
           showSearch
           optionFilterProp="label"
@@ -212,42 +235,31 @@ export default function FormTableLink({ item, onRefresh }: FormTableLinkProps) {
       dataIndex: 'remark',
       ellipsis: true,
       render: (value: string, record: Flow.FlowFormTable) => (
-        <Input
-          value={value}
-          style={{ width: '100%' }}
-          placeholder="请输入备注"
-          onBlur={(e) => {
-            const newValue = e.target.value;
-            if (newValue !== value) {
-              handleUpdateField(record.id, 'remark', newValue);
-            }
-          }}
-          onChange={(e) => {
-            // 实时更新显示，但不保存
-            const newList = list.map(item => 
-              item.id === record.id ? { ...item, remark: e.target.value } : item
-            );
-            setList(newList);
-          }}
-        />
+        <Input value={value} disabled={saving || loading} placeholder="请输入备注"
+          onChange={event => handleUpdateField(record.id, 'remark', event.target.value)} />
       ),
     },
     {
       title: '操作',
       dataIndex: 'opr',
-      width: 80,
+      width: 150,
       fixed: 'right' as const,
       render: (_: any, record: Flow.FlowFormTable) => (
-        <Popconfirm
-          title="确认删除该关联子表？"
-          onConfirm={() => handleDelete(record.id)}
-          okText="确认"
-          cancelText="取消"
-        >
-          <Button type="link" danger icon={<DeleteOutlined />} size="small">
-            删除
-          </Button>
-        </Popconfirm>
+        <Space>
+          <Button type="link" size="small" disabled={saving || loading || !hasLinkChanges(record, savedList.current.find(row => row.id === record.id))}
+            onClick={() => handleUpdateRecord(record)}>更新</Button>
+          <Popconfirm
+            disabled={saving || loading}
+            title="确认删除该关联子表？"
+            onConfirm={() => handleDelete(record.id)}
+            okText="确认"
+            cancelText="取消"
+          >
+            <Button type="link" danger disabled={saving || loading} icon={<DeleteOutlined />} size="small">
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
       ),
     },
   ];
@@ -262,17 +274,18 @@ export default function FormTableLink({ item, onRefresh }: FormTableLinkProps) {
         <div className="fa-h3">关联子表管理</div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
           <FormTableSelectModal fetchFinish={handleTableSelect}>
-            <Button type="primary">新增关联子表</Button>
+            <Button type="primary" disabled={saving || loading}>新增关联子表</Button>
           </FormTableSelectModal>
         </div>
       </div>
 
+      <div className="fa-text-secondary fa-p8">修改外键、主键、排序或备注后，点击该行“更新”。关联配置单独保存；关闭前请提交需要保留的修改。</div>
       <div className="fa-flex-1" style={{ padding: '0 8px 8px' }}>
         <Table
           rowKey="id"
           columns={columns}
           dataSource={list}
-          loading={loading}
+          loading={loading || saving}
           pagination={false}
           size="small"
           bordered
