@@ -19,7 +19,7 @@ export default function FormTableQueryColumnEdit({ column }: FormTableQueryColum
   useEffect(() => {
     form.setFieldsValue({
       ...column,
-      multiple: column.queryType === 'in' || column.multiple,
+      multiple: column.queryType === 'number_range' ? false : column.queryType === 'in' || column.multiple,
     });
   }, [column, form]);
 
@@ -27,6 +27,9 @@ export default function FormTableQueryColumnEdit({ column }: FormTableQueryColum
     <Form form={form} style={{flex: 1}}
       onValuesChange={(_cv, av) => {
         const newColumn = {...column, ...av};
+        if (_cv.queryType === 'number_range' || (column.queryType === 'number_range' && _cv.queryType)) {
+          newColumn.multiple = false; newColumn.default = ''; form.setFieldsValue({ multiple: false, default: '' });
+        }
         if (_cv.queryType === 'in') { newColumn.multiple = true; form.setFieldsValue({ multiple: true }); }
         updateFlowFormTableConfigQueryColumn(newColumn)
       }}
@@ -50,6 +53,8 @@ export default function FormTableQueryColumnEdit({ column }: FormTableQueryColum
                 {label: '等于查询', value: 'eq'},
                 {label: '模糊查询', value: 'like'},
                 {label: '多值匹配', value: 'in'},
+                ...(['tinyint', 'smallint', 'mediumint', 'int', 'integer', 'bigint', 'decimal', 'numeric', 'float', 'double', 'real', 'double precision'].includes(column.dataType?.toLowerCase())
+                  ? [{ label: '数值区间', value: 'number_range' }] : []),
               ]}
             />
           </Form.Item>
@@ -57,13 +62,13 @@ export default function FormTableQueryColumnEdit({ column }: FormTableQueryColum
         {/* 默认值 */}
         <div style={{ width: 120 }}>
           <Form.Item name="default" noStyle rules={[{ required: false }]}>
-            <Input variant="filled" placeholder={column.multiple || column.queryType === 'in' ? '多个值用逗号分隔' : undefined} />
+            <Input variant="filled" placeholder={column.queryType === 'number_range' ? '最小值,最大值' : column.multiple || column.queryType === 'in' ? '多个值用逗号分隔' : undefined} />
           </Form.Item>
         </div>
         {/* 是否多选 */}
         <div style={{ width: 120, textAlign: 'center' }}>
           <Form.Item name="multiple" valuePropName="checked" noStyle>
-            <Checkbox disabled={column.queryType === 'in'} />
+            <Checkbox disabled={column.queryType === 'in' || column.queryType === 'number_range'} />
           </Form.Item>
         </div>
       </div>

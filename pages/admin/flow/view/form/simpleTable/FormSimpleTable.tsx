@@ -7,6 +7,7 @@ import { each } from 'lodash';
 import { useMemo } from 'react';
 import { normalizeFlowFormTableValues } from '@features/fa-flow-pages/components/formShow/utils';
 import { getDefaultQueryValues } from './queryDefaults';
+import NumericRangeInput from './NumericRangeInput';
 import { formatFormColumnValue, getMainFormFieldMap } from './columnDisplay';
 import FormAdd from './cube/FormAdd';
 import FormEdit from './cube/FormEdit';
@@ -98,7 +99,7 @@ export default function FormSimpleTable({ flowForm }: FormSimpleTableProps) {
             {flowForm.tableConfig?.query?.columns?.map(col => {
               return (
                 <Form.Item name={col.field} label={col.label} key={col.field}>
-                  {col.multiple || col.queryType === 'in'
+                  {col.queryType === 'number_range' ? <NumericRangeInput /> : col.multiple || col.queryType === 'in'
                     ? <Select mode="tags" options={queryFieldMap.get(col.field)?.options} tokenSeparators={[',', '，']}
                         style={{ minWidth: 180 }} placeholder="选择或输入后按回车添加" allowClear />
                     : <Input placeholder={`请输入${col.label}`} allowClear />}
