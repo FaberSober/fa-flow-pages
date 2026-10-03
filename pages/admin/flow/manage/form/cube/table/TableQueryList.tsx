@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useFlowFormEditStore } from '../../store/useFlowFormEditStore';
 import { FaSortList } from '@fa/ui';
 import FormTableQueryColumnEdit from './FormTableQueryColumnEdit';
-import { get, set } from 'lodash';
+import { cloneDeep, get, set } from 'lodash';
 
 /**
  * @author xu.pengfei
@@ -36,8 +36,9 @@ export default function TableQueryList() {
         )}
         onSortEnd={l => {
           if (!flowForm) return;
-          set(flowForm, 'tableConfig.query.columns', l)
-          updateFlowFormTableConfig({ ...flowForm })
+          const nextFlowForm = cloneDeep(flowForm);
+          set(nextFlowForm, 'tableConfig.query.columns', l)
+          updateFlowFormTableConfig(nextFlowForm)
         }}
         itemStyle={{
           padding: 6,

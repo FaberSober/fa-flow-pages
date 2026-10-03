@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import type { Flow } from '@/types'
-import { flowFormApi } from '@/services';
 
 
 interface FlowFormEditState {
@@ -24,27 +23,23 @@ export const useFlowFormEditStore = create(
         if (!state.flowForm) return {};
         return { flowForm: { ...state.flowForm, tableName: dataConfig.main?.tableName, dataConfig } }
       }),
-      updateFlowFormTableConfig: (flowForm: Flow.FlowForm) => set((state) => {
-        flowFormApi.update(state.flowForm!.id, { tableConfig: flowForm.tableConfig })
-        return { flowForm }
-      }),
+      updateFlowFormTableConfig: (flowForm: Flow.FlowForm) => set({ flowForm }),
       updateFlowFormTableConfigQueryColumn: (column: Flow.TableConfigQueryColumn) => set((state) => {
         if (!state.flowForm) return {};
         const columns = state.flowForm.tableConfig?.query?.columns || [];
         const index = columns.findIndex(c => c.field === column.field);
         if (index === -1) return {};
-        columns[index] = column;
+        const updatedColumns = columns.map((item, position) => position === index ? column : item);
         const newFlowForm = {
           ...state.flowForm,
           tableConfig: {
             ...state.flowForm.tableConfig,
             query: {
               ...state.flowForm.tableConfig?.query,
-              columns,
+              columns: updatedColumns,
             },
           },
         };
-        flowFormApi.update(state.flowForm.id, { tableConfig: newFlowForm.tableConfig })
         return { flowForm: newFlowForm }
       }),
       updateFlowFormTableConfigTableColumn: (column: Flow.TableConfigTableColumn) => set((state) => {
@@ -52,18 +47,17 @@ export const useFlowFormEditStore = create(
         const columns = state.flowForm.tableConfig?.table?.columns || [];
         const index = columns.findIndex(c => c.field === column.field);
         if (index === -1) return {};
-        columns[index] = column;
+        const updatedColumns = columns.map((item, position) => position === index ? column : item);
         const newFlowForm = {
           ...state.flowForm,
           tableConfig: {
             ...state.flowForm.tableConfig,
             table: {
               ...state.flowForm.tableConfig?.table,
-              columns,
+              columns: updatedColumns,
             },
           },
         };
-        flowFormApi.update(state.flowForm.id, { tableConfig: newFlowForm.tableConfig })
         return { flowForm: newFlowForm }
       }),
       updateFlowFormTableConfigTableDetail: (detail: Flow.FlowFormTableConfigDetail) => set((state) => {
@@ -78,7 +72,6 @@ export const useFlowFormEditStore = create(
             },
           },
         };
-        flowFormApi.update(state.flowForm.id, { tableConfig: newFlowForm.tableConfig })
         return { flowForm: newFlowForm }
       }),
       clear: () => set({ flowForm: null }),

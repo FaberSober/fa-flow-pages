@@ -1,18 +1,14 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { useFlowFormEditStore } from '../../store/useFlowFormEditStore';
 import { FaSortList } from '@fa/ui';
 import FormTableColumnEdit from './FormTableColumnEdit';
-import { get, set } from 'lodash';
-import { Flow } from '@/types';
-
-export interface TableColumnListProps {
-}
+import { cloneDeep, get, set } from 'lodash';
 
 /**
  * @author xu.pengfei
  * @date 2025-12-21 11:05:20
  */
-export default function TableColumnList({}: TableColumnListProps) {
+export default function TableColumnList() {
   const { flowForm, updateFlowFormTableConfig } = useFlowFormEditStore()
 
   const columns = useMemo(() => get(flowForm, 'tableConfig.table.columns', []), [flowForm])
@@ -40,8 +36,9 @@ export default function TableColumnList({}: TableColumnListProps) {
         )}
         onSortEnd={l => {
           if (!flowForm) return;
-          set(flowForm, 'tableConfig.table.columns', l)
-          updateFlowFormTableConfig({ ...flowForm })
+          const nextFlowForm = cloneDeep(flowForm);
+          set(nextFlowForm, 'tableConfig.table.columns', l)
+          updateFlowFormTableConfig(nextFlowForm)
         }}
         itemStyle={{
           padding: 6,

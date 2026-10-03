@@ -1,6 +1,6 @@
 import { Flow } from '@/types';
 import { Table } from 'antd';
-import { each, get, set } from 'lodash';
+import { cloneDeep, each, get, set } from 'lodash';
 import { useMemo } from 'react';
 import { useFlowFormEditStore } from '../../store/useFlowFormEditStore';
 import { reconcileSelectedColumns, sortFieldsByTail } from '@features/fa-flow-pages/configs/form';
@@ -75,8 +75,9 @@ export default function TableColumn() {
                   sort: index
                 }
               })
-            set(flowForm, 'tableConfig.table.columns', tableColumns)
-            updateFlowFormTableConfig({ ...flowForm })
+            const nextFlowForm = cloneDeep(flowForm);
+            set(nextFlowForm, 'tableConfig.table.columns', tableColumns)
+            updateFlowFormTableConfig(nextFlowForm)
           },
         }}
         pagination={false}
