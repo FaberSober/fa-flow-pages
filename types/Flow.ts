@@ -494,6 +494,8 @@ namespace Flow {
     numberMax?: number | null;
     numberPrecision?: number | null;
     numberStep?: number | null;
+    /** 子表字段列宽（像素），留空使用 180。 */
+    subtableColumnWidth?: number | null;
 
     // 文本输入属性；留空保持原输入行为。
     textMaxLength?: number | null;

@@ -158,6 +158,8 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
       title: child.label || '列',
       dataIndex: child.name || child.id,
       key: child.id,
+      width: typeof child.subtableColumnWidth === 'number' && Number.isFinite(child.subtableColumnWidth)
+        ? Math.min(1200, Math.max(80, Math.round(child.subtableColumnWidth))) : 180,
       render: (_text: any, record: any, index: number) => renderEditableCell(child, record, index),
     })) || [];
 
@@ -193,7 +195,7 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
   })();
 
   return (
-    <div className='fa-flex-column'>
+    <div className='fa-flex-column' style={{ minWidth: 0, maxWidth: '100%' }}>
       <div className="text-sm font-medium" style={{ marginBottom: 8 }}>
         {formItem.label || '子表'}
       </div>
@@ -201,6 +203,8 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
       <Table
         columns={columns}
         dataSource={dataSource}
+        scroll={{ x: columns.reduce((total, column) => total + (typeof column.width === 'number' ? column.width : 180), 0) }}
+        tableLayout="fixed"
         pagination={false}
         size="small"
         rowKey={(record) => record.id ?? record._key}

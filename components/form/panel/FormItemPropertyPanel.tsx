@@ -224,6 +224,10 @@ export default function FormItemPropertyPanel() {
 
           {selectedFormItem.type === 'inputnumber' && <FormItemNumberProperty />}
 
+          {isParentSubtable && isFieldItem && <Form.Item name="subtableColumnWidth" label="子表列宽" extra="单位：像素；留空为 180，列较多时可横向滚动">
+            <InputNumber min={80} max={1200} precision={0} style={{ width: '100%' }} placeholder="180" />
+          </Form.Item>}
+
           {selectedFormItem.type === 'high_subtable' && (<FormItemHighSubtableProperty />)}
 
           {selectedFormItem.type === 'deco_text' && (<FormItemDecoTextProperty />)}
