@@ -3,6 +3,7 @@ import { useFaFormStore } from '../stores/useFaFormStore';
 import { findParentFormItem } from '../utils';
 import { cloneDeep, isNil } from 'lodash';
 import { Button, Empty, Form, Input, InputNumber, Select, Space, Switch, Tag } from 'antd';
+import { toBooleanFormValue } from '../booleanValues';
 import { convertChoiceDefault } from '../choiceValues';
 import FormItemTemporalProperty from './item/FormItemTemporalProperty';
 import FormItemNumberProperty from './item/FormItemNumberProperty';
@@ -186,12 +187,22 @@ export default function FormItemPropertyPanel() {
                 <Switch />
               </Form.Item>
               {['input', 'textarea', 'inputnumber'].includes(selectedFormItem.type) && <Form.Item name="initialValue" label="默认值">
-                {(selectedFormItem.type === 'datepicker' || selectedFormItem.type === 'timepicker') && <FormItemTemporalProperty type={selectedFormItem.type} />}
-
-          {selectedFormItem.type === 'inputnumber' ? <InputNumber style={{ width: '100%' }} /> : <Input allowClear placeholder="选填，填报时自动带入" />}
+                {selectedFormItem.type === 'inputnumber' ? <InputNumber style={{ width: '100%' }} /> : <Input allowClear placeholder="选填，填报时自动带入" />}
               </Form.Item>}
             </>
           )}
+
+          {['switch', 'checkbox'].includes(selectedFormItem.type) && <>
+            <Form.Item name="initialValue" label="默认选中" valuePropName="checked"
+              getValueProps={value => ({ checked: toBooleanFormValue(value) })}>
+              <Switch />
+            </Form.Item>
+            {selectedFormItem.type === 'checkbox' && <Form.Item name="placeholder" label="勾选说明">
+              <Input allowClear placeholder="如：需要发票" />
+            </Form.Item>}
+          </>}
+
+          {(selectedFormItem.type === 'datepicker' || selectedFormItem.type === 'timepicker') && <FormItemTemporalProperty type={selectedFormItem.type} />}
 
           {['radio', 'select'].includes(selectedFormItem.type) && <>
             {selectedFormItem.type === 'select' && <Form.Item name="mode" label="允许多选"

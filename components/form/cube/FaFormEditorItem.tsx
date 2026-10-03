@@ -21,6 +21,7 @@ import { useMemo } from 'react';
 import { FaFormItemsDecoratorTypes } from '../config';
 import FaFormDragLayout from '../FaFormDragLayout';
 import { useFaFormStore } from '../stores/useFaFormStore';
+import { toBooleanFormValue } from '../booleanValues';
 import { toTemporalValue } from '../temporalValues';
 import { getNumberInputProps } from '../numberProperties';
 import { getFormItemAuth } from '../utils';
@@ -59,7 +60,7 @@ export default function FaFormEditorItem({ formItem, flowNode, disabled, showMod
   const required = editable && (flowNode?.extendConfig?.formAuth?.[formItem.id]?.required ?? formItem.rules?.some((rule) => rule.required) ?? formItemConfig.required);
   const initialValue = formItem.type === 'datepicker' || formItem.type === 'timepicker'
     ? toTemporalValue(formItem.type, formItem.initialValue)
-    : formItem.initialValue;
+    : ['switch', 'checkbox'].includes(formItem.type) ? toBooleanFormValue(formItem.initialValue) : formItem.initialValue;
   const rules = editable
     ? [...(formItem.rules || []).map(({ required: _required, ...rule }) => rule), { required }]
     : undefined;

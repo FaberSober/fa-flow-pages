@@ -5,6 +5,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { FaUtils } from '@fa/ui';
+import { toBooleanFormValue } from '../../booleanValues';
 import { toTemporalValue } from '../../temporalValues';
 import { getNumberInputProps } from '../../numberProperties';
 import { getFormItemAuth } from '../../utils';
@@ -47,7 +48,7 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
     // 使用设计器配置的默认值，避免多行共享可变数组。
     formItem.children?.forEach((child) => {
       const fieldName = child.name || child.id;
-      newRow[fieldName] = Array.isArray(child.initialValue)
+      newRow[fieldName] = ['switch', 'checkbox'].includes(child.type) ? toBooleanFormValue(child.initialValue) : Array.isArray(child.initialValue)
         ? [...child.initialValue]
         : child.initialValue ?? undefined;
     });
@@ -97,7 +98,7 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
         return <Cascader disabled={!auth.edit} value={value} onChange={onChange} placeholder={child.placeholder} style={{ width: '100%' }} />;
       
       case 'checkbox':
-        return <Checkbox disabled={!auth.edit} checked={value} onChange={(e) => onChange(e.target.checked)}>{child.placeholder || '勾选'}</Checkbox>;
+        return <Checkbox disabled={!auth.edit} checked={toBooleanFormValue(value)} onChange={(e) => onChange(e.target.checked)}>{child.placeholder || '勾选'}</Checkbox>;
       
       case 'radio':
         return <Radio.Group disabled={!auth.edit} value={value} onChange={(e) => onChange(e.target.value)} options={child.options} />;
@@ -123,7 +124,7 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
         );
       
       case 'switch':
-        return <Switch disabled={!auth.edit} checked={value} onChange={onChange} />;
+        return <Switch disabled={!auth.edit} checked={toBooleanFormValue(value)} onChange={onChange} />;
       
       case 'rating':
         return <Rate disabled={!auth.edit} value={value} onChange={onChange} />;
