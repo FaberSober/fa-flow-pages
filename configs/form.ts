@@ -15,3 +15,15 @@ export function sortFieldsByTail<T extends { field: string }>(fields: T[]): T[] 
     return indexA - indexB;
   });
 }
+
+/** 勾选字段时保留已配置属性和拖拽顺序，新字段追加到末尾。 */
+export function reconcileSelectedColumns<T extends { field: string; sort: number }, S extends { field: string }>(
+  current: T[], selected: S[], create: (field: S, index: number) => T,
+): T[] {
+  const selectedFields = new Set(selected.map(column => column.field));
+  const retained = current.filter(column => selectedFields.has(column.field));
+  const retainedFields = new Set(retained.map(column => column.field));
+  const added = selected.filter(column => !retainedFields.has(column.field))
+    .map((column, index) => create(column, retained.length + index));
+  return [...retained, ...added].map((column, sort) => ({ ...column, sort }));
+}

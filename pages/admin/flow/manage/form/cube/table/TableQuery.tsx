@@ -1,18 +1,15 @@
 import { Flow } from '@/types';
 import { Table } from 'antd';
 import { each, get, set } from 'lodash';
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { useFlowFormEditStore } from '../../store/useFlowFormEditStore';
-import { sortFieldsByTail } from '@features/fa-flow-pages/configs/form';
-
-export interface TableQueryProps {
-}
+import { reconcileSelectedColumns, sortFieldsByTail } from '@features/fa-flow-pages/configs/form';
 
 /**
  * @author xu.pengfei
  * @date 2025-12-18 21:00:01
  */
-export default function TableQuery({ }: TableQueryProps) {
+export default function TableQuery() {
   const { flowForm, updateFlowFormTableConfig } = useFlowFormEditStore()
 
   const datasource = useMemo(() => {
@@ -27,7 +24,6 @@ export default function TableQuery({ }: TableQueryProps) {
   }, [flowForm])
 
   const selectedRowKeys = useMemo(() => {
-    console.log('TableQuery flowForm changed', flowForm)
     const keys: string[] = []
     const queryColumns = get(flowForm, 'tableConfig.query.columns', []);
     each(queryColumns, col => {
@@ -36,7 +32,6 @@ export default function TableQuery({ }: TableQueryProps) {
     return keys;
   }, [flowForm])
 
-  console.log('TableQuery', 'flowForm', flowForm)
   return (
     <div className='fa-full fa-relative'>
       <Table
@@ -50,21 +45,21 @@ export default function TableQuery({ }: TableQueryProps) {
         rowSelection={{
           type: 'checkbox',
           selectedRowKeys: selectedRowKeys,
-          onChange: (selectedRowKeys, selectedRows) => {
-            console.log(`selectedRowKeys: ${selectedRowKeys}`, 'selectedRows: ', selectedRows);
+          onChange: (_selectedRowKeys, selectedRows) => {
             if (!flowForm) return;
-            const queryColumns: Flow.TableConfigQueryColumn[] = selectedRows.map((item, index) => {
-              return {
-                table: item.table,
-                field: item.field,
-                dataType: item.dataType,
-                label: item.comment||item.field,
-                queryType: 'like',
-                default: '',
-                multiple: false,
-                sort: index
-              }
-            })
+            const queryColumns = reconcileSelectedColumns<Flow.TableConfigQueryColumn, Flow.FlowFormDataConfigColumn>(
+              get(flowForm, 'tableConfig.query.columns', []), selectedRows, (item, index) => {
+                return {
+                  table: item.table,
+                  field: item.field,
+                  dataType: item.dataType,
+                  label: item.comment||item.field,
+                  queryType: 'like',
+                  default: '',
+                  multiple: false,
+                  sort: index
+                }
+              })
             set(flowForm, 'tableConfig.query.columns', queryColumns)
             updateFlowFormTableConfig({ ...flowForm })
           },
