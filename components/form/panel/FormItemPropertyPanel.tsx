@@ -3,6 +3,7 @@ import { useFaFormStore } from '../stores/useFaFormStore';
 import { findParentFormItem } from '../utils';
 import { cloneDeep, isNil } from 'lodash';
 import { Button, Empty, Form, Input, InputNumber, Select, Space, Switch, Tag } from 'antd';
+import { convertChoiceDefault } from '../choiceValues';
 import FormItemTemporalProperty from './item/FormItemTemporalProperty';
 import FormItemNumberProperty from './item/FormItemNumberProperty';
 import FormItemOptionsEditor from './item/FormItemOptionsEditor';
@@ -144,6 +145,10 @@ export default function FormItemPropertyPanel() {
                 form.setFieldsValue({ label: col.originalComment });
               }
             }
+            if ('mode' in cv && selectedFormItem.type === 'select') {
+              avCopy.initialValue = convertChoiceDefault(values.initialValue, values.mode === 'multiple' || values.mode === 'tags');
+              form.setFieldsValue({ initialValue: avCopy.initialValue });
+            }
             if ('options' in cv && ['radio', 'select'].includes(selectedFormItem.type)) {
               const available = new Set((values.options || []).map((option: { value: string | number }) => option.value));
               avCopy.initialValue = Array.isArray(values.initialValue)
@@ -189,6 +194,12 @@ export default function FormItemPropertyPanel() {
           )}
 
           {['radio', 'select'].includes(selectedFormItem.type) && <>
+            {selectedFormItem.type === 'select' && <Form.Item name="mode" label="允许多选"
+              valuePropName="checked"
+              getValueProps={value => ({ checked: value === 'multiple' || value === 'tags' })}
+              normalize={checked => checked ? 'multiple' : undefined}>
+              <Switch />
+            </Form.Item>}
             <Form.Item name="options" label="选项">
               <FormItemOptionsEditor />
             </Form.Item>

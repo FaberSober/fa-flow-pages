@@ -487,7 +487,7 @@ namespace Flow {
     children?: FlowFormItem[];
     options?: Array<{ label: string; value: string | number }>;
     mode?: 'multiple' | 'tags';
-    initialValue?: string | number | string[] | null;
+    initialValue?: string | number | (string | number)[] | null;
 
     // 数字输入属性；null 表示在属性面板清空。
     numberMin?: number | null;

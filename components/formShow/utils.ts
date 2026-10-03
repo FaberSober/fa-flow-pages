@@ -1,3 +1,4 @@
+import { parseStoredChoiceValues } from '../form/choiceValues';
 import { toTemporalValue } from '../form/temporalValues';
 import { FaUtils } from '@fa/ui';
 import { Flow } from "@/types";
@@ -30,13 +31,8 @@ export function normalizeFlowFormValues(flowForm: Flow.FlowForm, values: any) {
         set(target, name, null);
       } else if (item.type === 'datepicker' || item.type === 'timepicker' || columnMap[name]?.dataType === 'date' || columnMap[name]?.dataType === 'datetime') {
         set(target, name, toTemporalValue(item.type === 'timepicker' ? 'timepicker' : 'datepicker', value));
-      } else if (item.type === 'select' && item.mode === 'multiple' && typeof value === 'string') {
-        try {
-          const parsed = JSON.parse(value);
-          set(target, name, Array.isArray(parsed) ? parsed : []);
-        } catch {
-          set(target, name, []);
-        }
+      } else if (item.type === 'select' && (item.mode === 'multiple' || item.mode === 'tags')) {
+        set(target, name, parseStoredChoiceValues(value));
       } else {
         set(target, name, value);
       }
