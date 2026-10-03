@@ -1,6 +1,7 @@
 import { Flow } from '@/types';
 import { Checkbox, Form, Input, InputNumber, Select } from 'antd';
 import { useEffect } from 'react';
+import { isNumericColumn } from '@features/fa-flow-pages/pages/admin/flow/view/form/simpleTable/numberDisplay';
 import { useFlowFormEditStore } from '../../store/useFlowFormEditStore';
 
 export interface FormTableColumnEditProps {
@@ -58,6 +59,11 @@ export default function FormTableColumnEdit({ column }: FormTableColumnEditProps
               ]}
             />
           </Form.Item>
+        </div>
+        <div style={{ width: 100 }}>
+          {isNumericColumn(column.dataType) ? <Form.Item name="numberPrecision" noStyle>
+            <InputNumber variant="filled" min={0} max={8} precision={0} style={{ width: '100%' }} placeholder="原值" />
+          </Form.Item> : <span className="fa-text-secondary">—</span>}
         </div>
         {/* 宽度 */}
         <div style={{ width: 100 }}>

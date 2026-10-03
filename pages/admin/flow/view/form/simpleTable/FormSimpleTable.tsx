@@ -9,6 +9,7 @@ import { normalizeFlowFormTableValues } from '@features/fa-flow-pages/components
 import { getDefaultQueryValues } from './queryDefaults';
 import NumericRangeInput from './NumericRangeInput';
 import DateRangeInput from './DateRangeInput';
+import { formatNumberColumnValue, isNumericColumn } from './numberDisplay';
 import { formatFormColumnValue, getMainFormFieldMap } from './columnDisplay';
 import FormAdd from './cube/FormAdd';
 import FormEdit from './cube/FormEdit';
@@ -59,6 +60,8 @@ export default function FormSimpleTable({ flowForm }: FormSimpleTableProps) {
         const formItem = fieldMap.get(col.field);
         if (formItem && ['radio', 'select', 'switch', 'checkbox'].includes(formItem.type)) {
           column.render = value => formatFormColumnValue(formItem, value);
+        } else if (isNumericColumn(col.dataType) && col.numberPrecision != null) {
+          column.render = value => formatNumberColumnValue(value, col.numberPrecision!);
         }
         columns.push(column);
       })

@@ -437,6 +437,8 @@ namespace Flow {
     sorter: boolean; // 是否排序
     fix: 'left'|'right'|'none',
     width?: number;
+    /** 列表显示小数位，留空沿用原值。 */
+    numberPrecision?: number | null;
     sort: number;
   }
 

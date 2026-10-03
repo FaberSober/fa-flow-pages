@@ -21,6 +21,7 @@ export default function TableColumnList() {
         <div style={{ flex: 1 }}>字段</div>
         <div style={{ width: 100, textAlign: 'center' }}>排序</div>
         <div style={{ width: 100 }}>固定位置</div>
+        <div style={{ width: 100 }}>显示小数位</div>
         <div style={{ width: 100 }}>宽度</div>
         <div style={{ width: 30 }}></div>
       </div>
