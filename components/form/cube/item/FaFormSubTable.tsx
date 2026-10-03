@@ -1,10 +1,12 @@
 import { Flow, Flw } from '@/types';
 import { DepartmentCascade, UserSearchSelect } from '@/components';
-import { Button, Cascader, Checkbox, ColorPicker, DatePicker, Input, InputNumber, Popconfirm, Radio, Rate, Select, Slider, Switch, Table, TimePicker } from 'antd';
+import { Button, Cascader, Checkbox, ColorPicker, DatePicker, Input, InputNumber, Popconfirm, Radio, Rate, Select, Slider, Switch, Table, TimePicker, Space } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { CopyOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { FaUtils } from '@fa/ui';
+import { tailFields } from '@features/fa-flow-pages/configs/form';
+import { copySubtableRow } from '../../subtableRows';
 import { getTextAreaRows, getTextInputProps } from '../../textProperties';
 import { toBooleanFormValue } from '../../booleanValues';
 import { toTemporalValue } from '../../temporalValues';
@@ -61,6 +63,19 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
   // 删除行
   const handleDelete = (index: number) => {
     const newData = dataSource.filter((_, i) => i !== index);
+    setDataSource(newData);
+    onChange?.(newData);
+  };
+
+  // 复制后插入原行下方，作为独立新记录保存。
+  const handleCopy = (index: number) => {
+    if (!canEdit) return;
+    const children = (formItem.children || []).filter(child => {
+      const auth = getFormItemAuth(flowNode, child.id, disabled);
+      return auth.view && auth.edit;
+    });
+    const row = copySubtableRow(dataSource[index], children, FaUtils.uuid(), tailFields);
+    const newData = [...dataSource.slice(0, index + 1), row, ...dataSource.slice(index + 1)];
     setDataSource(newData);
     onChange?.(newData);
   };
@@ -176,18 +191,21 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
     const actionColumn: ColumnsType<any>[0] = {
       title: '操作',
       key: 'action',
-      width: 80,
+      width: 160,
       align: 'center',
       render: (_text, _record, index) => (
-        <Popconfirm
-          title="确认删除"
-          description="确定要删除这一行吗?"
-          onConfirm={() => handleDelete(index)}
-          okText="确定"
-          cancelText="取消"
-        >
-          <Button disabled={!canEdit} type="link" danger icon={<DeleteOutlined />} />
-        </Popconfirm>
+        <Space size={0}>
+          <Button disabled={!canEdit} type="link" size="small" icon={<CopyOutlined />} onClick={() => handleCopy(index)}>复制</Button>
+          <Popconfirm
+            title="确认删除"
+            description="确定要删除这一行吗?"
+            onConfirm={() => handleDelete(index)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button disabled={!canEdit} type="link" size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
       ),
     };
 
