@@ -19,6 +19,7 @@ export default function FormTableQueryColumnEdit({ column }: FormTableQueryColum
   useEffect(() => {
     form.setFieldsValue({
       ...column,
+      multiple: column.queryType === 'in' || column.multiple,
     });
   }, [column, form]);
 
@@ -26,6 +27,7 @@ export default function FormTableQueryColumnEdit({ column }: FormTableQueryColum
     <Form form={form} style={{flex: 1}}
       onValuesChange={(_cv, av) => {
         const newColumn = {...column, ...av};
+        if (_cv.queryType === 'in') { newColumn.multiple = true; form.setFieldsValue({ multiple: true }); }
         updateFlowFormTableConfigQueryColumn(newColumn)
       }}
     >
@@ -47,7 +49,7 @@ export default function FormTableQueryColumnEdit({ column }: FormTableQueryColum
               options={[
                 {label: '等于查询', value: 'eq'},
                 {label: '模糊查询', value: 'like'},
-                {label: '范围查询', value: 'in'},
+                {label: '多值匹配', value: 'in'},
               ]}
             />
           </Form.Item>
@@ -55,13 +57,13 @@ export default function FormTableQueryColumnEdit({ column }: FormTableQueryColum
         {/* 默认值 */}
         <div style={{ width: 120 }}>
           <Form.Item name="default" noStyle rules={[{ required: false }]}>
-            <Input variant="filled" />
+            <Input variant="filled" placeholder={column.multiple || column.queryType === 'in' ? '多个值用逗号分隔' : undefined} />
           </Form.Item>
         </div>
         {/* 是否多选 */}
         <div style={{ width: 120, textAlign: 'center' }}>
           <Form.Item name="multiple" valuePropName="checked" noStyle>
-            <Checkbox />
+            <Checkbox disabled={column.queryType === 'in'} />
           </Form.Item>
         </div>
       </div>

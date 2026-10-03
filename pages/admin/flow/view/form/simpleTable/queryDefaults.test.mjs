@@ -16,3 +16,12 @@ test('configured query defaults include zero and omit empty conditions', () => {
   assert.deepEqual(getDefaultQueryValues(), {});
   assert.equal(columns[0].default, 'ORDER001');
 });
+
+
+test('multiple defaults split both comma styles and preserve single defaults', () => {
+  assert.deepEqual(getDefaultQueryValues([
+    { field: 'order_no', queryType: 'in', default: 'A, B，A' },
+    { field: 'customer_name', multiple: true, default: '张，李' },
+    { field: 'status', queryType: 'eq', default: '0' },
+  ]), { order_no: ['A', 'B'], customer_name: ['张', '李'], status: '0' });
+});

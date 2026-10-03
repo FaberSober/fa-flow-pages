@@ -2,7 +2,7 @@ import { flowFormApi } from '@/services';
 import { Flow } from '@/types';
 import { EditOutlined, EyeOutlined, SearchOutlined } from '@ant-design/icons';
 import { AuthDelBtn, BaseBizTable, BaseTableUtils, FaberTable, FaHref, useDelete, useTableQueryParams, useViewItemPro } from '@fa/ui';
-import { Button, Form, Input, Space } from 'antd';
+import { Button, Form, Input, Select, Space } from 'antd';
 import { each } from 'lodash';
 import { useMemo } from 'react';
 import { normalizeFlowFormTableValues } from '@features/fa-flow-pages/components/formShow/utils';
@@ -25,6 +25,7 @@ export interface FormSimpleTableProps {
  */
 export default function FormSimpleTable({ flowForm }: FormSimpleTableProps) {
   const [form] = Form.useForm();
+  const queryFieldMap = useMemo(() => getMainFormFieldMap(flowForm.config?.items), [flowForm.config]);
   const defaultQueryValues = useMemo(() => getDefaultQueryValues(flowForm.tableConfig?.query?.columns), [flowForm.tableConfig]);
 
   const { queryParams, setFormValues, handleTableChange, fetchPageList, loading, list, paginationProps } =
@@ -97,7 +98,10 @@ export default function FormSimpleTable({ flowForm }: FormSimpleTableProps) {
             {flowForm.tableConfig?.query?.columns?.map(col => {
               return (
                 <Form.Item name={col.field} label={col.label} key={col.field}>
-                  <Input placeholder={`请输入${col.label}`} allowClear />
+                  {col.multiple || col.queryType === 'in'
+                    ? <Select mode="tags" options={queryFieldMap.get(col.field)?.options} tokenSeparators={[',', '，']}
+                        style={{ minWidth: 180 }} placeholder="选择或输入后按回车添加" allowClear />
+                    : <Input placeholder={`请输入${col.label}`} allowClear />}
                 </Form.Item>
               )
             })}

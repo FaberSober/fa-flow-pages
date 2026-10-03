@@ -1,18 +1,14 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { useFlowFormEditStore } from '../../store/useFlowFormEditStore';
 import { FaSortList } from '@fa/ui';
 import FormTableQueryColumnEdit from './FormTableQueryColumnEdit';
 import { get, set } from 'lodash';
-import { Flow } from '@/types';
-
-export interface TableQueryListProps {
-}
 
 /**
  * @author xu.pengfei
  * @date 2025-12-20 19:51:10
  */
-export default function TableQueryList({}: TableQueryListProps) {
+export default function TableQueryList() {
   const { flowForm, updateFlowFormTableConfig } = useFlowFormEditStore()
 
   const columns = useMemo(() => get(flowForm, 'tableConfig.query.columns', []), [flowForm])
@@ -25,7 +21,7 @@ export default function TableQueryList({}: TableQueryListProps) {
         <div style={{ flex: 1 }}>字段</div>
         <div style={{ width: 120 }}>类型</div>
         <div style={{ width: 120 }}>默认值</div>
-        <div style={{ width: 120, textAlign: 'center' }}>是否多选</div>
+        <div style={{ width: 120, textAlign: 'center' }}>多值输入</div>
         <div style={{ width: 30 }}></div>
       </div>
 
