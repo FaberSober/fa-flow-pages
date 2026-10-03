@@ -1,12 +1,18 @@
 import { flowFormApi } from '@/services';
 import { Flow } from '@/types';
-import { DownloadOutlined, EditOutlined, EyeOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
-import { AuthDelBtn, BaseBizTable, BaseTableUtils, clearForm, FaberTable, FaHref, useDelete, useTableQueryParams, FaUtils } from '@fa/ui';
-import { Button, Form, Input, Space } from 'antd';
+import { EyeOutlined, SearchOutlined } from '@ant-design/icons';
+import { AuthDelBtn, BaseBizTable, BaseTableUtils, FaberTable, FaHref, useDelete, useTableQueryParams } from '@fa/ui';
+import { Button, Form, Input, Select, Space } from 'antd';
 import { each } from 'lodash';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import FlowFormAdd from './cube/FlowFormAdd';
 import FlowFormView from './cube/FlowFormView';
+import { normalizeFlowFormTableValues } from '@features/fa-flow-pages/components/formShow/utils';
+import { getDefaultQueryValues } from '@features/fa-flow-pages/pages/admin/flow/view/form/simpleTable/queryDefaults';
+import { formatFormColumnValue, getMainFormFieldMap } from '@features/fa-flow-pages/pages/admin/flow/view/form/simpleTable/columnDisplay';
+import { formatNumberColumnValue, isNumericColumn } from '@features/fa-flow-pages/pages/admin/flow/view/form/simpleTable/numberDisplay';
+import NumericRangeInput from '@features/fa-flow-pages/pages/admin/flow/view/form/simpleTable/NumericRangeInput';
+import DateRangeInput from '@features/fa-flow-pages/pages/admin/flow/view/form/simpleTable/DateRangeInput';
 
 export interface FlowFormDataTableProps {
   flowForm: Flow.FlowForm;
@@ -18,12 +24,16 @@ export interface FlowFormDataTableProps {
  */
 export default function FlowFormDataTable({ flowForm }: FlowFormDataTableProps) {
   const [form] = Form.useForm();
+  const defaultQueryValues = useMemo(() => getDefaultQueryValues(flowForm.tableConfig?.query?.columns), [flowForm.tableConfig?.query?.columns]);
+  const queryFieldMap = useMemo(() => getMainFormFieldMap(flowForm.config?.items), [flowForm.config?.items]);
   const [viewRecord, setViewRecord] = useState<any>(null);
   const [viewOpen, setViewOpen] = useState(false);
   const [viewIndex, setViewIndex] = useState<number>(-1);
 
-  const {queryParams, setFormValues, handleTableChange, setSceneId, setConditionList, fetchPageList, loading, list, dicts, paginationProps} =
-    useTableQueryParams<any>(flowFormApi.pageFormData, { flowFormId: flowForm.id }, flowForm.name);
+  const {queryParams, setFormValues, handleTableChange, fetchPageList, loading, list, paginationProps} =
+    useTableQueryParams<any>(flowFormApi.pageFormData, { flowFormId: flowForm.id, formValues: defaultQueryValues }, flowForm.name);
+
+  const tableValues = useMemo(() => normalizeFlowFormTableValues(flowForm, list), [flowForm, list]);
 
   const [handleDelete] = useDelete<number>((id) => flowFormApi.removeFormDataById(flowForm.id, id), fetchPageList, flowForm.name);
   // const [exporting, fetchExportExcel] = useExport(api.exportExcel, queryParams);
@@ -33,39 +43,44 @@ export default function FlowFormDataTable({ flowForm }: FlowFormDataTableProps) 
     if (viewIndex > 0) {
       const newIndex = viewIndex - 1;
       setViewIndex(newIndex);
-      setViewRecord(list[newIndex]);
+      setViewRecord(tableValues[newIndex]);
     }
-  }, [viewIndex, list]);
+  }, [viewIndex, tableValues]);
 
   const handleNext = React.useCallback(() => {
-    if (viewIndex < list.length - 1) {
+    if (viewIndex < tableValues.length - 1) {
       const newIndex = viewIndex + 1;
       setViewIndex(newIndex);
-      setViewRecord(list[newIndex]);
+      setViewRecord(tableValues[newIndex]);
     }
-  }, [viewIndex, list]);
+  }, [viewIndex, tableValues]);
 
   // 计算边界状态
   const hasPrev = viewIndex > 0;
-  const hasNext = viewIndex < list.length - 1;
+  const hasNext = viewIndex < tableValues.length - 1;
 
   function genColumns() {
     const { sorter } = queryParams;
-    const columns = [
-      BaseTableUtils.genIndexColumn(paginationProps),
-    ] as FaberTable.ColumnsProp<any>[];
-
+    const columns = ((flowForm.tableConfig?.table?.detail?.showIndex ?? true)
+      ? [BaseTableUtils.genIndexColumn(paginationProps)] : []) as FaberTable.ColumnsProp<any>[];
+    const fieldMap = getMainFormFieldMap(flowForm.config?.items);
     if (flowForm.tableConfig) {
       each(flowForm.tableConfig.table.columns, col => {
-        const dataIndex = FaUtils.toHump(col.field);
-        if ('date' === col.dataType) {
-          columns.push(BaseTableUtils.genDateSorterColumn(col.label || col.field, dataIndex, col.width, sorter))
-        } else if ('datetime' === col.dataType) {
-          columns.push(BaseTableUtils.genTimeSorterColumn(col.label || col.field, dataIndex, col.width, sorter))
-        } else {
-          columns.push(BaseTableUtils.genSimpleSorterColumn(col.label || col.field, dataIndex, col.width, sorter))
+        const columnSorter = col.sorter ? sorter || true : false;
+        const column = col.dataType === 'date'
+          ? BaseTableUtils.genDateSorterColumn(col.label || col.field, col.field, col.width, columnSorter)
+          : ['datetime', 'timestamp'].includes(col.dataType)
+            ? BaseTableUtils.genTimeSorterColumn(col.label || col.field, col.field, col.width, columnSorter)
+            : BaseTableUtils.genSimpleSorterColumn(col.label || col.field, col.field, col.width, columnSorter);
+        column.fixed = col.fix === 'left' || col.fix === 'right' ? col.fix : undefined;
+        const formItem = fieldMap.get(col.field);
+        if (formItem && ['radio', 'select', 'switch', 'checkbox'].includes(formItem.type)) {
+          column.render = value => formatFormColumnValue(formItem, value);
+        } else if (isNumericColumn(col.dataType) && col.numberPrecision != null) {
+          column.render = value => formatNumberColumnValue(value, col.numberPrecision!);
         }
-      })
+        columns.push(column);
+      });
     }
 
     columns.push(
@@ -76,7 +91,7 @@ export default function FlowFormDataTable({ flowForm }: FlowFormDataTableProps) 
         render: (_, r) => (
           <Space>
             <FaHref text='查看' icon={<EyeOutlined />} onClick={() => {
-              const index = list.findIndex((item: any) => item.id === r.id);
+              const index = tableValues.findIndex((item: any) => item.id === r.id);
               setViewIndex(index);
               setViewRecord(r);
               setViewOpen(true);
@@ -99,18 +114,21 @@ export default function FlowFormDataTable({ flowForm }: FlowFormDataTableProps) 
       <div className="fa-flex-row-center fa-p8">
         <div className="fa-h3">{flowForm.name}</div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
-          <Form form={form} layout="inline" onFinish={setFormValues}>
+          <Form form={form} initialValues={defaultQueryValues} layout="inline" onFinish={setFormValues}>
             {flowForm.tableConfig?.query?.columns?.map(col => {
               return (
                 <Form.Item name={col.field} label={col.label} key={col.field}>
-                  <Input placeholder={`请输入${col.label}`} allowClear />
+                  {col.queryType === 'date_range' ? <DateRangeInput /> : col.queryType === 'number_range' ? <NumericRangeInput /> : col.multiple || col.queryType === 'in'
+                    ? <Select mode="tags" options={queryFieldMap.get(col.field)?.options} tokenSeparators={[',', '，']}
+                        style={{ minWidth: 180 }} placeholder="选择或输入后按回车添加" allowClear />
+                    : <Input placeholder={`请输入${col.label}`} allowClear />}
                 </Form.Item>
               )
             })}
 
             <Space>
               <Button htmlType="submit" loading={loading} icon={<SearchOutlined />}>查询</Button>
-              <Button onClick={() => clearForm(form)}>重置</Button>
+              <Button onClick={() => { form.resetFields(); setFormValues(defaultQueryValues); }}>重置</Button>
               {flowForm.flowProcessId && (<FlowFormAdd flowForm={flowForm} onSuccess={fetchPageList} />)}
               {/* <Button icon={<DownloadOutlined />}>导出</Button> */}
             </Space>
@@ -120,11 +138,13 @@ export default function FlowFormDataTable({ flowForm }: FlowFormDataTableProps) 
 
       <BaseBizTable
         rowKey="id"
+        size={flowForm.tableConfig?.table?.detail?.size ?? 'small'}
+        bordered={flowForm.tableConfig?.table?.detail?.bordered ?? false}
         biz={flowForm.no}
         columns={genColumns()}
         pagination={paginationProps}
         loading={loading}
-        dataSource={list}
+        dataSource={tableValues}
         onChange={handleTableChange}
         refreshList={() => fetchPageList()}
         // batchDelete={(ids) => api.removeBatchByIds(ids)}

@@ -1,9 +1,8 @@
 import { flowProcessApi } from '@/services';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { FaFlexRestLayout } from '@fa/ui';
-import { FaFlowFormCreate, FaWorkFlow } from '@features/fa-flow-pages/components';
 import { Flow } from '@features/fa-flow-pages/types';
-import { Button, Space, Tabs } from 'antd';
+import { Button, Space } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import FlowInstanceView from '../../../../audit/components/FlowInstanceView';
@@ -67,7 +66,7 @@ export default function FlowFormView({ flowForm, record, open: openProp, onOpenC
 
         {/* body */}
         <FaFlexRestLayout className='fa-full-content fa-p12 fa-bg-grey'>
-          <FlowInstanceView instanceId={record.flowInstanceId} />
+          <FlowInstanceView instanceId={record?.flow_instance_id ?? record?.flowInstanceId} />
         </FaFlexRestLayout>
       </div>
     );

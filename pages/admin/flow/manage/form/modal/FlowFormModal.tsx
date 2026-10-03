@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { get } from 'lodash';
-import { Button, Form, Input, InputNumber } from 'antd';
+import { Alert, Button, Form, Input, InputNumber, Space, Spin, Tag } from 'antd';
 import { EditOutlined, PlusOutlined } from "@ant-design/icons";
 import { useApiLoading, DragModal, FaHref, FaUtils, CommonModalProps, DictEnumApiSelector } from '@fa/ui';
-import { flowFormApi as api } from '@/services';
-import { Flow } from '@/types';
-import { FlowCatagoryCascader, FlowProcessSelect } from '@features/fa-flow-pages/components';
+import { flowFormApi as api, flowProcessApi } from '@/services';
+import { Flow, FlowEnums } from '@/types';
+import { FlowCatagoryCascader } from '@features/fa-flow-pages/components';
 
 
 /**
@@ -16,6 +16,28 @@ export default function FlowFormModal({ children, title, record, fetchFinish, ad
   const [form] = Form.useForm();
 
   const [open, setOpen] = useState(false);
+  const [processes, setProcesses] = useState<Flow.FlowProcess[]>([]);
+  const processLoading = useApiLoading([flowProcessApi.getUrl('list')]);
+  const [processError, setProcessError] = useState(false);
+  const [reload, setReload] = useState(0);
+
+  useEffect(() => {
+    if (!open || !record?.id) return;
+    let active = true;
+    setProcesses([]);
+    setProcessError(false);
+    flowProcessApi.list({ query: { formId: record.id }, sorter: 'sort asc,id asc' })
+      .then(res => {
+        if (!active) return;
+        if (res.status !== 200) {
+          setProcessError(true);
+          return;
+        }
+        setProcesses(res.data.filter(item => item.formType === FlowEnums.FlowProcessFormType.CUSTOM));
+      })
+      .catch(() => { if (active) setProcessError(true); });
+    return () => { active = false; };
+  }, [open, record?.id, reload]);
 
   /** 新增Item */
   function invokeInsertTask(params: any) {
@@ -61,7 +83,6 @@ export default function FlowFormModal({ children, title, record, fetchFinish, ad
       tableName: get(record, 'tableName'),
       remark: get(record, 'remark'),
       config: get(record, 'config'),
-      flowProcessId: get(record, 'flowProcessId'),
       // birthday: FaUtils.getInitialKeyTimeValue(record, 'birthday'),
     }
   }
@@ -115,8 +136,25 @@ export default function FlowFormModal({ children, title, record, fetchFinish, ad
           <Form.Item name="remark" label="备注" rules={[{ required: false }]}>
             <Input placeholder="请输入备注" />
           </Form.Item>
-          <Form.Item name="flowProcessId" label="关联流程" rules={[{ required: false }]}>
-            <FlowProcessSelect />
+          <Form.Item label="关联流程" extra="请在流程配置中选择此表单，支持多个流程共用。">
+            {!record?.id ? '保存后可在流程配置中关联' : (
+              <Spin spinning={processLoading}>
+                {processError ? (
+                  <Alert type="error" showIcon title="关联流程加载失败"
+                    action={<Button size="small" onClick={() => setReload(value => value + 1)}>重试</Button>} />
+                ) : !processLoading && (
+                  <Space orientation="vertical">
+                    {processes.length === 0 ? '暂无关联流程' : processes.map(item => (
+                      <Tag key={item.id}>{item.processName}（{item.processKey}）</Tag>
+                    ))}
+                    {record.flowProcessId != null && !processes.some(item => Number(item.id) === Number(record.flowProcessId)) && (
+                      <Alert type="warning" showIcon title="旧绑定与流程配置不一致"
+                        description={`旧关联流程 ID：${record.flowProcessId}。请管理员检查对应流程的自定义表单配置，当前关联列表以流程配置为准。`} />
+                    )}
+                  </Space>
+                )}
+              </Spin>
+            )}
           </Form.Item>
         </Form>
       </DragModal>
