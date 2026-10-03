@@ -40,10 +40,12 @@ export default function FormTableColumnAdd({ tableName, databaseType, onSuccess 
         form.setFieldsValue({ ...typeParameters(changed.dataType), defaultValue: undefined });
       }
     }}>
-    <div className="fa-db-column-row fa-db-column-add">
-      <ColumnFields dataType={dataType} databaseType={databaseType} />
-      <div><Button type="primary" htmlType="submit" loading={loading}>添加字段</Button></div>
-      <span />
+    <div className="fa-db-column-add">
+      <div className="fa-db-column-row" style={{ flex: 1 }}>
+        <ColumnFields dataType={dataType} databaseType={databaseType} />
+        <div><Button type="primary" htmlType="submit" loading={loading}>添加字段</Button></div>
+      </div>
+      <span style={{ width: 32, minWidth: 32 }} />
     </div>
   </Form>;
 }

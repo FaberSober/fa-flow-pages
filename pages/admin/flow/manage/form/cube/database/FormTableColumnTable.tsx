@@ -74,8 +74,11 @@ export default function FormTableColumnTable({ item, tableInfo, configuredColumn
     <div className="fa-db-table-hint fa-text-secondary">字段名建议使用业务含义，如 customer_name；注释用于表单显示名称。字段更新会立即修改数据库，刷新只读取结构。</div>
     <div className="fa-db-table-scroll">
       <div className="fa-db-table-grid">
-        <div className="fa-db-column-row fa-db-column-header">
-          <span>字段名</span><span>中文说明</span><span>类型</span><span>长度 / 精度·小数位</span><span>必填</span><span>默认值</span><span>键属性</span><span>操作</span><span />
+        <div className="fa-db-column-header">
+          <div className="fa-db-column-row" style={{ flex: 1 }}>
+            <span>字段名</span><span>中文说明</span><span>类型</span><span>长度 / 精度·小数位</span><span>必填</span><span>默认值</span><span>键属性</span><span>操作</span>
+          </div>
+          <span style={{ width: 32, minWidth: 32 }} />
         </div>
         <Spin spinning={loading || syncing}>
           {!businessColumns.length && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无业务字段，请添加字段" />}
@@ -84,7 +87,12 @@ export default function FormTableColumnTable({ item, tableInfo, configuredColumn
             onSortEnd={sortBusiness} itemStyle={{ padding: 0, borderBottom: '1px solid var(--fa-border-color)' }} handleStyle={{ width: 32, minWidth: 32 }} vertical handle />}
           <FormTableColumnAdd tableName={info.tableName} databaseType={info.databaseType} onSuccess={() => refresh(true)} />
           <div className="fa-db-system-heading"><Button type="link" onClick={() => setShowSystem(value => !value)}>{showSystem ? '隐藏' : '显示'}系统字段（{systemColumns.length}）</Button><span className="fa-text-secondary">系统字段由平台维护，隐藏不影响保存与同步</span></div>
-          {showSystem && systemColumns.map(column => <FormTableColumnEdit key={column.field} column={column} tableName={info.tableName} databaseType={info.databaseType} />)}
+          {showSystem && <div className="fa-db-system-details">
+            <div className="fa-db-column-row fa-db-system-row fa-db-system-header">
+              <span>字段名</span><span>中文说明</span><span>类型</span><span>完整类型</span><span>必填</span><span>默认值</span><span>键属性</span><span>维护方式</span><span />
+            </div>
+            {systemColumns.map(column => <FormTableColumnEdit key={column.field} column={column} tableName={info.tableName} databaseType={info.databaseType} />)}
+          </div>}
         </Spin>
       </div>
     </div>
