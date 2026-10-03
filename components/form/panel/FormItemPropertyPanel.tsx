@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFaFormStore } from '../stores/useFaFormStore';
 import { findParentFormItem } from '../utils';
 import { cloneDeep, isNil } from 'lodash';
 import { Button, Empty, Form, Input, InputNumber, Select, Space, Switch, Tag } from 'antd';
+import FormItemOptionsEditor from './item/FormItemOptionsEditor';
 import FormItemInputProperty from './item/FormItemInputProperty';
 import { SyncOutlined } from '@ant-design/icons';
 import { FaUtils } from '@fa/ui';
@@ -28,6 +29,7 @@ export default function FormItemPropertyPanel() {
   
   // 监听 tableName 字段的值
   const tableName = Form.useWatch('tableName', form);
+  const choiceOptions = Form.useWatch('options', form) || [];
 
   // 查找父节点
   const parentFormItem = useMemo(() => {
@@ -140,6 +142,13 @@ export default function FormItemPropertyPanel() {
                 form.setFieldsValue({ label: col.originalComment });
               }
             }
+            if ('options' in cv && ['radio', 'select'].includes(selectedFormItem.type)) {
+              const available = new Set((values.options || []).map((option: { value: string | number }) => option.value));
+              avCopy.initialValue = Array.isArray(values.initialValue)
+                ? values.initialValue.filter((value: string | number) => available.has(value))
+                : available.has(values.initialValue) ? values.initialValue : undefined;
+              form.setFieldsValue({ initialValue: avCopy.initialValue });
+            }
             updateSelectedFormItem(avCopy);
           }}
         >
@@ -174,6 +183,16 @@ export default function FormItemPropertyPanel() {
               </Form.Item>}
             </>
           )}
+
+          {['radio', 'select'].includes(selectedFormItem.type) && <>
+            <Form.Item name="options" label="选项">
+              <FormItemOptionsEditor />
+            </Form.Item>
+            <Form.Item name="initialValue" label="默认选项">
+              <Select options={choiceOptions} mode={selectedFormItem.type === 'select' ? selectedFormItem.mode : undefined} allowClear placeholder="选填，填报时自动带入" />
+            </Form.Item>
+            {selectedFormItem.type === 'select' && <FormItemInputProperty />}
+          </>}
 
           {['input', 'inputnumber', 'textarea'].includes(selectedFormItem.type) && (<FormItemInputProperty />)}
 
