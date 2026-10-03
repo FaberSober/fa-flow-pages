@@ -34,3 +34,12 @@ test('数值区间保留空端、零值和重复边界，不按多值去重', ()
     { field: 'price', queryType: 'number_range', default: '1.25，' },
   ]), { amount: ['0', '0'], count: ['', '10'], price: ['1.25', ''] });
 });
+
+
+test('日期区间默认值保留单侧与同日边界，不按多值拆分去重', () => {
+  assert.deepEqual(getDefaultQueryValues([
+    { field: 'crt_time', queryType: 'date_range', multiple: true, default: '2026-10-01,2026-10-01' },
+    { field: 'order_date', queryType: 'date_range', default: ',2026-10-03' },
+    { field: 'delivery_date', queryType: 'date_range', default: '2026-10-01，' },
+  ]), { crt_time: ['2026-10-01', '2026-10-01'], order_date: ['', '2026-10-03'], delivery_date: ['2026-10-01', ''] });
+});

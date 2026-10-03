@@ -83,7 +83,7 @@ export default function FormTableEdit() {
       } else {
         const linked = linkTables.find(table => table.tableName === tableName);
         if (!linked) throw new Error('关联子表不存在');
-        const res = await flowFormTableApi.update(linked.id, { ...linked, dataConfig: updated });
+        const res = await flowFormTableApi.update(linked.id, { dataConfig: updated });
         if (res.status !== Fa.RES_CODE.OK) { message.error(res.message || '同步子表配置失败'); throw new Error('同步子表配置失败'); }
         if (formIdRef.current === flowForm.id) setLinkTables(previous => previous.map(table => table.id === linked.id ? { ...table, dataConfig: updated } : table));
       }

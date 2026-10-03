@@ -1,12 +1,13 @@
 import { flowFormApi } from '@/services';
 import type { Flow } from '@/types';
 import { BaseDrawer, Fa, FaJsonView, FaSortList, useApiLoading } from '@fa/ui';
-import { Button, Empty, Space, Spin, Tag, Typography, message } from 'antd';
+import { Alert, Button, Empty, Space, Spin, Tag, Typography, message } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import FormTableColumnAdd from './FormTableColumnAdd';
 import FormTableColumnEdit from './FormTableColumnEdit';
 import { isSystemColumn, mergeBusinessColumns } from './columnUtils';
 import './FormTableColumnEdit.scss';
+import { getMissingStructureBindings, getStructureChanges } from './structureChanges';
 
 export interface FormTableColumnTableProps {
   item: Flow.FlowForm;
@@ -26,6 +27,10 @@ export default function FormTableColumnTable({ item, tableInfo, configuredColumn
   const loading = useApiLoading(flowFormApi.getUrl('queryTableStructure'));
   const businessColumns = info.columns.filter(column => !isSystemColumn(column));
   const systemColumns = info.columns.filter(isSystemColumn);
+
+  const changes = getStructureChanges(info.columns, configuredColumns);
+  const missingBindings = getMissingStructureBindings(item, info.tableName, info.columns);
+  const hasChanges = changes.added.length + changes.removed.length + changes.changed.length > 0;
 
   function toConfig(columns: Flow.TableColumnVo[]) {
     return columns.map((column, sort) => ({ ...column, table: info.tableName, sort }));
@@ -72,6 +77,17 @@ export default function FormTableColumnTable({ item, tableInfo, configuredColumn
       </Space>
     </div>
     <div className="fa-db-table-hint fa-text-secondary">字段名建议使用业务含义，如 customer_name；注释用于表单显示名称。字段更新会立即修改数据库，刷新只读取结构。</div>
+    {hasChanges && <Alert type="info" showIcon style={{ marginBottom: 8 }}
+      title={`待同步：新增 ${changes.added.length} · 移除 ${changes.removed.length} · 属性变化 ${changes.changed.length}`}
+      description={<div>
+        {changes.added.length > 0 && <div>新增字段：{changes.added.join('、')}</div>}
+        {changes.removed.length > 0 && <div>移除字段：{changes.removed.join('、')}</div>}
+        {changes.changed.length > 0 && <div>属性变化：{changes.changed.join('、')}</div>}
+        <div>同步只更新结构映射，已有表单和列表设置保留。</div>
+      </div>} />}
+    {missingBindings.length > 0 && <Alert type="warning" showIcon style={{ marginBottom: 8 }}
+      title="部分配置引用的字段已不存在"
+      description={<div>{missingBindings.map(binding => <div key={binding}>{binding}</div>)}<div>请在表单设计或列表设计中调整以上配置，同步结构不会自动删除它们。</div></div>} />}
     <div className="fa-db-table-scroll">
       <div className="fa-db-table-grid">
         <div className="fa-db-column-header">

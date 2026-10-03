@@ -422,7 +422,7 @@ namespace Flow {
     label: string;
     /** 纯类型（如 varchar） */
     dataType: string;
-    queryType: 'eq'|'like'|'in'|'number_range';
+    queryType: 'eq'|'like'|'in'|'number_range'|'date_range';
     default?: string;
     multiple: boolean;
     sort: number;
