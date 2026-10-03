@@ -1,6 +1,6 @@
 import { DepartmentCascade, UserSearchSelect } from '@/components';
 import { Flow, Flw } from '@/types';
-import { FaUtils, UploadFileLocal, UploadImgLocal } from '@fa/ui';
+import { UploadFileLocal, UploadImgLocal } from '@fa/ui';
 import {
   Cascader,
   Checkbox,
@@ -21,6 +21,7 @@ import { useMemo } from 'react';
 import { FaFormItemsDecoratorTypes } from '../config';
 import FaFormDragLayout from '../FaFormDragLayout';
 import { useFaFormStore } from '../stores/useFaFormStore';
+import { toTemporalValue } from '../temporalValues';
 import { getNumberInputProps } from '../numberProperties';
 import { getFormItemAuth } from '../utils';
 import FaFormItemDecoAlert from './item/FaFormItemDecoAlert';
@@ -57,7 +58,7 @@ export default function FaFormEditorItem({ formItem, flowNode, disabled, showMod
   const editable = !isShowComponent && formItemConfig.edit;
   const required = editable && (flowNode?.extendConfig?.formAuth?.[formItem.id]?.required ?? formItem.rules?.some((rule) => rule.required) ?? formItemConfig.required);
   const initialValue = formItem.type === 'datepicker' || formItem.type === 'timepicker'
-    ? FaUtils.getInitialTimeValue(formItem.initialValue)
+    ? toTemporalValue(formItem.type, formItem.initialValue)
     : formItem.initialValue;
   const rules = editable
     ? [...(formItem.rules || []).map(({ required: _required, ...rule }) => rule), { required }]

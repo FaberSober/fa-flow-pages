@@ -3,6 +3,7 @@ import { useFaFormStore } from '../stores/useFaFormStore';
 import { findParentFormItem } from '../utils';
 import { cloneDeep, isNil } from 'lodash';
 import { Button, Empty, Form, Input, InputNumber, Select, Space, Switch, Tag } from 'antd';
+import FormItemTemporalProperty from './item/FormItemTemporalProperty';
 import FormItemNumberProperty from './item/FormItemNumberProperty';
 import FormItemOptionsEditor from './item/FormItemOptionsEditor';
 import FormItemInputProperty from './item/FormItemInputProperty';
@@ -180,7 +181,9 @@ export default function FormItemPropertyPanel() {
                 <Switch />
               </Form.Item>
               {['input', 'textarea', 'inputnumber'].includes(selectedFormItem.type) && <Form.Item name="initialValue" label="默认值">
-                {selectedFormItem.type === 'inputnumber' ? <InputNumber style={{ width: '100%' }} /> : <Input allowClear placeholder="选填，填报时自动带入" />}
+                {(selectedFormItem.type === 'datepicker' || selectedFormItem.type === 'timepicker') && <FormItemTemporalProperty type={selectedFormItem.type} />}
+
+          {selectedFormItem.type === 'inputnumber' ? <InputNumber style={{ width: '100%' }} /> : <Input allowClear placeholder="选填，填报时自动带入" />}
               </Form.Item>}
             </>
           )}

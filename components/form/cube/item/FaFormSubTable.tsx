@@ -5,7 +5,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { FaUtils } from '@fa/ui';
-import dayjs from 'dayjs';
+import { toTemporalValue } from '../../temporalValues';
 import { getNumberInputProps } from '../../numberProperties';
 import { getFormItemAuth } from '../../utils';
 
@@ -106,7 +106,7 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
         return (
           <DatePicker 
             disabled={!auth.edit}
-            value={value ? dayjs(value) : undefined} 
+            value={toTemporalValue('datepicker', value)}
             onChange={(date) => onChange(date ? date.format('YYYY-MM-DD') : undefined)} 
             style={{ width: '100%' }} 
           />
@@ -116,7 +116,7 @@ export default function FaFormSubTable({ formItem, value, onChange, flowNode, di
         return (
           <TimePicker 
             disabled={!auth.edit}
-            value={value ? dayjs(value, 'HH:mm:ss') : undefined} 
+            value={toTemporalValue('timepicker', value)}
             onChange={(time) => onChange(time ? time.format('HH:mm:ss') : undefined)} 
             style={{ width: '100%' }} 
           />

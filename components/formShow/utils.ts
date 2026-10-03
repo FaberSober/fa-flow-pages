@@ -1,3 +1,4 @@
+import { toTemporalValue } from '../form/temporalValues';
 import { FaUtils } from '@fa/ui';
 import { Flow } from "@/types";
 import { cloneDeep, each, get, has, isNil, set } from "lodash";
@@ -28,7 +29,7 @@ export function normalizeFlowFormValues(flowForm: Flow.FlowForm, values: any) {
       } else if (isNil(value)) {
         set(target, name, null);
       } else if (item.type === 'datepicker' || item.type === 'timepicker' || columnMap[name]?.dataType === 'date' || columnMap[name]?.dataType === 'datetime') {
-        set(target, name, FaUtils.getInitialTimeValue(value));
+        set(target, name, toTemporalValue(item.type === 'timepicker' ? 'timepicker' : 'datepicker', value));
       } else if (item.type === 'select' && item.mode === 'multiple' && typeof value === 'string') {
         try {
           const parsed = JSON.parse(value);
