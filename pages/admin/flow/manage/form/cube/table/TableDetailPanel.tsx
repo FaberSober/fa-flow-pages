@@ -1,5 +1,5 @@
-import { Form, Select } from 'antd';
-import React, { useEffect } from 'react';
+import { Form, Select, Switch } from 'antd';
+import { useEffect } from 'react';
 import { useFlowFormEditStore } from '../../store/useFlowFormEditStore';
 
 /**
@@ -11,14 +11,16 @@ export default function TableDetailPanel() {
   const { flowForm, updateFlowFormTableConfigTableDetail } = useFlowFormEditStore()
 
   useEffect(() => {
-    console.log('TableDetailPanel flowForm changed', flowForm)
-    form.setFieldsValue(flowForm?.tableConfig?.table?.detail);
-  }, [flowForm]);
+    const detail = flowForm?.tableConfig?.table?.detail;
+    form.setFieldsValue({ ...detail, type: detail?.type ?? 'normal', size: detail?.size ?? 'small',
+      bordered: detail?.bordered ?? false, showIndex: detail?.showIndex ?? true });
+  }, [flowForm, form]);
 
   return (
     <Form form={form} className='fa-p12'
-      onValuesChange={(cv, av) => {
-        updateFlowFormTableConfigTableDetail({...flowForm!.tableConfig!.table!.detail, ...av});
+      onValuesChange={(_cv, av) => {
+        if (!flowForm) return;
+        updateFlowFormTableConfigTableDetail({ ...flowForm.tableConfig?.table?.detail, ...av, type: av.type ?? flowForm.tableConfig?.table?.detail?.type ?? 'normal' });
       }}
     >
       <Form.Item name="type" label="表格形式" rules={[{ required: true }]}>
@@ -31,6 +33,19 @@ export default function TableDetailPanel() {
             { label: '树形表格', value: 'treeTable' },
           ]}
         />
+      </Form.Item>
+      <Form.Item name="size" label="行高">
+        <Select options={[
+          { label: '紧凑', value: 'small' },
+          { label: '适中', value: 'middle' },
+          { label: '宽松', value: 'large' },
+        ]} />
+      </Form.Item>
+      <Form.Item name="bordered" label="显示边框" valuePropName="checked">
+        <Switch />
+      </Form.Item>
+      <Form.Item name="showIndex" label="显示序号" valuePropName="checked">
+        <Switch />
       </Form.Item>
     </Form>
   );

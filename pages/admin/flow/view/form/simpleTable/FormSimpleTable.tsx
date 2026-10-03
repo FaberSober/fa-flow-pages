@@ -42,9 +42,8 @@ export default function FormSimpleTable({ flowForm }: FormSimpleTableProps) {
 
   function genColumns() {
     const { sorter } = queryParams;
-    const columns = [
-      BaseTableUtils.genIndexColumn(paginationProps),
-    ] as FaberTable.ColumnsProp<any>[];
+    const columns = ((flowForm.tableConfig?.table?.detail?.showIndex ?? true)
+      ? [BaseTableUtils.genIndexColumn(paginationProps)] : []) as FaberTable.ColumnsProp<any>[];
 
     const fieldMap = getMainFormFieldMap(flowForm.config?.items);
     if (flowForm.tableConfig) {
@@ -123,6 +122,8 @@ export default function FormSimpleTable({ flowForm }: FormSimpleTableProps) {
 
       <BaseBizTable
         rowKey="id"
+        size={flowForm.tableConfig?.table?.detail?.size ?? 'small'}
+        bordered={flowForm.tableConfig?.table?.detail?.bordered ?? false}
         biz={flowForm.no}
         columns={genColumns()}
         pagination={paginationProps}

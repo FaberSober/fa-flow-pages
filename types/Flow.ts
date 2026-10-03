@@ -454,6 +454,9 @@ namespace Flow {
 
   export interface FlowFormTableConfigDetail {
     type: 'normal' | 'leftTree' | 'editTable' | 'groupTable' | 'treeTable';
+    size?: 'small' | 'middle' | 'large';
+    bordered?: boolean;
+    showIndex?: boolean;
   }
 
   export interface FlowFormDataConfigColumn extends TableColumnVo {
