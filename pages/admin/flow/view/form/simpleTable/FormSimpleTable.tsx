@@ -1,11 +1,12 @@
 import { flowFormApi } from '@/services';
 import { Flow } from '@/types';
 import { EditOutlined, EyeOutlined, SearchOutlined } from '@ant-design/icons';
-import { AuthDelBtn, BaseBizTable, BaseTableUtils, clearForm, FaberTable, FaHref, useDelete, useTableQueryParams, useViewItemPro } from '@fa/ui';
+import { AuthDelBtn, BaseBizTable, BaseTableUtils, FaberTable, FaHref, useDelete, useTableQueryParams, useViewItemPro } from '@fa/ui';
 import { Button, Form, Input, Space } from 'antd';
 import { each } from 'lodash';
 import { useMemo } from 'react';
 import { normalizeFlowFormTableValues } from '@features/fa-flow-pages/components/formShow/utils';
+import { getDefaultQueryValues } from './queryDefaults';
 import { formatFormColumnValue, getMainFormFieldMap } from './columnDisplay';
 import FormAdd from './cube/FormAdd';
 import FormEdit from './cube/FormEdit';
@@ -24,9 +25,10 @@ export interface FormSimpleTableProps {
  */
 export default function FormSimpleTable({ flowForm }: FormSimpleTableProps) {
   const [form] = Form.useForm();
+  const defaultQueryValues = useMemo(() => getDefaultQueryValues(flowForm.tableConfig?.query?.columns), [flowForm.tableConfig]);
 
   const { queryParams, setFormValues, handleTableChange, fetchPageList, loading, list, paginationProps } =
-    useTableQueryParams<any>(flowFormApi.pageFormData, { flowFormId: flowForm.id }, flowForm.name);
+    useTableQueryParams<any>(flowFormApi.pageFormData, { flowFormId: flowForm.id, formValues: defaultQueryValues }, flowForm.name);
 
   const tableValues = useMemo(() => normalizeFlowFormTableValues(flowForm, list), [flowForm, list]);
   const viewItem = useViewItemPro<any>(tableValues);
@@ -91,7 +93,7 @@ export default function FormSimpleTable({ flowForm }: FormSimpleTableProps) {
       <div className="fa-flex-row-center fa-p8">
         <div className="fa-h3">{flowForm.name}</div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
-          <Form form={form} layout="inline" onFinish={setFormValues}>
+          <Form form={form} initialValues={defaultQueryValues} layout="inline" onFinish={setFormValues}>
             {flowForm.tableConfig?.query?.columns?.map(col => {
               return (
                 <Form.Item name={col.field} label={col.label} key={col.field}>
@@ -102,7 +104,7 @@ export default function FormSimpleTable({ flowForm }: FormSimpleTableProps) {
 
             <Space>
               <Button htmlType="submit" loading={loading} icon={<SearchOutlined />}>查询</Button>
-              <Button onClick={() => clearForm(form)}>重置</Button>
+              <Button onClick={() => { form.resetFields(); setFormValues(defaultQueryValues); }}>重置</Button>
               <FormAdd flowForm={flowForm} onSuccess={fetchPageList} />
               {/* <Button icon={<DownloadOutlined />}>导出</Button> */}
             </Space>
