@@ -6,6 +6,7 @@ import { Button, Form, Input, Space } from 'antd';
 import { each } from 'lodash';
 import { useMemo } from 'react';
 import { normalizeFlowFormTableValues } from '@features/fa-flow-pages/components/formShow/utils';
+import { formatFormColumnValue, getMainFormFieldMap } from './columnDisplay';
 import FormAdd from './cube/FormAdd';
 import FormEdit from './cube/FormEdit';
 import FormView from './cube/FormView';
@@ -39,16 +40,22 @@ export default function FormSimpleTable({ flowForm }: FormSimpleTableProps) {
       BaseTableUtils.genIndexColumn(paginationProps),
     ] as FaberTable.ColumnsProp<any>[];
 
+    const fieldMap = getMainFormFieldMap(flowForm.config?.items);
     if (flowForm.tableConfig) {
       each(flowForm.tableConfig.table.columns, col => {
         const dataIndex = col.field;
-        if ('date' === col.dataType) {
-          columns.push(BaseTableUtils.genDateSorterColumn(col.label || col.field, dataIndex, col.width, sorter))
-        } else if ('datetime' === col.dataType) {
-          columns.push(BaseTableUtils.genTimeSorterColumn(col.label || col.field, dataIndex, col.width, sorter))
-        } else {
-          columns.push(BaseTableUtils.genSimpleSorterColumn(col.label || col.field, dataIndex, col.width, sorter))
+        const columnSorter = col.sorter ? sorter || true : false;
+        const column = col.dataType === 'date'
+          ? BaseTableUtils.genDateSorterColumn(col.label || col.field, dataIndex, col.width, columnSorter)
+          : ['datetime', 'timestamp'].includes(col.dataType)
+            ? BaseTableUtils.genTimeSorterColumn(col.label || col.field, dataIndex, col.width, columnSorter)
+            : BaseTableUtils.genSimpleSorterColumn(col.label || col.field, dataIndex, col.width, columnSorter);
+        column.fixed = col.fix === 'left' || col.fix === 'right' ? col.fix : undefined;
+        const formItem = fieldMap.get(col.field);
+        if (formItem && ['radio', 'select', 'switch', 'checkbox'].includes(formItem.type)) {
+          column.render = value => formatFormColumnValue(formItem, value);
         }
+        columns.push(column);
       })
     }
 
