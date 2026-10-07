@@ -23,8 +23,9 @@ export default function FaFlowFormCreate({ flow, form, startNode, onFormSubmit, 
   function handleFormSuccess(formValues: any) {
     const requestId = requestIdRef.current ?? (requestIdRef.current = FaUtils.uuid());
     const result = onFormSubmit(flow, formValues, requestId);
-    return Promise.resolve(result).then(() => {
-      requestIdRef.current = undefined;
+    return Promise.resolve(result).then((submitResult) => {
+      if (submitResult !== false) requestIdRef.current = undefined;
+      return submitResult;
     });
   }
 

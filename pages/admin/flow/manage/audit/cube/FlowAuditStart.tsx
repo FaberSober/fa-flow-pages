@@ -1,7 +1,7 @@
 import { flowCatagoryApi, flowProcessApi } from '@/services';
 import { Flow, Flw } from '@/types';
 import { ApartmentOutlined, FormOutlined } from '@ant-design/icons';
-import { BaseDrawer, BaseTree, FaFlexRestLayout, FaLazyContainer, FaUtils, useApiLoading } from '@fa/ui';
+import { BaseDrawer, BaseTree, Fa, FaFlexRestLayout, FaLazyContainer, FaUtils, useApiLoading } from '@fa/ui';
 import { FaFlowFormCreate, FaWorkFlow } from '@features/fa-flow-pages/components';
 import { Button, Form, Segmented, Space, Splitter } from 'antd';
 import { useEffect, useRef, useState } from 'react';
@@ -44,9 +44,14 @@ export default function FlowAuditStart() {
     // start flow
     return flowProcessApi.start({ processId: flow.id, processKey: flow.processKey, requestId, args: formValues }).then(res => {
       FaUtils.showResponse(res, '发起流程');
+      if (res.status !== Fa.RES_CODE.OK) return false;
+
+      // 成功后清空共享的表单实例，避免下次从其他流程发起时带入上一条记录。
+      form.resetFields();
       dispatch({ type: '@@action/CLOSE_DRAWER' })
       // 成功提交审批流程后，刷新任务数量统计
       refreshCount();
+      return true;
     })
   }
 
