@@ -1,18 +1,23 @@
 import { flowProcessApi as api } from '@/services';
 import { Flow, FlowEnums, Flw, FlwEnums } from '@/types';
 import { EditOutlined, PlusOutlined } from "@ant-design/icons";
-import { CommonModalProps, DragModal, FaHref, FaUtils, useApiLoading } from '@fa/ui';
+import { CommonModalProps, DragModal, Fa, FaHref, FaUtils, useApiLoading } from '@fa/ui';
 import { getNodeKey } from '@features/fa-flow-pages/components/flow/utils';
 import { Button, Form } from 'antd';
 import { get } from 'lodash';
 import { useState } from 'react';
 import FlowProcessForm from '../cube/FlowProcessForm';
 
+type FlowProcessModalProps = CommonModalProps<Flow.FlowProcess> & {
+  defaultValues?: Partial<Flow.FlowProcess>;
+  fixedFormId?: number;
+  onCreated?: (item?: Flow.FlowProcess) => void;
+};
 
 /**
  * FLOW-流程定义实体新增、编辑弹框
  */
-export default function FlowProcessModal({ children, title, record, fetchFinish, addBtn, editBtn, ...props }: CommonModalProps<Flow.FlowProcess>) {
+export default function FlowProcessModal({ children, title, record, fetchFinish, addBtn, editBtn, defaultValues, fixedFormId, onCreated, ...props }: FlowProcessModalProps) {
   const [form] = Form.useForm();
 
   const [open, setOpen] = useState(false);
@@ -21,8 +26,10 @@ export default function FlowProcessModal({ children, title, record, fetchFinish,
   function invokeInsertTask(params: any) {
     api.save(params).then((res) => {
       FaUtils.showResponse(res, '新增流程定义');
+      if (res.status !== Fa.RES_CODE.OK) return;
       setOpen(false);
       if (fetchFinish) fetchFinish();
+      onCreated?.(res.data ?? params);
     })
   }
 
@@ -46,6 +53,7 @@ export default function FlowProcessModal({ children, title, record, fetchFinish,
     } else {
       const params = {
         ...values,
+        ...(fixedFormId != null ? { formType: FlowEnums.FlowProcessFormType.CUSTOM, formId: fixedFormId } : {}),
         modelContent: JSON.stringify({
           "key": values.processKey,
           "name": values.processName,
@@ -67,26 +75,27 @@ export default function FlowProcessModal({ children, title, record, fetchFinish,
 
   function getInitialValues() {
     return {
-      catagoryId: get(record, 'catagoryId'),
-      processKey: get(record, 'processKey'),
-      processName: get(record, 'processName'),
-      processIcon: get(record, 'processIcon'),
-      processType: get(record, 'processType'),
-      processVersion: get(record, 'processVersion'),
-      instanceUrl: get(record, 'instanceUrl'),
-      formType: get(record, 'formType'),
-      formId: get(record, 'formId'),
-      remark: get(record, 'remark'),
-      useScope: get(record, 'useScope'),
-      processState: get(record, 'processState'),
+      catagoryId: get(record, 'catagoryId', defaultValues?.catagoryId),
+      processKey: get(record, 'processKey', defaultValues?.processKey),
+      processName: get(record, 'processName', defaultValues?.processName),
+      processIcon: get(record, 'processIcon', defaultValues?.processIcon),
+      processType: get(record, 'processType', defaultValues?.processType),
+      processVersion: get(record, 'processVersion', defaultValues?.processVersion),
+      instanceUrl: get(record, 'instanceUrl', defaultValues?.instanceUrl),
+      formType: fixedFormId != null ? FlowEnums.FlowProcessFormType.CUSTOM : get(record, 'formType', defaultValues?.formType),
+      formId: fixedFormId ?? get(record, 'formId', defaultValues?.formId),
+      remark: get(record, 'remark', defaultValues?.remark),
+      useScope: get(record, 'useScope', defaultValues?.useScope),
+      processState: get(record, 'processState', defaultValues?.processState),
       // modelContent: get(record, 'modelContent'),
-      sort: get(record, 'sort'),
+      sort: get(record, 'sort', defaultValues?.sort),
       // birthday: FaUtils.getInitialKeyTimeValue(record, 'birthday'),
     }
   }
 
   function showModal() {
     setOpen(true)
+    form.resetFields();
     form.setFieldsValue(getInitialValues())
   }
 
@@ -111,6 +120,7 @@ export default function FlowProcessModal({ children, title, record, fetchFinish,
           form={form}
           onFinish={onFinish}
           initialValues={getInitialValues()}
+          fixedFormId={fixedFormId}
           type='create'
         />
       </DragModal>

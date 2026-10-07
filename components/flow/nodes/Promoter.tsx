@@ -31,6 +31,7 @@ export default function Promoter({ node, configOnly }: PromoterProps) {
       <Tabs
         // 当前后端契约支持的发起节点配置
         className='fa-tabs-block'
+        style={{ flex: '0 0 auto', height: 'auto' }}
         items={[
           { key: 'basic', label: '基础设置' },
           { key: 'advance', label: '高级设置' },

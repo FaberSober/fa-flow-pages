@@ -23,10 +23,10 @@
   align-items: center;
   position: relative;
   padding: 8px;
-  background: #fafafa;
+  background: var(--fa-bg-grey);
   border-bottom: 1px solid var(--fa-border-color);
   transition: background .3s ease;
-  color: #000000d9;
+  color: var(--fa-text-color);
   font-weight: 500;
 }
 
@@ -36,7 +36,7 @@
   right: 0;
   width: 1px;
   height: 1.6em;
-  background-color: #0000000f;
+  background-color: var(--fa-border-color);
   transform: translateY(-50%);
   transition: background-color .3s;
   content: "";

@@ -1,5 +1,5 @@
 import { flowFormApi } from '@/services';
-import { CalculatorOutlined, DatabaseOutlined, FormOutlined, OrderedListOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, CalculatorOutlined, DatabaseOutlined, FormOutlined, OrderedListOutlined } from '@ant-design/icons';
 import { Fa, FaFlexRestLayout, FaFullContentModal, FaHref, FaUtils } from '@fa/ui';
 import { FaFormEditor } from '@features/fa-flow-pages/components';
 import { Button, Modal, Segmented, Space, Spin, message } from 'antd';
@@ -8,6 +8,7 @@ import { useRef, useState } from 'react';
 import type { Flow } from '@/types';
 import FormTableEdit from '../cube/database/FormTableEdit';
 import TableShowDesign from '../cube/table/TableShowDesign';
+import FlowFormProcessManage from './FlowFormProcessManage';
 import { useFlowFormEditStore } from '../store/useFlowFormEditStore';
 
 
@@ -85,7 +86,7 @@ export default function FlowFormConfigDrawer({ itemId, refresh }: FlowFormConfig
       savedConfig.current = cloneDeep(latest.config);
       savedTableConfig.current = cloneDeep(latest.tableConfig);
       FaUtils.showResponse(res, '保存配置');
-      closeModal();
+      if (tab !== 'process') closeModal();
     } catch {
       message.error('保存配置失败，请重试');
     } finally {
@@ -112,6 +113,7 @@ export default function FlowFormConfigDrawer({ itemId, refresh }: FlowFormConfig
             { value: 'database', label: <span><DatabaseOutlined style={{ marginRight: 4 }} />数据库表</span> },
             { value: 'form', label: <span><FormOutlined style={{ marginRight: 4 }} />表单设计</span> },
             { value: 'table', label: <span><OrderedListOutlined style={{ marginRight: 4 }} />列表设计</span> },
+            { value: 'process', label: <span><ApartmentOutlined style={{ marginRight: 4 }} />流程配置</span> },
           ]}
           disabled={loading || saving || !flowForm}
           value={tab}
@@ -122,7 +124,7 @@ export default function FlowFormConfigDrawer({ itemId, refresh }: FlowFormConfig
         <Space>
           <Button
             onClick={() => {
-              const steps = ['database', 'form', 'table'];
+              const steps = ['database', 'form', 'table', 'process'];
               const currentIndex = steps.indexOf(tab);
               if (currentIndex > 0) setTab(steps[currentIndex - 1]);
             }}
@@ -132,15 +134,15 @@ export default function FlowFormConfigDrawer({ itemId, refresh }: FlowFormConfig
           </Button>
           <Button
             onClick={() => {
-              const steps = ['database', 'form', 'table'];
+              const steps = ['database', 'form', 'table', 'process'];
               const currentIndex = steps.indexOf(tab);
               if (currentIndex < steps.length - 1) setTab(steps[currentIndex + 1]);
             }}
-            disabled={loading || saving || !flowForm || tab === 'table'}
+            disabled={loading || saving || !flowForm || tab === 'process'}
           >
             下一步
           </Button>
-          <Button type="primary" loading={saving} onClick={handleSave} disabled={loading || !flowForm}>保存配置</Button>
+          <Button type="primary" loading={saving} onClick={handleSave} disabled={loading || !flowForm}>保存表单配置</Button>
         </Space>
       }
     >
@@ -157,6 +159,7 @@ export default function FlowFormConfigDrawer({ itemId, refresh }: FlowFormConfig
               />
             )}
             {tab === 'table' && <TableShowDesign />}
+            {tab === 'process' && <FlowFormProcessManage flowForm={flowForm} />}
           </FaFlexRestLayout>
         </div>
       )}

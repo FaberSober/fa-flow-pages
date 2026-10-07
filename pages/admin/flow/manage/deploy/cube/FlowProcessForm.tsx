@@ -9,13 +9,14 @@ interface FlowProcessFormProps {
   initialValues?: Partial<Flow.FlowProcess>;
   onFinish?: (values: any) => void;
   readOnly?: boolean;
+  fixedFormId?: number;
   type: 'create' | 'edit';
 }
 
 /**
  * 流程基础信息表单组件
  */
-export default function FlowProcessForm({ form, initialValues, onFinish, readOnly, type }: FlowProcessFormProps) {
+export default function FlowProcessForm({ form, initialValues, onFinish, readOnly, fixedFormId, type }: FlowProcessFormProps) {
   const [formType, setFormType] = useState<any>();
 
   useEffect(() => {
@@ -55,11 +56,11 @@ export default function FlowProcessForm({ form, initialValues, onFinish, readOnl
       </Form.Item>
 
       <Form.Item name="formType" label="表单类型" rules={[{ required: true }]}>
-        <DictEnumApiSelector enumName='FlowProcessFormTypeEnum' placeholder="请选择表单类型" />
+        <DictEnumApiSelector enumName='FlowProcessFormTypeEnum' placeholder="请选择表单类型" disabled={fixedFormId != null} />
       </Form.Item>
       {formType === FlowEnums.FlowProcessFormType.CUSTOM && (
         <Form.Item name="formId" label="自定义表单" rules={[{ required: false }]}>
-          <FlowFormSelect />
+          <FlowFormSelect disabled={fixedFormId != null} />
         </Form.Item>
       )}
 

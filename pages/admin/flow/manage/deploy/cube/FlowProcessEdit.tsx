@@ -18,11 +18,12 @@ interface FlowProcessEditProps {
   onClose?: () => void;
   triggerDom?: ReactNode;
   viewOnly?: boolean;
+  embedded?: boolean;
 }
 
-export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, viewOnly }: FlowProcessEditProps) {
+export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, viewOnly, embedded }: FlowProcessEditProps) {
   const [data, setData] = useState({ ...item });
-  const [current, setCurrent] = useState(0);
+  const [current, setCurrent] = useState(embedded ? 1 : 0);
   const [open, setOpen] = useState(false);
   const [form] = Form.useForm();
   const [extendForm] = Form.useForm();
@@ -119,7 +120,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
             FaUtils.showResponse(publishRes, '发布流程');
 
             onSuccess?.();
-            handleClose();
+            if (!embedded) handleClose();
           } catch (error) {
             message.error('发布流程失败');
             console.error('发布流程错误:', error);
@@ -215,6 +216,37 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
 
   if (viewOnly) {
     return editorContent;
+  }
+
+  if (embedded) {
+    return (
+      <div className="fa-full fa-flex-column fa-flow-process-editor-inline" style={{ minWidth: 0, minHeight: 0 }}>
+        <div className="fa-flex-row-center fa-bg-white fa-p12" style={{ flex: '0 0 auto', gap: 16, borderBottom: '1px solid var(--fa-border-color)' }}>
+          <div style={{ flex: '0 0 180px', minWidth: 0 }}>
+            <Typography.Text strong ellipsis style={{ display: 'block' }}>
+              {data.processName || item.processName}
+            </Typography.Text>
+            <Typography.Text type="secondary" ellipsis style={{ display: 'block' }}>
+              {data.processKey || item.processKey}
+            </Typography.Text>
+          </div>
+          <div className="fa-flex-1 fa-flex-center" style={{ minWidth: 0 }}>
+            <Steps
+              style={{ width: 450, maxWidth: '100%' }}
+              current={current}
+              onChange={setCurrent}
+              items={[{ title: '基础信息' }, { title: '流程设计' }, { title: '扩展配置' }]}
+            />
+          </div>
+          <Button onClick={handlePublish} type="primary" loading={loading}>
+            发布
+          </Button>
+        </div>
+        <div className="fa-flex-1 fa-relative" style={{ minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
+          {editorContent}
+        </div>
+      </div>
+    );
   }
 
   return (
