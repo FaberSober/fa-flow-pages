@@ -1,5 +1,5 @@
-import type { Flow } from '@/types';
 import { tailFields } from '@features/fa-flow-pages/configs/form';
+import type { Flow } from '@/types';
 
 export interface FormFieldSource {
   tableName: string;
@@ -7,6 +7,7 @@ export interface FormFieldSource {
   columns: Flow.TableColumnVo[];
   foreignKey?: string;
   subtable?: boolean;
+  disabledReason?: string;
 }
 
 export function getColumnControlType(column: Flow.TableColumnVo): Flow.FlowFormItemType | undefined {
