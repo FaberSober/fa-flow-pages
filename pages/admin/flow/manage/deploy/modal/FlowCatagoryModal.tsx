@@ -3,7 +3,7 @@ import { Flow } from '@/types';
 import { EditOutlined, PlusOutlined } from "@ant-design/icons";
 import { CommonModalProps, DragModal, Fa, FaHref, FaUtils, useApiLoading } from '@fa/ui';
 import { FlowCatagoryCascader } from "@features/fa-flow-pages/components";
-import { Button, Form, Input } from 'antd';
+import { App, Button, Form, Input } from 'antd';
 import { get } from 'lodash';
 import { useState } from 'react';
 
@@ -17,13 +17,20 @@ interface FlowCatagoryModalProps extends CommonModalProps<Flow.FlowCatagory> {
  */
 export default function FlowCatagoryModal({ children, title, record, fetchFinish, addBtn, editBtn, parentId = Fa.Constant.TREE_SUPER_ROOT_ID, ...props }: FlowCatagoryModalProps) {
   const [form] = Form.useForm();
+  const { message } = App.useApp();
 
   const [open, setOpen] = useState(false);
+
+  function showResponse(response: Fa.Ret, prefix: string) {
+    if (response && response.status === Fa.RES_CODE.OK) {
+      message.success(`${prefix}成功`);
+    }
+  }
 
   /** 新增Item */
   function invokeInsertTask(params: any) {
     api.save(params).then((res) => {
-      FaUtils.showResponse(res, '新增FLOW-流程分类');
+      showResponse(res, '新增FLOW-流程分类');
       setOpen(false);
       if (fetchFinish) fetchFinish();
     })
@@ -32,7 +39,7 @@ export default function FlowCatagoryModal({ children, title, record, fetchFinish
   /** 更新Item */
   function invokeUpdateTask(params: any) {
     api.update(params.id, params).then((res) => {
-      FaUtils.showResponse(res, '更新FLOW-流程分类');
+      showResponse(res, '更新FLOW-流程分类');
       setOpen(false);
       if (fetchFinish) fetchFinish();
     })

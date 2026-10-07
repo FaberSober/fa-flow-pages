@@ -92,7 +92,7 @@ export default function FormFieldGenerateModal() {
         <Alert
           type="info"
           showIcon
-          message="使用已同步的字段结构；已有控件保留，系统字段和子表关联外键自动排除。"
+          title="使用已同步的字段结构；已有控件保留，系统字段和子表关联外键自动排除。"
           description="新增或修改字段后，请先在数据库表步骤同步到配置。子表还需配置外键和关联主键。"
           className="fa-mb12"
         />
