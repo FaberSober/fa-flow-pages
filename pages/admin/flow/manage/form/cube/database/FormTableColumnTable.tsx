@@ -1,7 +1,7 @@
 import { flowFormApi } from '@/services';
 import type { Flow } from '@/types';
 import { BaseDrawer, Fa, FaJsonView, FaSortList, useApiLoading } from '@fa/ui';
-import { Alert, Button, Empty, Space, Spin, Tag, Typography, message } from 'antd';
+import { Alert, Button, Empty, Popover, Space, Spin, Tag, Typography, message } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import FormTableColumnAdd from './FormTableColumnAdd';
 import FormTableColumnEdit from './FormTableColumnEdit';
@@ -77,14 +77,17 @@ export default function FormTableColumnTable({ item, tableInfo, configuredColumn
       </Space>
     </div>
     <div className="fa-db-table-hint fa-text-secondary">字段名建议使用业务含义，如 customer_name；注释用于表单显示名称。字段更新会立即修改数据库，刷新只读取结构。</div>
-    {hasChanges && <Alert type="info" showIcon style={{ marginBottom: 8 }}
-      title={`待同步：新增 ${changes.added.length} · 移除 ${changes.removed.length} · 属性变化 ${changes.changed.length}`}
-      description={<div>
+    <div style={{ height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+      <Typography.Text type={hasChanges && !syncing ? 'warning' : 'secondary'}>
+        {syncing ? '正在同步字段结构…' : hasChanges ? `待同步：新增 ${changes.added.length} · 移除 ${changes.removed.length} · 属性变化 ${changes.changed.length}` : '字段结构已同步'}
+      </Typography.Text>
+      {hasChanges && !syncing && <Popover trigger="click" title="字段结构变化" content={<div style={{ maxWidth: 480, maxHeight: 300, overflow: 'auto', overflowWrap: 'anywhere' }}>
         {changes.added.length > 0 && <div>新增字段：{changes.added.join('、')}</div>}
         {changes.removed.length > 0 && <div>移除字段：{changes.removed.join('、')}</div>}
         {changes.changed.length > 0 && <div>属性变化：{changes.changed.join('、')}</div>}
         <div>同步只更新结构映射，已有表单和列表设置保留。</div>
-      </div>} />}
+      </div>}><Button type="link" size="small">查看变化</Button></Popover>}
+    </div>
     {missingBindings.length > 0 && <Alert type="warning" showIcon style={{ marginBottom: 8 }}
       title="部分配置引用的字段已不存在"
       description={<div>{missingBindings.map(binding => <div key={binding}>{binding}</div>)}<div>请在表单设计或列表设计中调整以上配置，同步结构不会自动删除它们。</div></div>} />}

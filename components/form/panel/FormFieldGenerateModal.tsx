@@ -1,9 +1,13 @@
 import { Fa, FaUtils } from '@fa/ui';
 import { flowFormTableApi } from '@features/fa-flow-pages/services';
-import { Alert, Button, Checkbox, Empty, Modal, message, Space, Spin, Tag, Typography } from 'antd';
+import { Alert, Button, Checkbox, Empty, Modal, message, Select, Space, Spin, Tag, Typography } from 'antd';
 import { useRef, useState } from 'react';
 import { appendSourceFields, type FormFieldSource, getBoundFields, getBusinessColumns, getColumnControlType } from '../fieldGeneration';
 import { useFaFormStore } from '../stores/useFaFormStore';
+import { FaFormItems, FaFormItemsBiz } from '../config';
+import type { Flow } from '@/types';
+
+const controlOptions = [...FaFormItems, ...FaFormItemsBiz].map((item) => ({ label: item.name, value: item.type }));
 
 export default function FormFieldGenerateModal() {
   const flowForm = useFaFormStore((state) => state.flowForm);
@@ -15,19 +19,21 @@ export default function FormFieldGenerateModal() {
   const [sources, setSources] = useState<FormFieldSource[]>([]);
   const [tableName, setTableName] = useState<string>();
   const [fields, setFields] = useState<string[]>([]);
+  const [controlTypes, setControlTypes] = useState<Record<string, Partial<Record<string, Flow.FlowFormItemType>>>>({});
+  const [requiredFields, setRequiredFields] = useState<Record<string, Partial<Record<string, boolean>>>>({});
   const source = sources.find((item) => item.tableName === tableName);
   const bound = source ? getBoundFields(config.items || [], source) : new Set<string>();
   const columns = source ? getBusinessColumns(source) : [];
   const mainSources = sources.filter((item) => !item.subtable);
   const subtableSources = sources.filter((item) => item.subtable);
 
-  function selectSource(next: FormFieldSource) {
+  function selectSource(next: FormFieldSource, choices = controlTypes) {
     if (next.disabledReason) return;
     setTableName(next.tableName);
     const used = getBoundFields(useFaFormStore.getState().config.items || [], next);
     setFields(
       getBusinessColumns(next)
-        .filter((column) => getColumnControlType(column) && !used.has(column.field))
+        .filter((column) => (choices[next.tableName]?.[column.field] ?? getColumnControlType(column)) && !used.has(column.field))
         .map((column) => column.field),
     );
   }
@@ -44,10 +50,12 @@ export default function FormFieldGenerateModal() {
       columns: main.columns,
     };
     const request = ++requestId.current;
+    setControlTypes({});
+    setRequiredFields({});
     setOpen(true);
     setLoading(true);
     setSources([mainSource]);
-    selectSource(mainSource);
+    selectSource(mainSource, {});
     try {
       const res = await flowFormTableApi.list({ query: { flowFormId: flowForm.id }, sorter: 'sort asc' });
       if (request !== requestId.current) return;
@@ -71,7 +79,7 @@ export default function FormFieldGenerateModal() {
         });
       }
       setSources(next);
-      selectSource(mainSource);
+      selectSource(mainSource, {});
     } catch {
       if (request === requestId.current) message.error('加载字段失败，请重试');
     } finally {
@@ -120,7 +128,7 @@ export default function FormFieldGenerateModal() {
       </Button>
       <Modal
         title="从数据表添加业务字段"
-        width={1000}
+        width={1100}
         open={open}
         onCancel={() => {
           ++requestId.current;
@@ -132,7 +140,7 @@ export default function FormFieldGenerateModal() {
         onOk={() => {
           if (!source) return;
           const latest = useFaFormStore.getState().config.items || [];
-          updateFormItems(appendSourceFields(latest, source, fields, () => FaUtils.uuid()));
+          updateFormItems(appendSourceFields(latest, source, fields, () => FaUtils.uuid(), controlTypes[source.tableName], requiredFields[source.tableName]));
           setOpen(false);
         }}
       >
@@ -140,7 +148,7 @@ export default function FormFieldGenerateModal() {
           type="info"
           showIcon
           title="使用已同步的字段结构；已绑定字段、系统字段和子表关联外键自动排除。"
-          description="子表需先配置外键和关联主键，并同步字段结构；未完成项会在左侧说明。"
+          description="可在右侧选择控件类型；下拉、单选等控件添加后可在控件属性中配置选项。子表需先配置外键和关联主键，并同步字段结构。"
           className="fa-mb12"
         />
         <Spin spinning={loading}>
@@ -170,11 +178,17 @@ export default function FormFieldGenerateModal() {
                     </Typography.Text>
                   </div>
                   <div style={{ maxHeight: 420, overflowY: 'auto' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 160px 72px', gap: 16, padding: '8px 0', borderBottom: '1px solid var(--ant-color-border)' }}>
+                      <Typography.Text type="secondary">表单字段</Typography.Text>
+                      <Typography.Text type="secondary">控件类型</Typography.Text>
+                      <Typography.Text type="secondary">是否必填</Typography.Text>
+                    </div>
                     {columns.map((column) => {
                       const used = bound.has(column.field);
-                      const supported = Boolean(getColumnControlType(column));
+                      const controlType = controlTypes[source.tableName]?.[column.field] ?? getColumnControlType(column);
+                      const supported = Boolean(controlType);
                       return (
-                        <div key={column.field} style={{ padding: '8px 0', borderBottom: '1px solid var(--ant-color-border-secondary)' }}>
+                        <div key={column.field} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 160px 72px', alignItems: 'center', gap: 16, padding: '8px 0', borderBottom: '1px solid var(--ant-color-border-secondary)' }}>
                           <Checkbox
                             disabled={loading || used || !supported}
                             checked={fields.includes(column.field)}
@@ -188,9 +202,30 @@ export default function FormFieldGenerateModal() {
                                 {column.field} · {column.type}
                               </Typography.Text>
                               {used && <Tag>已绑定</Tag>}
-                              {!supported && <Tag color="warning">请手动配置控件</Tag>}
+                              {!supported && <Tag color="warning">请选择控件类型</Tag>}
                             </Space>
                           </Checkbox>
+                          {used ? <Typography.Text type="secondary">已有控件</Typography.Text> : <Select<Flow.FlowFormItemType>
+                            aria-label={`${column.comment || column.field}的控件类型`}
+                            disabled={loading}
+                            value={controlType}
+                            placeholder="请选择控件"
+                            options={controlOptions}
+                            style={{ width: '100%' }}
+                            onChange={(value) => {
+                              setControlTypes((current) => ({ ...current, [source.tableName]: { ...current[source.tableName], [column.field]: value } }));
+                              if (!supported) setFields((current) => current.includes(column.field) ? current : [...current, column.field]);
+                            }}
+                          />}
+                          {used ? <Typography.Text type="secondary">—</Typography.Text> : <Checkbox
+                            aria-label={`${column.comment || column.field}是否必填`}
+                            disabled={loading}
+                            checked={requiredFields[source.tableName]?.[column.field] ?? (column.nullable === 'NO')}
+                            onChange={(event) => {
+                              const required = event.target.checked;
+                              setRequiredFields((current) => ({ ...current, [source.tableName]: { ...current[source.tableName], [column.field]: required } }));
+                            }}
+                          />}
                         </div>
                       );
                     })}

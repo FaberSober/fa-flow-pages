@@ -34,8 +34,8 @@ export function getBusinessColumns(source: FormFieldSource) {
   );
 }
 
-export function createColumnControl(column: Flow.TableColumnVo, tableName: string, id: string): Flow.FlowFormItem {
-  const type = getColumnControlType(column);
+export function createColumnControl(column: Flow.TableColumnVo, tableName: string, id: string, controlType?: Flow.FlowFormItemType, required?: boolean): Flow.FlowFormItem {
+  const type = controlType ?? getColumnControlType(column);
   if (!type) throw new Error(`暂不支持自动生成字段：${column.field}`);
   const item: Flow.FlowFormItem = {
     id,
@@ -44,7 +44,7 @@ export function createColumnControl(column: Flow.TableColumnVo, tableName: strin
     name: column.field,
     label: column.comment || column.field,
     md: type === 'textarea' ? 24 : 12,
-    rules: column.nullable === 'NO' ? [{ required: true }] : [],
+    rules: (required ?? (column.nullable === 'NO')) ? [{ required: true }] : [],
   };
   if (column.defaultValue != null && !column.defaultExpression) {
     if (type === 'inputnumber' && column.defaultValue.trim() !== '' && Number.isFinite(Number(column.defaultValue)))
@@ -68,11 +68,12 @@ export function getBoundFields(items: Flow.FlowFormItem[], source: FormFieldSour
 }
 
 /** 只追加未绑定字段，不覆盖现有控件、标题或布局。 */
-export function appendSourceFields(items: Flow.FlowFormItem[], source: FormFieldSource, fields: string[], makeId: () => string): Flow.FlowFormItem[] {
+export function appendSourceFields(items: Flow.FlowFormItem[], source: FormFieldSource, fields: string[], makeId: () => string,
+  controlTypes: Partial<Record<string, Flow.FlowFormItemType>> = {}, requiredFields: Partial<Record<string, boolean>> = {}): Flow.FlowFormItem[] {
   const bound = getBoundFields(items, source);
   const controls = getBusinessColumns(source)
-    .filter((column) => fields.includes(column.field) && !bound.has(column.field) && getColumnControlType(column))
-    .map((column) => createColumnControl(column, source.tableName, makeId()));
+    .filter((column) => fields.includes(column.field) && !bound.has(column.field) && (controlTypes[column.field] ?? getColumnControlType(column)))
+    .map((column) => createColumnControl(column, source.tableName, makeId(), controlTypes[column.field], requiredFields[column.field]));
   if (!controls.length) return items;
   if (!source.subtable) return [...items, ...controls];
   let found = false;
