@@ -58,6 +58,7 @@ export default function FlowFormProcessManage({ flowForm }: FlowFormProcessManag
   }, [loadProcesses]);
 
   const selected = processes.find((item) => item.id === selectedId);
+  const hasConflict = processes.length > 1;
 
   return (
     <div className="fa-full-content fa-flex-column" style={{ minHeight: 0, padding: 16 }}>
@@ -66,9 +67,9 @@ export default function FlowFormProcessManage({ flowForm }: FlowFormProcessManag
         <div className="fa-flex-column" style={{ flex: '0 0 320px', minWidth: 240, overflowY: 'auto' }}>
           <Space className="fa-mb12" style={{ justifyContent: 'space-between' }}>
             <Typography.Title level={5} style={{ margin: 0 }}>
-              关联流程（{processes.length}）
+              {hasConflict ? `旧关联冲突（${processes.length}）` : '关联流程'}
             </Typography.Title>
-            <FlowProcessModal
+            {!loading && !loadError && processes.length === 0 && <FlowProcessModal
               addBtn
               title="新增关联流程"
               defaultValues={createDefaults}
@@ -81,7 +82,7 @@ export default function FlowFormProcessManage({ flowForm }: FlowFormProcessManag
                 });
                 if (createdProcess) setSelectedId(createdProcess.id);
               }}
-            />
+            />}
           </Space>
 
           {loadError && (
@@ -106,15 +107,12 @@ export default function FlowFormProcessManage({ flowForm }: FlowFormProcessManag
                 dataSource={processes}
                 split={false}
                 renderItem={(item) => {
-                  const active = item.id === selectedId;
+                  const active = !hasConflict && item.id === selectedId;
                   const state = getProcessState(item.processState);
                   return (
                     <List.Item key={item.id} style={{ padding: 0, border: 0, marginBottom: 8 }}>
-                      <Button
-                        block
-                        type={active ? 'primary' : 'default'}
-                        onClick={() => setSelectedId(item.id)}
-                        style={{ height: 'auto', padding: 12, textAlign: 'left' }}
+                      <div
+                        style={{ width: '100%', padding: 12, borderRadius: 6, border: `1px solid ${active ? 'var(--ant-color-primary)' : 'var(--ant-color-border)'}`, background: active ? 'var(--ant-color-primary-bg)' : 'var(--ant-color-bg-container)' }}
                       >
                         <div style={{ width: '100%' }}>
                           <Space direction="vertical" size={4} style={{ width: '100%', alignItems: 'stretch' }}>
@@ -123,9 +121,14 @@ export default function FlowFormProcessManage({ flowForm }: FlowFormProcessManag
                               <Tag color={state.color}>{state.text}</Tag>
                             </Space>
                             <Typography.Text type={active ? undefined : 'secondary'}>{item.processKey}</Typography.Text>
+                            {hasConflict && (
+                              <FlowProcessModal record={item} title="重新关联表单" fetchFinish={() => void loadProcesses()}>
+                                <Button type="link" style={{ padding: 0 }}>重新关联表单</Button>
+                              </FlowProcessModal>
+                            )}
                           </Space>
                         </div>
-                      </Button>
+                      </div>
                     </List.Item>
                   );
                 }}
@@ -135,8 +138,15 @@ export default function FlowFormProcessManage({ flowForm }: FlowFormProcessManag
         </div>
 
         <div className="fa-flex-1 fa-flex-column" style={{ minWidth: 0, borderLeft: '1px solid var(--ant-color-border)', paddingLeft: 16 }}>
-          {selected ? (
-            <FlowProcessEdit key={selected.id} item={selected} embedded onSuccess={() => void loadProcesses()} />
+          {hasConflict ? (
+            <Alert
+              type="warning"
+              showIcon
+              message="该表单关联了多个流程，请先处理旧配置"
+              description="一张表单最多关联一个流程。请明确需要保留的流程，为其他用途创建独立申请表单，再逐一点击左侧“重新关联表单”，修改自定义表单并保存。原业务数据与流程实例不会删除；处理完成后可继续设计及发布。"
+            />
+          ) : selected ? (
+            <FlowProcessEdit key={selected.id} item={selected} fixedFormId={flowForm.id} embedded onSuccess={() => void loadProcesses()} />
           ) : (
             <div className="fa-full fa-flex-center">
               <Empty description={loadError ? '关联流程加载失败，请重试' : processes.length === 0 ? '先新增一个关联流程' : '请选择一个流程继续配置'} />

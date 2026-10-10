@@ -19,9 +19,10 @@ interface FlowProcessEditProps {
   triggerDom?: ReactNode;
   viewOnly?: boolean;
   embedded?: boolean;
+  fixedFormId?: number;
 }
 
-export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, viewOnly, embedded }: FlowProcessEditProps) {
+export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, viewOnly, embedded, fixedFormId }: FlowProcessEditProps) {
   const [data, setData] = useState({ ...item });
   const [current, setCurrent] = useState(embedded ? 1 : 0);
   const [open, setOpen] = useState(false);
@@ -159,6 +160,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
             }}
             initialValues={formInitialValues}
             readOnly={viewOnly}
+            fixedFormId={fixedFormId}
             type="edit"
           />
         </div>

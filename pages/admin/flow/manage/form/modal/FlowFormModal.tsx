@@ -136,7 +136,7 @@ export default function FlowFormModal({ children, title, record, fetchFinish, ad
           <Form.Item name="remark" label="备注" rules={[{ required: false }]}>
             <Input placeholder="请输入备注" />
           </Form.Item>
-          <Form.Item label="关联流程" extra="请在流程配置中选择此表单，支持多个流程共用。">
+          <Form.Item label="关联流程" extra="一张表单最多关联一个流程；普通表单可以不关联流程。">
             {!record?.id ? '保存后可在流程配置中关联' : (
               <Spin spinning={processLoading}>
                 {processError ? (
@@ -144,6 +144,7 @@ export default function FlowFormModal({ children, title, record, fetchFinish, ad
                     action={<Button size="small" onClick={() => setReload(value => value + 1)}>重试</Button>} />
                 ) : !processLoading && (
                   <Space orientation="vertical">
+                    {processes.length > 1 && <Alert type="warning" showIcon title="存在旧多流程关联冲突，请在表单配置的流程配置页处理。" />}
                     {processes.length === 0 ? '暂无关联流程' : processes.map(item => (
                       <Tag key={item.id}>{item.processName}（{item.processKey}）</Tag>
                     ))}

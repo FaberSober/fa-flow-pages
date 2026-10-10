@@ -37,6 +37,7 @@ export default function FlowProcessModal({ children, title, record, fetchFinish,
   function invokeUpdateTask(params: any) {
     api.update(params.id, params).then((res) => {
       FaUtils.showResponse(res, '更新流程定义');
+      if (res.status !== Fa.RES_CODE.OK) return;
       setOpen(false);
       if (fetchFinish) fetchFinish();
     })
@@ -121,7 +122,7 @@ export default function FlowProcessModal({ children, title, record, fetchFinish,
           onFinish={onFinish}
           initialValues={getInitialValues()}
           fixedFormId={fixedFormId}
-          type='create'
+          type={record ? 'edit' : 'create'}
         />
       </DragModal>
     </span>
