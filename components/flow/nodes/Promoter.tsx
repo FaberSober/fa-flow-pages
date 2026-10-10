@@ -45,7 +45,7 @@ export default function Promoter({ node, configOnly }: PromoterProps) {
           header: {marginBottom: 0}
         }}
       />
-      <FaFlexRestLayout>
+      <FaFlexRestLayout className="fa-flow-config-tab-body">
         {tab === 'basic' && (<StartNodeBasicForm node={node} />)}
         {tab === 'advance' && (<StartNodeAdvanceForm node={node} />)}
         {tab === 'formAuth' && (<NodeFormAuth node={node} />)}

@@ -28,6 +28,17 @@ export function constrainView(view: View, viewport: Size, content: Size): View {
   };
 }
 
+/** Preserve the anchor's screen position without clamping it when the graph shrinks. */
+export function anchorView(view: View, previous: Point, anchor: Point): View {
+  return {
+    zoom: view.zoom,
+    offset: {
+      x: view.offset.x + (previous.x - anchor.x) * view.zoom,
+      y: view.offset.y + (previous.y - anchor.y) * view.zoom,
+    },
+  };
+}
+
 export function fitView(viewport: Size, content: Size, bounds: ZoomBounds, padding = 64): View {
   const zoom = clamp(
     Math.min(

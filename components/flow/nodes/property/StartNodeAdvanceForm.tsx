@@ -21,7 +21,6 @@ export default function StartNodeAdvanceForm({ node }: StartNodeAdvanceFormProps
 
   useEffect(() => {
     const extendConfig = node.extendConfig || {}
-    form.resetFields();
     form.setFieldsValue({
       btnSubmitValid: extendConfig.btnSubmitValid,
       btnSubmitText: extendConfig.btnSubmitText,

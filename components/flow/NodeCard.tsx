@@ -73,6 +73,7 @@ export default function NodeCard({ node, children, onDelete }: { node: Flw.Node;
 
   return (
     <div
+      data-flow-anchor={node.type === NodeType.major ? true : undefined}
       className={`node-wrap-box start-node fa-flow-node-card${hint ? ' fa-flow-node-card-incomplete' : ''}`}
       style={{ '--flow-node-color': presentation.color } as CSSProperties}
     >

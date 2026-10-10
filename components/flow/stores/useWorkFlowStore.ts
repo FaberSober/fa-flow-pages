@@ -28,6 +28,7 @@ interface WorkFlowState {
   deleteNode: (node: Flw.Node) => void;
   updateNodeProps: (node: Flw.ParentNode, path: keyof Flw.Node | any, value: any) => void;
   updateNode: (node: Flw.ParentNode) => void;
+  insertNode: (parentKey: string, node: Flw.Node) => void;
   updateNodeConfig: (updater: (draft: Flw.ProcessModel) => void) => void;
   clear: () => void;
 
@@ -64,6 +65,19 @@ export const useWorkFlowStore = create<WorkFlowState>()(
       clearSelectedNode: () => set((state) => { state.selectedNodeKey = undefined; }),
       setRenderNodes: (v) => set((state) => { state.renderNodes = v || {}; }),
       setReadOnly: (v) => set((state) => { state.readOnly = v; }),
+
+      insertNode: (parentKey, node) => {
+        if (get().readOnly || !get().processModel?.nodeConfig) return;
+        let inserted = false;
+        set((state) => {
+          const parent = findNodeByKey(state.processModel.nodeConfig, parentKey);
+          if (!parent) return;
+          parent.childNode = node;
+          state.selectedNodeKey = node.conditionNodes?.[0]?.nodeKey ?? node.parallelNodes?.[0]?.nodeKey ?? node.inclusiveNodes?.[0]?.nodeKey ?? node.nodeKey;
+          inserted = true;
+        });
+        if (inserted) get().onChange?.(get().processModel);
+      },
 
       refreshNode: () => {
         if (get().readOnly) return;

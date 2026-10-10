@@ -1,5 +1,4 @@
-import React from 'react';
-import { Radio, RadioProps, Select } from "antd";
+import { Radio, RadioProps } from "antd";
 import { FlwEnums } from "@features/fa-flow-pages/types";
 
 const {NodeSetType, NodeSetTypeMap} = FlwEnums;
@@ -25,7 +24,7 @@ export default function NodeSetTypeRadio({...props}: NodeSetTypeRadioProps) {
         { label: NodeSetTypeMap[NodeSetType.designatedCandidate], value: NodeSetType.designatedCandidate },
         { label: NodeSetTypeMap[NodeSetType.code], value: NodeSetType.code },
       ]}
-      className='fa-grid4'
+      className='fa-flow-assignee-types'
       {...props}
     />
   )

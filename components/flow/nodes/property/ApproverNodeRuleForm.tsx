@@ -20,7 +20,6 @@ export default function ApproverNodeRuleForm({ node }: ApproverNodeRuleFormProps
   const readOnly = useWorkFlowStore((state) => state.readOnly);
 
   useEffect(() => {
-    form.resetFields();
     form.setFieldsValue({
       examineMode: node.examineMode ?? 1,
       groupStrategy: node.groupStrategy ?? 0,
@@ -37,6 +36,7 @@ export default function ApproverNodeRuleForm({ node }: ApproverNodeRuleFormProps
 
   return (
     <Form form={form} layout="vertical" disabled={readOnly} className="fa-p12" onValuesChange={(_, values) => updateNode({ ...node, ...values })}>
+      <div className="fa-flow-config-section-title">审批方式</div>
       <Form.Item name="examineMode" label="多人审批时审批方式" rules={[{ required: true }]}>
         <Radio.Group
           style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
@@ -71,6 +71,7 @@ export default function ApproverNodeRuleForm({ node }: ApproverNodeRuleFormProps
 
       <Divider />
 
+      <div className="fa-flow-config-section-title">超时与提醒</div>
       <Form.Item name="termAuto" valuePropName="checked">
         <Checkbox>超时自动审批</Checkbox>
       </Form.Item>
@@ -96,6 +97,7 @@ export default function ApproverNodeRuleForm({ node }: ApproverNodeRuleFormProps
 
       <Divider />
 
+      <div className="fa-flow-config-section-title">同人审批</div>
       <Form.Item name="approveSelf" label="审批人与提交人为同一人时" rules={[{ required: true }]}>
         <Radio.Group
           style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
@@ -110,6 +112,7 @@ export default function ApproverNodeRuleForm({ node }: ApproverNodeRuleFormProps
 
       <Divider />
 
+      <div className="fa-flow-config-section-title">驳回处理</div>
       <Form.Item name="rejectStrategy" label="驳回目标" rules={[{ required: true }]}>
         <Radio.Group
           style={{ display: 'flex', flexDirection: 'column', gap: 8 }}

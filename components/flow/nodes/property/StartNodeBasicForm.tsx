@@ -25,7 +25,6 @@ export default function StartNodeBasicForm({ node }: StartNodeBasicFormProps) {
   const readOnly = useWorkFlowStore(state => state.readOnly);
 
   useEffect(() => {
-    form.resetFields();
     form.setFieldsValue({
       setType: node.setType ?? (node.nodeAssigneeList?.length ? NodeSetType.role : START_ALL),
       nodeAssigneeIds: (node.nodeAssigneeList||[]).map(i => i.id),

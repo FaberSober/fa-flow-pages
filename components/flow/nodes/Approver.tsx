@@ -85,7 +85,7 @@ export default function Approver({ node, parentNode, configOnly }: ApproverProps
         }}
       />
 
-      <FaFlexRestLayout>
+      <FaFlexRestLayout className="fa-flow-config-tab-body">
         {tab === 'basic' && (<ApproverNodeBasicForm node={node} />)}
         {tab === 'rule' && (<ApproverNodeRuleForm node={node} />)}
         {tab === 'formAuth' && (<NodeFormAuth node={node} />)}

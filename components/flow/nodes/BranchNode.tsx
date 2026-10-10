@@ -45,8 +45,8 @@ export default function BranchNode({ node, elseNode, onDel, conditionText, confi
           onClick={handleNodeClick}
         >
           <div className="branch-title">
-            <span className="node-title fa-flow-branch-title-condition" title={node.nodeName}>
-              <BranchesOutlined aria-hidden="true" />{node.nodeName}
+            <span className="node-title fa-flow-branch-title-condition" title={elseNode ? '默认分支' : node.nodeName}>
+              <BranchesOutlined aria-hidden="true" />{elseNode ? '默认分支' : node.nodeName}
             </span>
             <span className="priority-title">优先级{node.priorityLevel}</span>
             {!elseNode && <NodeCloseBtn onClick={onDel} />}

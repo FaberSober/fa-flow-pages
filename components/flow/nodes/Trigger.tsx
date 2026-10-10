@@ -68,7 +68,6 @@ export default function Trigger({ node, parentNode, configOnly }: TriggerProps) 
   const time = get(node, 'extendConfig.time');
   useEffect(() => {
     const fixedTime = time?.match(/^(\d+):([dhm])$/);
-    form.resetFields();
     form.setFieldsValue({
       triggerType: node.triggerType,
       delayType: node.delayType,

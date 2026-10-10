@@ -27,16 +27,13 @@ export default function ApproverNodeBasicForm({ node }: ApproverNodeBasicFormPro
   const readOnly = useWorkFlowStore(state => state.readOnly);
 
   useEffect(() => {
-    form.resetFields();
     const initValues: any = {
       ...node,
       nodeAssigneeIds: node.setType === NodeSetType.designatedCandidate
         ? []
         : (node.nodeAssigneeList || []).map(item => item.id),
       nodeCandidateIds: (node.nodeCandidate?.assignees || node.nodeAssigneeList || []).map(item => item.id),
-    }
-    if (initValues.setType === NodeSetType.code) {
-      initValues.nodeAssigneeCodePath = node.extendConfig?.nodeAssigneeCodePath
+      nodeAssigneeCodePath: node.extendConfig?.nodeAssigneeCodePath,
     }
     form.setFieldsValue(initValues)
   }, [form, node]);

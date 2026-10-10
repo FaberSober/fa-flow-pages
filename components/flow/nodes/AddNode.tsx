@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Flw, FlwEnums } from "@features/fa-flow-pages/types";
 import { Button, Popover } from 'antd';
 import { CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
@@ -8,6 +8,27 @@ import { useWorkFlowStore } from "@features/fa-flow-pages/components/flow/stores
 
 const NodeType = FlwEnums.NodeType
 const NodeSetType = FlwEnums.NodeSetType
+
+const nodeGroups: { title: string; items: { type: FlwEnums.NodeType; label: string; description: string; icon: ReactNode }[] }[] = [
+  { title: '审批', items: [
+    { type: NodeType.approval, label: '审批节点', description: '由指定人员处理', icon: <FaIcon icon="fa-solid fa-stamp" /> },
+    { type: NodeType.cc, label: '抄送节点', description: '通知相关人员', icon: <FaIconSend /> },
+  ] },
+  { title: '分支', items: [
+    { type: NodeType.conditionBranch, label: '条件分支', description: '按条件选择路径', icon: <FaIconBranch /> },
+    { type: NodeType.parallelBranch, label: '并行分支', description: '多个任务同时进行', icon: <FaIconSlider /> },
+    { type: NodeType.inclusiveBranch, label: '包容分支', description: '执行满足条件的路径', icon: <FaIconInclusive /> },
+    { type: NodeType.routeBranch, label: '路由分支', description: '跳转到目标节点', icon: <FaIconRoute /> },
+  ] },
+  { title: '自动化', items: [
+    { type: NodeType.timer, label: '延迟等待', description: '等待后继续执行', icon: <ClockCircleOutlined /> },
+    { type: NodeType.trigger, label: '触发器', description: '执行指定处理逻辑', icon: <FaIconTrigger /> },
+    { type: NodeType.callProcess, label: '子流程', description: '调用其他流程', icon: <FaIconSubFlow /> },
+    { type: NodeType.autoPass, label: '自动通过', description: '自动完成审批', icon: <CheckCircleOutlined /> },
+    { type: NodeType.autoReject, label: '自动拒绝', description: '自动拒绝审批', icon: <CloseCircleOutlined /> },
+    { type: NodeType.end, label: '结束', description: '结束当前流程', icon: <StopOutlined /> },
+  ] },
+];
 
 
 export interface AddNodeProps {
@@ -20,10 +41,12 @@ export interface AddNodeProps {
  * @date 2025/8/19 21:03
  */
 export default function AddNode({parentNode}: AddNodeProps) {
-  const updateNode = useWorkFlowStore(state => state.updateNode);
+  const insertNode = useWorkFlowStore(state => state.insertNode);
+  const readOnly = useWorkFlowStore(state => state.readOnly);
   const [open, setOpen] = useState(false);
 
   function addType(type: FlwEnums.NodeType) {
+    if (readOnly) return;
     let node: Flw.Node;
     switch (type) {
       case NodeType.approval: {
@@ -217,7 +240,7 @@ export default function AddNode({parentNode}: AddNodeProps) {
         }
       } break
     }
-    updateNode({ ...parentNode, childNode: node! });
+    insertNode(parentNode.nodeKey, node!);
     setOpen(false);
   }
 
@@ -226,64 +249,35 @@ export default function AddNode({parentNode}: AddNodeProps) {
       <div className="add-node-btn">
         <Popover
           content={(
-            <div className="add-node-popover-body fa-grid4">
-              <div className="fa-flex-column-center fa-hover fa-p6" onClick={() => addType(FlwEnums.NodeType.approval)}>
-                <Button shape="circle" icon={<FaIcon icon="fa-solid fa-stamp" style={{color: '#ff943e'}} />} />
-                <div>审批节点</div>
-              </div>
-              <div className="fa-flex-column-center fa-hover fa-p6" onClick={() => addType(FlwEnums.NodeType.cc)}>
-                <Button shape="circle" icon={<FaIconSend style={{color: '#3296fa'}} />} />
-                <div>抄送节点</div>
-              </div>
-              <div className="fa-flex-column-center fa-hover fa-p6" onClick={() => addType(FlwEnums.NodeType.conditionBranch)}>
-                <Button shape="circle" icon={<FaIconBranch style={{color: '#15BC83'}} />} />
-                <div>条件分支</div>
-              </div>
-              <div className="fa-flex-column-center fa-hover fa-p6" onClick={() => addType(FlwEnums.NodeType.parallelBranch)}>
-                <Button shape="circle" icon={<FaIconSlider style={{color: '#626aef'}} />} />
-                <div>并行分支</div>
-              </div>
-              <div className="fa-flex-column-center fa-hover fa-p6" onClick={() => addType(FlwEnums.NodeType.inclusiveBranch)}>
-                <Button shape="circle" icon={<FaIconInclusive style={{color: '#345da2'}} />} />
-                <div>包容分支</div>
-              </div>
-              <div className="fa-flex-column-center fa-hover fa-p6" onClick={() => addType(FlwEnums.NodeType.routeBranch)}>
-                <Button shape="circle" icon={<FaIconRoute style={{color: '#f95166'}} />} />
-                <div>路由分支</div>
-              </div>
-              <div className="fa-flex-column-center fa-hover fa-p6" onClick={() => addType(FlwEnums.NodeType.timer)}>
-                <Button shape="circle" icon={<ClockCircleOutlined style={{color: '#ec1b08'}} />} />
-                <div>延迟等待</div>
-              </div>
-              <div className="fa-flex-column-center fa-hover fa-p6" onClick={() => addType(FlwEnums.NodeType.trigger)}>
-                <Button shape="circle" icon={<FaIconTrigger style={{color: '#2bb58b'}} />} />
-                <div>触发器</div>
-              </div>
-              <div className="fa-flex-column-center fa-hover fa-p6" onClick={() => addType(FlwEnums.NodeType.callProcess)}>
-                <Button shape="circle" icon={<FaIconSubFlow style={{color: '#9260FA'}} />} />
-                <div>子流程</div>
-              </div>
-              <div className="fa-flex-column-center fa-hover fa-p6" onClick={() => addType(FlwEnums.NodeType.autoPass)}>
-                <Button shape="circle" icon={<CheckCircleOutlined style={{color: '#78C06E'}} />} />
-                <div>自动通过</div>
-              </div>
-              <div className="fa-flex-column-center fa-hover fa-p6" onClick={() => addType(FlwEnums.NodeType.autoReject)}>
-                <Button shape="circle" icon={<CloseCircleOutlined style={{color: '#e02020'}} />} />
-                <div>自动拒绝</div>
-              </div>
-              <div className="fa-flex-column-center fa-hover fa-p6" onClick={() => addType(FlwEnums.NodeType.end)}>
-                <Button shape="circle" icon={<StopOutlined style={{color: '#e02020'}} />} />
-                <div>结束</div>
-              </div>
+            <div className="fa-flow-add-node-menu">
+              {nodeGroups.map(group => (
+                <section key={group.title} aria-label={group.title}>
+                  <div className="fa-flow-add-node-group-title">{group.title}</div>
+                  <div className="fa-flow-add-node-options">
+                    {group.items.map(item => (
+                      <Button
+                        key={item.type}
+                        type="text"
+                        className="fa-flow-add-node-option"
+                        disabled={readOnly}
+                        icon={item.icon}
+                        onClick={() => addType(item.type)}
+                      >
+                        <span><strong>{item.label}</strong><small>{item.description}</small></span>
+                      </Button>
+                    ))}
+                  </div>
+                </section>
+              ))}
             </div>
           )}
           title="添加节点"
           trigger="click"
           placement="rightTop"
-          open={open}
-          onOpenChange={setOpen}
+          open={open && !readOnly}
+          onOpenChange={nextOpen => setOpen(!readOnly && nextOpen)}
         >
-          <Button shape="circle" icon={<PlusOutlined />} />
+          <Button aria-label="添加流程节点" disabled={readOnly} shape="circle" icon={<PlusOutlined />} />
         </Popover>
       </div>
     </div>

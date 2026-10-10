@@ -6,7 +6,7 @@ import ts from 'typescript';
 // Use the project's TypeScript compiler so this test also runs on Node versions without native TS support.
 const source = await readFile(new URL('./zoomPanGeometry.ts', import.meta.url), 'utf8');
 const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } });
-const { fitView, zoomAt, constrainView, getMinimap, minimapOffset } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
+const { fitView, zoomAt, constrainView, anchorView, getMinimap, minimapOffset } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
 const bounds = { minZoom: 0.1, maxZoom: 4 };
 const viewport = { width: 1000, height: 700 };
 const content = { width: 1800, height: 1400 };
@@ -26,6 +26,32 @@ test('fit uses intrinsic dimensions, centres both axes and is repeatable after z
 test('fit does not enlarge small diagrams and reacts to container resizing', () => {
   assert.equal(fitView(viewport, { width: 220, height: 400 }, bounds).zoom, 1);
   assert.ok(fitView({ width: 500, height: 350 }, content, bounds).zoom < fitView(viewport, content, bounds).zoom);
+});
+
+test('branch edits preserve the start screen position at different zoom and pan offsets', () => {
+  const original = { x: 20, y: 30 };
+  for (const zoom of [0.8, 1, 1.25]) {
+    const before = { zoom, offset: { x: -300, y: 220 } };
+    for (const anchor of [{ x: 180, y: 30 }, { x: 500, y: 60 }]) {
+      const after = anchorView(before, original, anchor);
+      assert.equal(after.zoom, zoom);
+      close(after.offset.x + anchor.x * zoom, before.offset.x + original.x * zoom);
+      close(after.offset.y + anchor.y * zoom, before.offset.y + original.y * zoom);
+      const restored = anchorView(after, anchor, original);
+      close(restored.offset.x, before.offset.x);
+      close(restored.offset.y, before.offset.y);
+    }
+  }
+});
+
+test('growth below the start does not move the view and shrinking does not clamp its anchor', () => {
+  const before = { zoom: 1.25, offset: { x: 480, y: 340 } };
+  const original = { x: 300, y: 20 };
+  assert.deepEqual(anchorView(before, original, original), before);
+  const anchor = { x: 20, y: 20 };
+  const after = anchorView(before, original, anchor);
+  close(after.offset.x + anchor.x * before.zoom, before.offset.x + original.x * before.zoom);
+  assert.equal(after.offset.y, before.offset.y);
 });
 
 test('zoom keeps the graph point under the pointer fixed and respects zoom limits', () => {

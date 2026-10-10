@@ -1,12 +1,9 @@
 import { Flw, FlwEnums } from '@features/fa-flow-pages/types';
-import { Input } from 'antd';
+import { Empty, Input, Tag } from 'antd';
 import { findNodeContextByKey, type NodeLookupContext } from './nodeLookup';
 import {
   Approver,
-  AutoPass,
-  AutoReject,
   CallProcess,
-  End,
   Promoter,
   Route,
   Send,
@@ -118,11 +115,11 @@ function renderNodeConfig({ node, parentNode, branchKind }: NodeLookupContext) {
     case FlwEnums.NodeType.callProcess:
       return <CallProcess key={key} node={node} parentNode={node} configOnly />;
     case FlwEnums.NodeType.autoPass:
-      return <AutoPass key={key} node={node} parentNode={node} configOnly />;
+      return <div className="fa-p12 fa-text-light100">此节点会自动通过，无需额外配置。</div>;
     case FlwEnums.NodeType.autoReject:
-      return <AutoReject key={key} node={node} parentNode={node} configOnly />;
+      return <div className="fa-p12 fa-text-light100">此节点会自动拒绝，无需额外配置。</div>;
     case FlwEnums.NodeType.end:
-      return <End key={key} node={node} parentNode={node} configOnly />;
+      return <div className="fa-p12 fa-text-light100">流程到此结束，无需额外配置。</div>;
     default:
       return emptyConfig;
   }
@@ -138,19 +135,28 @@ export default function NodeConfigPanel() {
     : undefined;
 
   if (!nodeContext) {
-    return <div className="fa-flex-1 fa-flex-center fa-text-light100" style={{ minWidth: 0, minHeight: 0 }}>请从画布选择节点查看配置</div>;
+    return <div className="fa-flex-1 fa-flex-center"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="选择画布节点，或点击连线上的 + 添加节点" /></div>;
   }
   const { node } = nodeContext;
+  const hasTabs = node.type === FlwEnums.NodeType.major || node.type === FlwEnums.NodeType.approval;
+  const typeName = nodeContext.branchKind
+    ? ({ condition: '条件分支', inclusive: '包容分支', parallel: '并行分支', route: '路由分支' })[nodeContext.branchKind]
+    : FlwEnums.NodeTypeMap[node.type];
 
   return (
     <div className="fa-flex-1 fa-flex-column" style={{ minWidth: 0, minHeight: 0 }}>
-      <Input
-        value={node.nodeName}
-        disabled={readOnly}
-        style={{ flexShrink: 0 }}
-        onChange={event => updateNodeProps(node, 'nodeName', event.target.value)}
-      />
-      <div className="fa-flex-1 fa-scroll-auto-y" style={{ minWidth: 0, minHeight: 0 }}>
+      <div className="fa-flow-config-header">
+        <div className="fa-flow-config-type"><Tag color="processing">{typeName || '节点配置'}</Tag><span>{readOnly ? '只读查看' : '修改会实时应用到画布'}</span></div>
+        <label htmlFor="flow-node-name">节点名称</label>
+        <Input
+          id="flow-node-name"
+          value={node.nodeName}
+          disabled={readOnly}
+          placeholder="请输入节点名称"
+          onChange={event => updateNodeProps(node, 'nodeName', event.target.value)}
+        />
+      </div>
+      <div className={`fa-flex-1 fa-flow-config-content${hasTabs ? ' fa-flow-config-content-tabs' : ''}`}>
         {renderNodeConfig(nodeContext)}
       </div>
     </div>

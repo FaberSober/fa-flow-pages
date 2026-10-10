@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { constrainView, fitView, zoomAt, type Point, type Size, type View } from '../utils/zoomPanGeometry';
+import { anchorView, constrainView, fitView, zoomAt, type Point, type Size, type View } from '../utils/zoomPanGeometry';
 
 export interface ZoomPanOptions {
   minZoom?: number;
@@ -18,6 +18,7 @@ export default function useZoomPan({ minZoom = 0.1, maxZoom = 4, step = 0.1 }: Z
   const [view, setView] = useState<View>({ zoom: 1, offset: { x: 0, y: 0 } });
   const viewRef = useRef(view);
   const pendingFrame = useRef(0);
+  const measureRef = useRef<(() => void) | null>(null);
   const dimensionsRef = useRef({ viewport: { width: 0, height: 0 }, content: { width: 0, height: 0 } });
   const [dimensions, setDimensions] = useState(dimensionsRef.current);
   const [isDragging, setDragging] = useState(false);
@@ -62,17 +63,27 @@ export default function useZoomPan({ minZoom = 0.1, maxZoom = 4, step = 0.1 }: Z
     const container = containerRef.current;
     const content = contentRef.current;
     if (!container || !content) return;
-    let frame = 0;
+    let lastAnchor: Point | undefined;
     let initialized = false;
     let lastVisibleViewport: Size = { width: 0, height: 0 };
     const measure = () => {
-      frame = 0;
       const next = {
         viewport: { width: container.clientWidth, height: container.clientHeight },
         content: { width: content.offsetWidth, height: content.offsetHeight },
       };
       // Hidden tabs do not overwrite the last usable size or view.
       if (!next.viewport.width || !next.viewport.height) return;
+      const anchorElement = content.querySelector<HTMLElement>('[data-flow-anchor]');
+      let anchor: Point | undefined;
+      if (anchorElement) {
+        anchor = { x: 0, y: 0 };
+        let element: HTMLElement | null = anchorElement;
+        while (element && element !== content) {
+          anchor.x += element.offsetLeft;
+          anchor.y += element.offsetTop;
+          element = element.offsetParent as HTMLElement | null;
+        }
+      }
       const previous = dimensionsRef.current;
       dimensionsRef.current = next;
       if (
@@ -87,24 +98,34 @@ export default function useZoomPan({ minZoom = 0.1, maxZoom = 4, step = 0.1 }: Z
           initialized = true;
           resetView();
         }
-      } else if (next.content.width !== previous.content.width || next.content.height !== previous.content.height) {
-        // Preserve the user's zoom when nodes change, correcting only an out-of-bounds position.
+      } else if (anchor && lastAnchor && (anchor.x !== lastAnchor.x || anchor.y !== lastAnchor.y)) {
+        const anchored = anchorView(viewRef.current, lastAnchor, anchor);
+        // Commit layout compensation before paint, rather than waiting for the input RAF.
+        cancelAnimationFrame(pendingFrame.current);
+        pendingFrame.current = 0;
+        viewRef.current = anchored;
+        setView(anchored);
+      } else if (!anchor && (next.content.width !== previous.content.width || next.content.height !== previous.content.height)) {
         updateView(constrainView(viewRef.current, next.viewport, next.content));
       }
+      lastAnchor = anchor;
       lastVisibleViewport = next.viewport;
     };
-    const schedule = () => {
-      if (!frame) frame = requestAnimationFrame(measure);
-    };
-    const observer = new ResizeObserver(schedule);
+    measureRef.current = measure;
+    const observer = new ResizeObserver(measure);
     observer.observe(container);
     observer.observe(content);
     measure();
     return () => {
       observer.disconnect();
-      cancelAnimationFrame(frame);
+      measureRef.current = null;
     };
   }, [resetView, updateView]);
+
+  // Tree edits can move the start node even when total content dimensions are unchanged.
+  useLayoutEffect(() => {
+    measureRef.current?.();
+  });
 
   useEffect(() => {
     const container = containerRef.current;

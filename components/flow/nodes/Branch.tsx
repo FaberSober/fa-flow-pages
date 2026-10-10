@@ -76,7 +76,7 @@ export default function Branch({ node, parentNode }: Flw.BasicNodeProps) {
       return conditionList.length + '个条件，或满足'
     } else {
       if (index === nodeConfig.conditionNodes!.length - 1) {
-        return '其他条件进入此流程'
+        return '其他条件不满足时进入'
       } else {
         return false
       }

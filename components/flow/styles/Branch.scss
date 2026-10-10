@@ -2,18 +2,22 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: #646a73;
+  color: var(--fa-text-color);
+  opacity: .65;
 }
 
 .or-branch-link-tip {
   margin-bottom: 10px;
-  color: #646a73;
+  color: var(--fa-text-color);
+  opacity: .65;
 }
 
 .condition-group-editor {
   user-select: none;
   border-radius: 4px;
-  border: 1px solid #e4e5e7;
+  border: 1px solid var(--fa-border-color);
+  background: var(--fa-bg-color);
+  color: var(--fa-text-color);
   position: relative;
 
   .branch-delete-icon {
@@ -21,10 +25,10 @@
   }
 
   .header {
-    background-color: #f4f6f8;
+    background-color: var(--fa-bg-grey);
     padding: 0 12px;
     font-size: 14px;
-    color: #171e31;
+    color: var(--fa-text-color);
     height: 36px;
     display: flex;
     align-items: center;
@@ -38,7 +42,7 @@
     padding: 0 12px;
 
     .condition-relation {
-      color: #9ca2a9;
+      color: var(--fa-text-color);
       display: flex;
       align-items: center;
       height: 36px;
@@ -69,7 +73,8 @@
         padding: 12px 0;
         //width: 100%;
         //min-width: 120px;
-        color: #909399;
+        color: var(--fa-text-color);
+        opacity: .65;
         font-size: 14px;
         font-weight: 600;
         text-align: center;

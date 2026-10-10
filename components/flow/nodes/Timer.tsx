@@ -62,7 +62,6 @@ export default function Timer({ node, parentNode, configOnly }: TimerProps) {
   const time = get(node, 'extendConfig.time');
   useEffect(() => {
     const fixedTime = time?.match(/^(\d+):([dhm])$/);
-    form.resetFields();
     form.setFieldsValue({
       delayType: node.delayType,
       timeNum: node.delayType === FlwEnums.NodeDelayType.FIXED && fixedTime ? Number(fixedTime[1]) : undefined,

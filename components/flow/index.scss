@@ -463,6 +463,39 @@ body {
 
 .add-node-popover-body {}
 
+.fa-flow-add-node-menu {
+  width: 360px;
+  max-width: calc(100vw - 48px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fa-flow-add-node-group-title {
+  margin-bottom: 6px;
+  color: var(--fa-text-color);
+  font-size: 12px;
+  font-weight: 600;
+  opacity: .65;
+}
+
+.fa-flow-add-node-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.fa-flow-add-node-option.ant-btn {
+  justify-content: flex-start;
+  height: auto;
+  padding: 8px;
+  text-align: left;
+
+  strong, small { display: block; white-space: normal; }
+  strong { font-size: 13px; font-weight: 500; }
+  small { font-size: 12px; opacity: .6; }
+}
+
 .add-node-popover-body li {
   display: inline-block;
   width: 80px;

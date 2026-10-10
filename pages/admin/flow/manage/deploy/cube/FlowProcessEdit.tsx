@@ -174,7 +174,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
                 onChange={(v) => setData((prev) => ({ ...prev, modelContent: JSON.stringify(v) }))}
               />
             </Splitter.Panel>
-            <Splitter.Panel defaultSize={400} min={320} max="45%" collapsible>
+            <Splitter.Panel defaultSize={520} min={320} max="45%" collapsible>
               <div className="fa-full fa-flex-column fa-p12 fa-flow-node-config-panel">
                 <div className="fa-h3 fa-mb12 fa-flow-node-config-title">节点配置</div>
                 <NodeConfigPanel />
