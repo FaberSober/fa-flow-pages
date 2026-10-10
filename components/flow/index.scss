@@ -604,3 +604,149 @@ body {
     display: none;
   }
 }
+
+// Shared card presentation; retain the existing layout boxes for connectors and minimap geometry.
+.sc-workflow-design {
+  background: transparent;
+
+  .branch-box,
+  .col-box {
+    background: transparent;
+  }
+
+  .auto-judge,
+  .fa-flow-node-card {
+    box-sizing: border-box;
+    width: 240px;
+    border: 1px solid var(--flow-card-border);
+    border-radius: 10px;
+    background: var(--flow-card-bg);
+    color: var(--flow-card-text);
+    box-shadow: var(--flow-card-shadow);
+  }
+
+  .auto-judge {
+    padding: 10px 12px;
+
+    .branch-title .node-title {
+      display: block;
+      padding-right: 66px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      color: var(--flow-card-primary);
+
+      .anticon { margin-right: 6px; }
+      &.fa-flow-branch-title-condition { color: var(--flow-type-trigger); }
+      &.fa-flow-branch-title-inclusive { color: var(--flow-type-cc); }
+      &.fa-flow-branch-title-parallel { color: var(--flow-type-process); }
+    }
+    .content { padding-top: 8px; color: var(--flow-card-muted); overflow-wrap: anywhere; }
+    .placeholder { color: var(--flow-card-subtle); }
+    &::before { background: transparent; }
+    &::after { border-radius: 10px; }
+  }
+
+  .fa-workflow-node .fa-flow-node-card .title {
+    height: auto;
+    min-height: 36px;
+    padding: 6px 36px 0 12px;
+    gap: 8px;
+    background: transparent;
+    color: var(--flow-card-text);
+    border-radius: 10px 10px 0 0;
+
+    .close {
+      right: 12px;
+      color: var(--flow-card-muted);
+    }
+  }
+
+  .fa-flow-node-card {
+    border-top: 3px solid var(--flow-node-color);
+
+    &::after { border-radius: 10px; }
+    &:hover { border-color: var(--flow-node-color); }
+
+    .content { padding: 6px 12px; }
+    .placeholder { color: var(--flow-card-subtle); }
+  }
+
+  .fa-flow-node-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    color: var(--flow-node-color);
+    background: color-mix(in srgb, var(--flow-node-color) 12%, transparent);
+    font-size: 14px;
+  }
+
+  .fa-flow-node-name {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+
+    &:focus-visible { outline: 2px solid var(--flow-card-primary); outline-offset: 3px; }
+  }
+
+  .fa-flow-node-summary,
+  .fa-flow-node-detail {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .fa-flow-node-summary { color: var(--flow-card-muted); }
+  .fa-flow-node-detail { margin-top: 3px; font-size: 12px; color: var(--flow-card-subtle); }
+
+  .fa-flow-node-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 12px;
+    border-top: 1px solid var(--flow-card-border);
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  .fa-flow-node-type { color: var(--flow-node-color); flex-shrink: 0; }
+  .fa-flow-node-hint { color: var(--flow-card-warning); }
+  .fa-flow-node-status { display: inline-flex; align-items: center; gap: 5px; color: var(--flow-card-muted); }
+  .fa-flow-node-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .fa-flow-node-status-done { color: var(--flow-card-success); }
+  .fa-flow-node-status-active { color: var(--flow-card-warning); }
+
+  .fa-flow-node-card-incomplete { border-style: dashed; }
+  .node-wrap-box:hover::after,
+  .auto-judge:hover::after {
+    border-color: var(--flow-card-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--flow-card-primary) 12%, transparent);
+  }
+  .fa-workflow-node-selected > .node-wrap > .node-wrap-box,
+  .auto-judge:has(> .fa-workflow-node-selected-target) {
+    outline-color: var(--flow-card-primary);
+  }
+}
+
+// Override legacy dark branch backgrounds without masking the viewport grid.
+[data-theme='dark'] .sc-workflow-design {
+  .col-box { background: transparent; }
+  .node-wrap-box,
+  .auto-judge { background: var(--flow-card-bg); }
+  .auto-judge::before { background: transparent; }
+}

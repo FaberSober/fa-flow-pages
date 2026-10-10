@@ -1,6 +1,5 @@
-import { FaIconPro } from "@/components";
+import NodeCard from '../NodeCard';
 import { FaFlexRestLayout } from '@fa/ui';
-import { NodeCloseBtn } from "@features/fa-flow-pages/components/flow/cubes";
 import AddNode from "@features/fa-flow-pages/components/flow/nodes/AddNode";
 import { Flw, FlwEnums } from "@features/fa-flow-pages/types";
 import { Tabs } from "antd";
@@ -98,17 +97,9 @@ export default function Approver({ node, parentNode, configOnly }: ApproverProps
 
   return (
     <div className="node-wrap">
-      <div className="node-wrap-box start-node">
-        <div className="title">
-          <FaIconPro icon="fa-solid fa-user-large" />
-          <span>{node.nodeName}</span>
-          <NodeCloseBtn onClick={() => delNode()} />
-        </div>
-
-        <div className="content">
-          {text ? <span>{text}</span> : <span className="placeholder">请选择</span>}
-        </div>
-      </div>
+      <NodeCard node={node} onDelete={delNode}>
+        {text ? <span>{text}</span> : <span className="placeholder">请选择</span>}
+      </NodeCard>
 
       <AddNode parentNode={node} />
     </div>

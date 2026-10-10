@@ -1,3 +1,4 @@
+import { ApartmentOutlined } from '@ant-design/icons';
 import { NodeCloseBtn } from "@features/fa-flow-pages/components/flow/cubes";
 import { Flw } from "@features/fa-flow-pages/types";
 import clsx from 'clsx';
@@ -38,7 +39,9 @@ export default function ParallelNode({ node, onDel, conditionText, configOnly }:
         onClick={handleNodeClick}
       >
         <div className="branch-title">
-          <span className="node-title">{node.nodeName}</span>
+          <span className="node-title fa-flow-branch-title-parallel" title={node.nodeName}>
+            <ApartmentOutlined aria-hidden="true" />{node.nodeName}
+          </span>
           <NodeCloseBtn onClick={onDel} />
         </div>
 

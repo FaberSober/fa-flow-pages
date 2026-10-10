@@ -1,8 +1,8 @@
 import ZoomPanEditor from "@features/fa-flow-pages/components/flow/cubes/ZoomPanEditor";
 import { Flow, Flw } from "@features/fa-flow-pages/types";
-import { Button, Space, Tag } from 'antd';
+import { Button, Space, Tag, theme } from 'antd';
 import clsx from 'clsx';
-import { useContext, useEffect } from 'react';
+import { type CSSProperties, useContext, useEffect } from 'react';
 import './index.scss';
 import NodeWrap from './NodeWrap';
 import { useWorkFlowStore } from './stores/useWorkFlowStore';
@@ -34,6 +34,7 @@ export interface FaWorkFlowProps {
  */
 export default function FaWorkFlow({ flowProcess, processModel, onChange, renderNodes, showLegends, readOnly = false }: FaWorkFlowProps) {
   const { themeDark } = useContext(ThemeLayoutContext);
+  const { token } = theme.useToken();
   // 从 Store 中获取设置方法和流程数据
   const setFlowProcess = useWorkFlowStore(state => state.setFlowProcess);
   const setProcessModel = useWorkFlowStore(state => state.setProcessModel);
@@ -100,7 +101,30 @@ export default function FaWorkFlow({ flowProcess, processModel, onChange, render
         </Space>
       )}
     >
-      <div className={clsx('sc-workflow-design', readOnly && 'sc-workflow-design-readonly')}>
+      <div
+        className={clsx('sc-workflow-design', readOnly && 'sc-workflow-design-readonly')}
+        style={{
+          '--flow-card-bg': token.colorBgContainer,
+          '--flow-card-border': token.colorBorderSecondary,
+          '--flow-card-text': token.colorText,
+          '--flow-card-muted': token.colorTextSecondary,
+          '--flow-card-subtle': token.colorTextTertiary,
+          '--flow-card-primary': token.colorPrimary,
+          '--flow-card-warning': token.colorWarning,
+          '--flow-card-success': token.colorSuccess,
+          '--flow-card-shadow': token.boxShadowTertiary,
+          '--flow-type-start': token.colorPrimary,
+          '--flow-type-approval': token.colorWarning,
+          '--flow-type-cc': token.colorInfo,
+          '--flow-type-route': token.colorError,
+          '--flow-type-timer': token.colorWarning,
+          '--flow-type-trigger': token.colorSuccess,
+          '--flow-type-process': themeDark ? '#b37feb' : '#722ed1',
+          '--flow-type-pass': token.colorSuccess,
+          '--flow-type-reject': token.colorError,
+          '--flow-type-end': token.colorTextSecondary,
+        } as CSSProperties}
+      >
         <div className="box-scale">
           <NodeWrap node={processModel.nodeConfig} />
         </div>

@@ -1,4 +1,4 @@
-import { FaIconPro } from "@/components";
+import NodeCard from '../NodeCard';
 import { useWorkFlowStore } from "@features/fa-flow-pages/components/flow/stores/useWorkFlowStore";
 import { Flw, FlwEnums } from "@features/fa-flow-pages/types";
 import { Form, InputNumber, Radio, Select, Space, TimePicker } from "antd";
@@ -6,7 +6,6 @@ import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { get } from "lodash";
 import { useEffect, useMemo } from 'react';
-import { NodeCloseBtn } from '../cubes';
 import { useDelNode } from "../hooks";
 import AddNode from './AddNode';
 
@@ -131,16 +130,9 @@ export default function Timer({ node, parentNode, configOnly }: TimerProps) {
 
   return (
     <div className="node-wrap">
-      <div className="node-wrap-box start-node">
-        <div className="title">
-          <FaIconPro icon="fa-solid fa-user-large" />
-          <span>{node.nodeName}</span>
-          <NodeCloseBtn onClick={() => delNode()} />
-        </div>
-        <div className="content">
-          {text}
-        </div>
-      </div>
+      <NodeCard node={node} onDelete={delNode}>
+        {text}
+      </NodeCard>
 
       <AddNode parentNode={node} />
     </div>

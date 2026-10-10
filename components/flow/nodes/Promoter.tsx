@@ -1,4 +1,4 @@
-import { FaIconPro } from "@/components";
+import NodeCard from '../NodeCard';
 import { FaFlexRestLayout } from "@fa/ui";
 import { Flw } from "@features/fa-flow-pages/types";
 import { Tabs } from "antd";
@@ -57,15 +57,9 @@ export default function Promoter({ node, configOnly }: PromoterProps) {
 
   return (
     <div className="node-wrap">
-      <div className="node-wrap-box start-node">
-        <div className="title">
-          <FaIconPro icon="fa-solid fa-user-large" />
-          <span>{node.nodeName}</span>
-        </div>
-        <div className="content">
-          <span>{text}</span>
-        </div>
-      </div>
+      <NodeCard node={node}>
+        <span>{text}</span>
+      </NodeCard>
 
       <AddNode parentNode={node} />
     </div>

@@ -10,6 +10,8 @@
   inset: 0;
   overflow: hidden;
   background: var(--el-bg-color);
+  background-image: radial-gradient(circle, var(--zoom-dot) 1px, transparent 1px);
+  background-size: 20px 20px;
   outline: none;
   touch-action: none;
   overscroll-behavior: contain;

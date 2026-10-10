@@ -1,6 +1,5 @@
-import { FaIconPro } from "@/components";
+import NodeCard from '../NodeCard';
 import { Flw } from "@features/fa-flow-pages/types";
-import { NodeCloseBtn } from '../cubes';
 import { useDelNode } from "../hooks";
 
 
@@ -19,16 +18,9 @@ export default function End({ node, parentNode, configOnly }: EndProps) {
 
   return (
     <div className="node-wrap">
-      <div className="node-wrap-box start-node">
-        <div className="title">
-          <FaIconPro icon="fa-solid fa-user-large" />
-          <span>{node.nodeName}</span>
-          <NodeCloseBtn onClick={() => delNode()} />
-        </div>
-        <div className="content">
-          流程结束
-        </div>
-      </div>
+      <NodeCard node={node} onDelete={delNode}>
+        流程结束
+      </NodeCard>
     </div>
   )
 }

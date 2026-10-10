@@ -99,6 +99,7 @@ export default function ZoomPanEditor({
           '--zoom-primary-bg': token.colorPrimaryBg,
           '--zoom-text': token.colorTextSecondary,
           '--zoom-shadow': token.boxShadowSecondary,
+          '--zoom-dot': token.colorBorderSecondary,
         } as CSSProperties
       }
     >

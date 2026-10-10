@@ -1,6 +1,5 @@
-import { FaIconPro } from "@/components";
+import NodeCard from '../NodeCard';
 import { Flw } from "@features/fa-flow-pages/types";
-import { NodeCloseBtn } from '../cubes';
 import { useDelNode } from "../hooks";
 import AddNode from './AddNode';
 
@@ -20,16 +19,9 @@ export default function AutoPass({ node, parentNode, configOnly }: AutoPassProps
 
   return (
     <div className="node-wrap">
-      <div className="node-wrap-box start-node">
-        <div className="title">
-          <FaIconPro icon="fa-solid fa-user-large" />
-          <span>{node.nodeName}</span>
-          <NodeCloseBtn onClick={() => delNode()} />
-        </div>
-        <div className="content">
-          自动通过
-        </div>
-      </div>
+      <NodeCard node={node} onDelete={delNode}>
+        自动通过
+      </NodeCard>
 
       <AddNode parentNode={node} />
     </div>

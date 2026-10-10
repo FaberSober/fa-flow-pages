@@ -1,10 +1,9 @@
-import { FaIconPro } from "@/components";
+import NodeCard from '../NodeCard';
 import { FaFlexRestLayout } from '@fa/ui';
 import { useWorkFlowStore } from "@features/fa-flow-pages/components/flow/stores/useWorkFlowStore";
 import { Flw } from "@features/fa-flow-pages/types";
 import { Checkbox, Form, Input } from "antd";
 import { useMemo } from 'react';
-import { NodeCloseBtn } from '../cubes';
 import { useDelNode } from "../hooks";
 import AddNode from './AddNode';
 
@@ -35,7 +34,7 @@ export default function CallProcess({ node, parentNode, configOnly }: CallProces
   }
 
   const text = useMemo(() => {
-    return undefined;
+    return node.callProcess;
   }, [node])
 
   const configContent = (
@@ -63,16 +62,9 @@ export default function CallProcess({ node, parentNode, configOnly }: CallProces
 
   return (
     <div className="node-wrap">
-      <div className="node-wrap-box start-node">
-        <div className="title">
-          <FaIconPro icon="fa-solid fa-user-large" />
-          <span>{node.nodeName}</span>
-          <NodeCloseBtn onClick={() => delNode()} />
-        </div>
-        <div className="content">
-          {text ? text : '请选择子流程'}
-        </div>
-      </div>
+      <NodeCard node={node} onDelete={delNode}>
+        {text ? text : '请选择子流程'}
+      </NodeCard>
 
       <AddNode parentNode={node} />
     </div>

@@ -1,11 +1,10 @@
-import { FaIconPro } from "@/components";
+import NodeCard from '../NodeCard';
 import { PlusOutlined } from "@ant-design/icons";
 import { useWorkFlowStore } from "@features/fa-flow-pages/components/flow/stores/useWorkFlowStore";
 import { Flw, FlwEnums } from "@features/fa-flow-pages/types";
 import { Button } from "antd";
 import { cloneDeep } from "lodash";
 import { useMemo } from 'react';
-import { NodeCloseBtn } from '../cubes';
 import { useDelNode } from "../hooks";
 import AddNode from './AddNode';
 import RouteNode from "./RouteNode";
@@ -82,16 +81,9 @@ export default function Route({ node, parentNode, configOnly }: RouteProps) {
 
   return (
     <div className="node-wrap">
-      <div className="node-wrap-box start-node">
-        <div className="title">
-          <FaIconPro icon="fa-solid fa-user-large" />
-          <span>{node.nodeName}</span>
-          <NodeCloseBtn onClick={() => delNode()} />
-        </div>
-        <div className="content">
-          {text}
-        </div>
-      </div>
+      <NodeCard node={node} onDelete={delNode}>
+        {text}
+      </NodeCard>
 
       <AddNode parentNode={node} />
     </div>

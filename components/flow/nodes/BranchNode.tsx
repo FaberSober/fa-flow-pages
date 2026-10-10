@@ -1,4 +1,4 @@
-import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { BranchesOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { FaArrUtils, FaFlexRestLayout } from "@fa/ui";
 import { NodeCloseBtn } from "@features/fa-flow-pages/components/flow/cubes";
 import { Flw } from "@features/fa-flow-pages/types";
@@ -45,7 +45,9 @@ export default function BranchNode({ node, elseNode, onDel, conditionText, confi
           onClick={handleNodeClick}
         >
           <div className="branch-title">
-            <span className="node-title">{node.nodeName}</span>
+            <span className="node-title fa-flow-branch-title-condition" title={node.nodeName}>
+              <BranchesOutlined aria-hidden="true" />{node.nodeName}
+            </span>
             <span className="priority-title">优先级{node.priorityLevel}</span>
             {!elseNode && <NodeCloseBtn onClick={onDel} />}
           </div>
