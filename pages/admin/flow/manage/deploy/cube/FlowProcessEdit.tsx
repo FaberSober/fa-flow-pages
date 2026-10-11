@@ -12,6 +12,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Flow } from '@/types';
 import FlowProcessForm from './FlowProcessForm';
 import { flowSavePayload, flowSaveSnapshot } from './flowSaveSnapshot';
+import { FlowPublishError, publishFlow } from './flowPublish';
 import FlowValidationPanel from './FlowValidationPanel';
 import './FlowProcessEdit.scss';
 
@@ -35,6 +36,8 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
   const saveSession = useRef(0);
   const [savedSnapshot, setSavedSnapshot] = useState(() => flowSaveSnapshot(item));
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'failed'>('idle');
+  const [publishState, setPublishState] = useState<'idle' | 'saving' | 'deploying' | 'saveFailed' | 'deployFailed'>('idle');
+  const publishLock = useRef(false);
   const [current, setCurrent] = useState(embedded ? 1 : 0);
   const [open, setOpen] = useState(false);
   const [designVisited, setDesignVisited] = useState(false);
@@ -73,6 +76,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
       saveSession.current += 1;
       setSavedSnapshot(flowSaveSnapshot(item));
       setSaveState('idle');
+      setPublishState('idle');
       setDesignVisited(false);
       setEditorSession(value => value + 1);
     }
@@ -110,6 +114,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
         setCurrent(0);
         saveSession.current += 1;
         setSaveState('idle');
+        setPublishState('idle');
         setSavedSnapshot(flowSaveSnapshot(savedData.current));
         setData({ ...savedData.current });
         setValidationRequested(false);
@@ -129,6 +134,11 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
   const dirty = flowSaveSnapshot(data) !== savedSnapshot;
   const saveStatus = saveState === 'saving' ? '保存中' : saveState === 'failed' ? '保存失败' : dirty ? '未保存' : '已保存';
   const saveStatusTag = <Tooltip title="保存定义不部署模型；基础信息和流程状态保存后立即生效"><Tag color={saveState === 'saving' ? 'processing' : saveState === 'failed' ? 'error' : dirty ? 'warning' : 'success'}>{saveStatus}</Tag></Tooltip>;
+  const publishStatusTag = publishState !== 'idle' && (
+    <Tag color={publishState === 'saveFailed' || publishState === 'deployFailed' ? 'error' : 'processing'}>
+      {{ saving: '发布：保存中', deploying: '发布：部署中', saveFailed: '发布：保存失败', deployFailed: '已保存，发布失败' }[publishState]}
+    </Tag>
+  );
 
   async function handleSave() {
     if (saveLock.current || publishConfirmOpen.current || loading) return;
@@ -150,6 +160,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
       savedDuringSession.current = true;
       setSavedSnapshot(flowSaveSnapshot(snapshot));
       setSaveState('idle');
+      setPublishState('idle');
       message.success('流程定义已保存，模型尚未发布');
     } catch {
       if (session === saveSession.current) {
@@ -162,7 +173,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
   }
 
   async function handlePublish() {
-    if (publishConfirmOpen.current || saveLock.current || loading) return;
+    if (publishConfirmOpen.current || publishLock.current || saveLock.current || loading) return;
     publishConfirmOpen.current = true;
     try {
       // 校验基础信息表单
@@ -189,30 +200,63 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
         return;
       }
 
-      Modal.confirm({
+      const session = saveSession.current;
+      const requestSnapshot = flowSaveSnapshot(publishData);
+      const payload = flowSavePayload(publishData) as unknown as Flow.FlowProcess;
+      const confirmation = Modal.confirm({
         title: '发布流程',
-        content: '确定要发布该流程吗？',
+        content: '发布前将保存当前定义，然后部署流程模型。确定发布吗？',
+        okText: '确认发布',
         afterClose: () => {
           publishConfirmOpen.current = false;
         },
         onOk: async () => {
+          if (publishLock.current || session !== saveSession.current) return;
+          publishLock.current = true;
           try {
-            // 先更新表单信息
-            const updateRes = await flowProcessApi.update(publishData.id, publishData);
-            if (updateRes.status !== Fa.RES_CODE.OK) throw new Error('更新流程信息失败');
-
-            // 然后发布流程配置
-            const publishRes = await flowProcessApi.publish(publishData);
-            if (publishRes.status !== Fa.RES_CODE.OK) throw new Error('发布流程失败');
+            const publishRes = await publishFlow({
+              needsSave: flowSaveSnapshot(savedData.current) !== requestSnapshot,
+              save: async () => {
+                const response = await flowProcessApi.update(publishData.id, payload);
+                if (response.status !== Fa.RES_CODE.OK) throw new Error('保存流程定义失败');
+              },
+              onSaved: () => {
+                if (session !== saveSession.current) return;
+                savedData.current = publishData;
+                savedDuringSession.current = true;
+                setSavedSnapshot(requestSnapshot);
+                setSaveState('idle');
+              },
+              onStage: stage => {
+                if (session !== saveSession.current) return;
+                setPublishState(stage);
+                confirmation.update({ content: stage === 'saving' ? '正在保存流程定义…' : '定义已保存，正在部署流程模型…' });
+              },
+              deploy: async () => {
+                if (session !== saveSession.current) throw new Error('编辑会话已变更');
+                const response = await flowProcessApi.publish(payload);
+                if (response.status !== Fa.RES_CODE.OK) throw new Error('部署流程模型失败');
+                return response;
+              },
+            });
+            if (session !== saveSession.current) return;
+            setPublishState('idle');
             FaUtils.showResponse(publishRes, '发布流程');
-
             savedDuringSession.current = false;
             onSuccess?.();
             if (!embedded) handleClose();
           } catch (error) {
-            message.error('发布流程失败');
-            console.error('发布流程错误:', error);
+            if (session === saveSession.current) {
+              const saveFailed = error instanceof FlowPublishError && error.stage === 'saving';
+              const feedback = saveFailed ? '流程定义保存失败，尚未发布；编辑内容已保留，请重试。' : '流程定义已保存，但发布失败；可重试发布，无需重复保存。';
+              setPublishState(saveFailed ? 'saveFailed' : 'deployFailed');
+              if (saveFailed) setSaveState('failed');
+              confirmation.update({ content: <Alert type="error" showIcon title={feedback} />, okText: '重试发布' });
+              message.error(feedback);
+            }
             throw error;
+          } finally {
+            publishLock.current = false;
           }
         },
       });
@@ -370,6 +414,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
             />
           </div>
           {saveStatusTag}
+          {publishStatusTag}
           <Button onClick={handleSave} loading={saveState === 'saving'} disabled={loading || !dirty && saveState !== 'failed'}>保存</Button>
           <Button onClick={handleValidate} disabled={loading}>校验流程</Button>
           <Button onClick={handlePublish} type="primary" loading={loading}>
@@ -403,6 +448,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
       headerExtra={
         <>
           {saveStatusTag}
+          {publishStatusTag}
           <Button onClick={handleSave} loading={saveState === 'saving'} disabled={loading || !dirty && saveState !== 'failed'}>保存</Button>
           <Button onClick={handleValidate} disabled={loading}>校验流程</Button>
           <Button onClick={handlePublish} type="primary" loading={loading}>
