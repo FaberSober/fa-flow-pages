@@ -2,7 +2,7 @@ import ZoomPanEditor from "@features/fa-flow-pages/components/flow/cubes/ZoomPan
 import { Flow, Flw } from "@features/fa-flow-pages/types";
 import { Button, Space, Tag, theme } from 'antd';
 import clsx from 'clsx';
-import { type CSSProperties, useContext, useLayoutEffect } from 'react';
+import { type CSSProperties, useContext, useLayoutEffect, useState } from 'react';
 import './index.scss';
 import NodeWrap from './NodeWrap';
 import { WorkFlowHistoryButtons, WorkFlowHistoryScope } from './WorkFlowHistory';
@@ -13,6 +13,7 @@ import { lightTheme } from '@uiw/react-json-view/light';
 import { darkTheme } from '@uiw/react-json-view/dark';
 import { getFlowMinimapShapes } from './utils/flowMinimap';
 import type { ProcessModelIssue } from './modelValidation';
+import FlowNavigationPanel from './FlowNavigationPanel';
 
 
 export interface FaWorkFlowProps {
@@ -55,6 +56,7 @@ function WorkFlowContent({ flowProcess, processModel, onChange, renderNodes, sho
   const model = useWorkFlowStore(state => state.processModel);
   const revision = useWorkFlowStore(state => state.modelRevision);
   const selectNode = useWorkFlowStore(state => state.selectNode);
+  const [focusRequest, setFocusRequest] = useState<{ nodeKey?: string }>();
 
   useLayoutEffect(() => {
     setFlowProcess(flowProcess);
@@ -66,7 +68,10 @@ function WorkFlowContent({ flowProcess, processModel, onChange, renderNodes, sho
   }, [processModel, setProcessModel]);
 
   useLayoutEffect(() => {
-    if (validationIssue?.nodeKey) selectNode(validationIssue.nodeKey);
+    if (validationIssue?.nodeKey) {
+      selectNode(validationIssue.nodeKey);
+      setFocusRequest({ nodeKey: validationIssue.nodeKey });
+    }
   }, [validationIssue, selectNode]);
 
   useLayoutEffect(() => {
@@ -91,15 +96,19 @@ function WorkFlowContent({ flowProcess, processModel, onChange, renderNodes, sho
   return (
     <WorkFlowHistoryScope>
       <ZoomPanEditor
-        focusRequest={validationIssue}
+        focusRequest={focusRequest}
         getMinimapShapes={getFlowMinimapShapes}
-        leftTop={showLegends && (
-          <Space className="fa-flex-row">
+        leftTop={<div>
+          {showLegends && <Space className="fa-flex-row">
             <Tag color="#52c41a" variant="solid">已执行</Tag>
             <Tag color="#faad14" variant="solid">执行中</Tag>
             <Tag color="#909399" variant="solid">未执行</Tag>
-          </Space>
-        )}
+          </Space>}
+          <FlowNavigationPanel onLocate={key => {
+            selectNode(key);
+            setFocusRequest({ nodeKey: key });
+          }} />
+        </div>}
         toolbar={(
           <Space>
             <WorkFlowHistoryButtons />

@@ -1,0 +1,40 @@
+.fa-flow-navigation {
+  color: var(--zoom-text);
+  &.is-open { width: 280px; max-width: 100%; }
+}
+.fa-flow-navigation-header { display: flex; align-items: center; justify-content: space-between; }
+.fa-flow-navigation-search { padding-top: 8px; }
+.fa-flow-navigation-status, .fa-flow-navigation-empty { display: block; padding: 8px 4px; font-size: 12px; }
+.fa-zoom-pan-left-top:has(.fa-flow-navigation.is-open) {
+  top: 68px;
+  max-width: calc(100% - 24px);
+  max-height: calc(100% - 136px);
+  overflow: auto;
+}
+.fa-flow-navigation-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(360px, 40vh);
+  overflow: auto;
+}
+.fa-flow-navigation-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  &:hover, &.is-selected { background: var(--zoom-primary-bg); }
+  &:focus-visible { outline: 2px solid var(--zoom-primary); outline-offset: -2px; }
+}
+.fa-flow-navigation-icon { color: var(--zoom-primary); flex-shrink: 0; }
+.fa-flow-navigation-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fa-flow-navigation-name, .fa-flow-navigation-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fa-flow-navigation-name { font-size: 13px; font-weight: 500; }
+.fa-flow-navigation-path { font-size: 11px; }
