@@ -6,7 +6,7 @@ import ts from 'typescript';
 // Use the project's TypeScript compiler so this test also runs on Node versions without native TS support.
 const source = await readFile(new URL('./zoomPanGeometry.ts', import.meta.url), 'utf8');
 const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } });
-const { fitView, zoomAt, constrainView, anchorView, getMinimap, minimapOffset } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
+const { fitView, zoomAt, anchorView, getMinimap, minimapOffset } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
 const bounds = { minZoom: 0.1, maxZoom: 4 };
 const viewport = { width: 1000, height: 700 };
 const content = { width: 1800, height: 1400 };
@@ -70,22 +70,11 @@ test('zoom at a reached limit does not move the canvas', () => {
   assert.deepEqual(zoomAt(before, 5, { x: 450, y: 200 }, bounds), before);
 });
 
-test('pan bounds keep graph reachable at all four edges', () => {
-  for (const x of [-1e6, 1e6])
-    for (const y of [-1e6, 1e6]) {
-      const view = constrainView({ zoom: 2, offset: { x, y } }, viewport, content);
-      const cx = (viewport.width / 2 - view.offset.x) / view.zoom;
-      const cy = (viewport.height / 2 - view.offset.y) / view.zoom;
-      assert.ok(cx >= 0 && cx <= content.width);
-      assert.ok(cy >= 0 && cy <= content.height);
-    }
-});
-
-test('minimap viewport remains within map at fit, minimum/maximum zoom and every pan edge', () => {
+test('minimap viewport remains within map at fit, minimum/maximum zoom and unrestricted distant offsets', () => {
   for (const zoom of [0.1, 0.4, 1, 4])
     for (const x of [-1e6, 0, 1e6])
       for (const y of [-1e6, 0, 1e6]) {
-        const view = constrainView({ zoom, offset: { x, y } }, viewport, content);
+        const view = { zoom, offset: { x, y } };
         const { viewport: rect } = getMinimap(view, viewport, content, mapSize);
         assert.ok(rect.x >= -1e-8 && rect.y >= -1e-8);
         assert.ok(rect.x + rect.width <= mapSize.width + 1e-8);

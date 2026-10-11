@@ -108,7 +108,7 @@ export default function ZoomPanEditor({
         className={`fa-zoom-pan-editor-container ${isDragging ? 'cursor-grabbing' : isSpacePressed ? 'cursor-grab' : ''}`}
         // biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard zoom/pan requires focus scoped to this canvas.
         tabIndex={0}
-        aria-label="流程画布，点击后可用空格加左键或中键平移，加减键缩放，0键适应画布"
+        aria-label="流程画布，空白处左键拖动，空格加左键或中键平移，加减键缩放，0键适应画布"
       >
         <div className="fa-zoom-pan-transform" style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})` }}>
           <div ref={contentRef} className="fa-zoom-pan-content">
@@ -124,7 +124,7 @@ export default function ZoomPanEditor({
           content={
             <ol>
               <li>在画布上滚动鼠标滚轮，围绕指针缩放</li>
-              <li>点击画布后，空格 + 左键或鼠标中键拖动平移</li>
+              <li>在画布空白处按住左键拖动，也可空格 + 左键或中键平移</li>
               <li>点击小地图定位，拖动视口框平移</li>
               <li>画布聚焦时，+ / − 缩放，0 适应画布</li>
             </ol>

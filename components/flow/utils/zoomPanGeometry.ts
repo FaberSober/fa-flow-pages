@@ -17,17 +17,6 @@ export interface ZoomBounds {
 
 export const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-/** Keep the viewport centre within the graph, so panning cannot lose the graph. */
-export function constrainView(view: View, viewport: Size, content: Size): View {
-  return {
-    zoom: view.zoom,
-    offset: {
-      x: clamp(view.offset.x, viewport.width / 2 - content.width * view.zoom, viewport.width / 2),
-      y: clamp(view.offset.y, viewport.height / 2 - content.height * view.zoom, viewport.height / 2),
-    },
-  };
-}
-
 /** Preserve the anchor's screen position without clamping it when the graph shrinks. */
 export function anchorView(view: View, previous: Point, anchor: Point): View {
   return {
@@ -61,10 +50,17 @@ export function zoomAt(view: View, zoom: number, anchor: Point, bounds: ZoomBoun
   };
 }
 
-/** Include half a viewport around the graph, so even fitted graphs have a complete draggable viewport rectangle. */
+/** Include both the graph and the freely panned viewport in the minimap projection. */
 export function getMinimap(view: View, viewport: Size, content: Size, mapSize: Size) {
   const visible = { width: viewport.width / view.zoom, height: viewport.height / view.zoom };
-  const world = { x: -visible.width / 2, y: -visible.height / 2, width: content.width + visible.width, height: content.height + visible.height };
+  const x = Math.min(-visible.width / 2, -view.offset.x / view.zoom);
+  const y = Math.min(-visible.height / 2, -view.offset.y / view.zoom);
+  const world = {
+    x,
+    y,
+    width: Math.max(content.width + visible.width / 2, (viewport.width - view.offset.x) / view.zoom) - x,
+    height: Math.max(content.height + visible.height / 2, (viewport.height - view.offset.y) / view.zoom) - y,
+  };
   const scale = Math.min(Math.max(1, mapSize.width - 16) / Math.max(1, world.width), Math.max(1, mapSize.height - 16) / Math.max(1, world.height));
   const origin = { x: (mapSize.width - world.width * scale) / 2 - world.x * scale, y: (mapSize.height - world.height * scale) / 2 - world.y * scale };
   return {

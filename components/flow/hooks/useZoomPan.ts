@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { anchorView, constrainView, fitView, zoomAt, type Point, type Size, type View } from '../utils/zoomPanGeometry';
+import { anchorView, fitView, zoomAt, type Point, type Size, type View } from '../utils/zoomPanGeometry';
 
 export interface ZoomPanOptions {
   minZoom?: number;
@@ -34,25 +34,30 @@ export default function useZoomPan({ minZoom = 0.1, maxZoom = 4, step = 0.1 }: Z
       });
   }, []);
 
+  // Layout updates must commit before paint; RAF batching is reserved for pointer input.
+  const commitView = useCallback((next: View) => {
+    cancelAnimationFrame(pendingFrame.current);
+    pendingFrame.current = 0;
+    viewRef.current = next;
+    setView(next);
+  }, []);
+
   const resetView = useCallback(() => {
     const { viewport, content } = dimensionsRef.current;
-    updateView(fitView(viewport, content, { minZoom, maxZoom }));
-  }, [minZoom, maxZoom, updateView]);
+    commitView(fitView(viewport, content, { minZoom, maxZoom }));
+  }, [minZoom, maxZoom, commitView]);
 
   const setOffset = useCallback(
     (offset: Point) => {
-      const { viewport, content } = dimensionsRef.current;
-      updateView(constrainView({ ...viewRef.current, offset }, viewport, content));
+      updateView({ ...viewRef.current, offset });
     },
     [updateView],
   );
 
   const setZoom = useCallback(
     (value: number, anchor?: Point) => {
-      const { viewport, content } = dimensionsRef.current;
-      updateView(
-        constrainView(zoomAt(viewRef.current, value, anchor ?? { x: viewport.width / 2, y: viewport.height / 2 }, { minZoom, maxZoom }), viewport, content),
-      );
+      const { viewport } = dimensionsRef.current;
+      updateView(zoomAt(viewRef.current, value, anchor ?? { x: viewport.width / 2, y: viewport.height / 2 }, { minZoom, maxZoom }));
     },
     [minZoom, maxZoom, updateView],
   );
@@ -99,14 +104,7 @@ export default function useZoomPan({ minZoom = 0.1, maxZoom = 4, step = 0.1 }: Z
           resetView();
         }
       } else if (anchor && lastAnchor && (anchor.x !== lastAnchor.x || anchor.y !== lastAnchor.y)) {
-        const anchored = anchorView(viewRef.current, lastAnchor, anchor);
-        // Commit layout compensation before paint, rather than waiting for the input RAF.
-        cancelAnimationFrame(pendingFrame.current);
-        pendingFrame.current = 0;
-        viewRef.current = anchored;
-        setView(anchored);
-      } else if (!anchor && (next.content.width !== previous.content.width || next.content.height !== previous.content.height)) {
-        updateView(constrainView(viewRef.current, next.viewport, next.content));
+        commitView(anchorView(viewRef.current, lastAnchor, anchor));
       }
       lastAnchor = anchor;
       lastVisibleViewport = next.viewport;
@@ -120,7 +118,7 @@ export default function useZoomPan({ minZoom = 0.1, maxZoom = 4, step = 0.1 }: Z
       observer.disconnect();
       measureRef.current = null;
     };
-  }, [resetView, updateView]);
+  }, [resetView, commitView]);
 
   // Tree edits can move the start node even when total content dimensions are unchanged.
   useLayoutEffect(() => {
@@ -183,7 +181,8 @@ export default function useZoomPan({ minZoom = 0.1, maxZoom = 4, step = 0.1 }: Z
     const pointerDown = (event: PointerEvent) => {
       if (drag || isEditable(event.target)) return;
       suppressClick = false;
-      if (event.button !== 1 && !(event.button === 0 && space)) {
+      const blankCanvas = !isControl(event.target) && !(event.target instanceof Element && event.target.closest('.node-wrap-box, .auto-judge, .close, .sort-left, .sort-right'));
+      if (event.button !== 1 && !(event.button === 0 && (space || blankCanvas))) {
         if (!isControl(event.target)) container.focus({ preventScroll: true });
         return;
       }
