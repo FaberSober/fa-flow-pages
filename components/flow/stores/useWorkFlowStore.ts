@@ -4,7 +4,10 @@ import { set as lodashSet } from 'lodash';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
-import { findNodeByKey, loopNode } from '../utils';
+import { findNodeByKey } from '../utils';
+import { findNodeContextByKey } from '../nodeLookup';
+
+type BranchCollection = 'conditionNodes' | 'parallelNodes' | 'inclusiveNodes';
 
 
 // 1. 定义状态和方法结构
@@ -26,6 +29,7 @@ interface WorkFlowState {
   setExternalOnChange: (cb: ((v: Flw.ProcessModel) => void) | undefined) => void;
   refreshNode: () => void;
   deleteNode: (node: Flw.Node) => void;
+  removeBranch: (gatewayKey: string, branchKey: string, field: BranchCollection) => void;
   updateNodeProps: (node: Flw.ParentNode, path: keyof Flw.Node | any, value: any) => void;
   updateNode: (node: Flw.ParentNode) => void;
   insertNode: (parentKey: string, node: Flw.Node) => void;
@@ -86,18 +90,57 @@ export const useWorkFlowStore = create<WorkFlowState>()(
       },
 
       deleteNode: (node) => {
-        if (get().readOnly) return;
+        if (get().readOnly || !get().processModel?.nodeConfig) return;
+        let removed = false;
         set((state) => {
-          // loopNode 内部必须是修改 state.processModel.nodeConfig 的逻辑
-          loopNode(state.processModel.nodeConfig, (n) => {
-            if (n.childNode && n.childNode?.nodeKey === node.nodeKey) {
-              n.childNode = n.childNode.childNode;
-            }
-          });
-          if (state.selectedNodeKey === node.nodeKey) state.selectedNodeKey = undefined;
+          const context = findNodeContextByKey(state.processModel.nodeConfig, node.nodeKey);
+          if (!context?.parentNode || context.branchKind) return;
+          context.parentNode.childNode = context.node.childNode;
+          if (state.selectedNodeKey && !findNodeByKey(state.processModel.nodeConfig, state.selectedNodeKey)) {
+            state.selectedNodeKey = context.node.childNode?.nodeKey ?? context.parentNode.nodeKey;
+          }
+          removed = true;
         });
-        // ✅ 触发外部 onChange
-        get().onChange?.(get().processModel);
+        if (removed) get().onChange?.(get().processModel);
+      },
+
+      removeBranch: (gatewayKey, branchKey, field) => {
+        if (get().readOnly || !get().processModel?.nodeConfig) return;
+        let removed = false;
+        set((state) => {
+          const context = findNodeContextByKey(state.processModel.nodeConfig, gatewayKey);
+          if (!context?.parentNode || context.branchKind) return;
+          const gateway = context.node;
+          const branches = gateway[field];
+          const index = branches?.findIndex(branch => branch.nodeKey === branchKey) ?? -1;
+          if (!branches || branches.length < 2 || index < 0) return;
+          // 条件/包容分支的末项是现有兜底路径，沿用 UI 的删除限制。
+          if (field !== 'parallelNodes' && index === branches.length - 1) return;
+          branches.splice(index, 1);
+          branches.forEach((branch, position) => { branch.priorityLevel = position + 1; });
+          let replacementKey = branches[Math.min(index, branches.length - 1)].nodeKey;
+          if (branches.length === 1) {
+            const survivor = branches[0].childNode;
+            let tail = survivor;
+            let hasTerminal = false;
+            while (tail) {
+              // 结束(-1)/自动拒绝(31)不应因折叠被接上汇合后续。
+              if (tail.type === -1 || tail.type === 31) hasTerminal = true;
+              if (!tail.childNode) break;
+              tail = tail.childNode;
+            }
+            if (!hasTerminal || !gateway.childNode) {
+              if (tail) tail.childNode = gateway.childNode;
+              context.parentNode.childNode = survivor ?? gateway.childNode;
+              replacementKey = context.parentNode.childNode?.nodeKey ?? context.parentNode.nodeKey;
+            }
+          }
+          if (state.selectedNodeKey && !findNodeByKey(state.processModel.nodeConfig, state.selectedNodeKey)) {
+            state.selectedNodeKey = replacementKey;
+          }
+          removed = true;
+        });
+        if (removed) get().onChange?.(get().processModel);
       },
 
       updateNode: (node) => {

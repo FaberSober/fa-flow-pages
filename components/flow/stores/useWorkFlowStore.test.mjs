@@ -16,6 +16,7 @@ const utilsSource = (await readFile(new URL('../utils.ts', import.meta.url), 'ut
   .replace('import { FaUtils } from "@fa/ui";', '')
   .replace("'./nodeLookup'", JSON.stringify(lookupUrl));
 let source = (await readFile(new URL('./useWorkFlowStore.ts', import.meta.url), 'utf8'))
+  .replace("'../nodeLookup'", JSON.stringify(lookupUrl))
   .replace("'../utils'", JSON.stringify(compile(utilsSource)))
   .replace("import { set as lodashSet } from 'lodash';", `import lodash from ${JSON.stringify(import.meta.resolve('lodash'))}; const lodashSet = lodash.set;`);
 for (const dependency of ['zustand', 'zustand/middleware', 'zustand/middleware/immer']) {
@@ -78,5 +79,133 @@ test('read-only or missing parent insertion does not modify the model or emit ch
   store.getState().insertNode('missing', { nodeKey: 'missing-child', type: 1 });
   assert.equal(store.getState().processModel, before);
   assert.equal(store.getState().selectedNodeKey, undefined);
+  assert.equal(changes, 0);
+});
+
+const collections = ['conditionNodes', 'parallelNodes', 'inclusiveNodes'];
+const approval = (key, childNode) => ({ nodeKey: key, nodeName: key, type: 1, childNode });
+function branchModel(field, count = 2, survivor = approval('kept', approval('tail')), continuation = end()) {
+  const value = model();
+  value.nodeConfig.childNode = {
+    nodeKey: 'gateway', nodeName: '分支', type: 4, childNode: continuation,
+    [field]: Array.from({ length: count }, (_, index) => ({
+      nodeKey: `branch-${index}`, nodeName: `分支${index}`, type: 3, priorityLevel: index + 1,
+      childNode: index === count - 1 ? survivor : approval(`removed-${index}`),
+    })),
+  };
+  return value;
+}
+
+test('ordinary node deletion traverses every branch kind and preserves its following chain', () => {
+  for (const field of [...collections, 'routeNodes']) {
+    const value = branchModel(field);
+    value.nodeConfig.childNode[field][0].childNode.childNode = approval('next');
+    store.getState().setProcessModel(value);
+    store.getState().selectNode('removed-0');
+    let changes = 0;
+    store.getState().setExternalOnChange(() => { changes += 1; });
+    store.getState().deleteNode({ nodeKey: 'removed-0' });
+    const state = store.getState();
+    const gateway = state.processModel.nodeConfig.childNode;
+    assert.equal(gateway[field][0].childNode.nodeKey, 'next');
+    assert.equal(gateway[field][1].childNode.nodeKey, 'kept');
+    assert.equal(gateway.childNode.nodeKey, 'end');
+    assert.equal(state.selectedNodeKey, 'next');
+    assert.equal(changes, 1);
+  }
+});
+
+test('branch removal and collapsed selection are published once with both paths retained', () => {
+  for (const field of collections) {
+    store.getState().setProcessModel(branchModel(field));
+    store.getState().selectNode('removed-0');
+    const observations = [];
+    let changes = 0;
+    store.getState().setExternalOnChange(() => { changes += 1; });
+    const unsubscribe = store.subscribe(state => observations.push([state.processModel.nodeConfig.childNode.nodeKey, state.selectedNodeKey]));
+    store.getState().removeBranch('gateway', 'branch-0', field);
+    unsubscribe();
+    const chain = store.getState().processModel.nodeConfig.childNode;
+    assert.deepEqual(observations, [['kept', 'kept']]);
+    assert.equal(chain.childNode.nodeKey, 'tail');
+    assert.equal(chain.childNode.childNode.nodeKey, 'end');
+    assert.equal(changes, 1);
+  }
+});
+
+test('removing one of several branches retains siblings, common continuation and priorities', () => {
+  for (const field of collections) {
+    store.getState().setProcessModel(branchModel(field, 3));
+    store.getState().selectNode('removed-1');
+    store.getState().removeBranch('gateway', 'branch-1', field);
+    const state = store.getState();
+    const gateway = state.processModel.nodeConfig.childNode;
+    assert.deepEqual(gateway[field].map(branch => [branch.nodeKey, branch.priorityLevel]), [['branch-0', 1], ['branch-2', 2]]);
+    assert.equal(gateway.childNode.nodeKey, 'end');
+    assert.equal(state.selectedNodeKey, 'branch-2');
+  }
+});
+
+test('collapse handles empty and nested surviving paths and preserves valid selection', () => {
+  store.getState().setProcessModel(branchModel('conditionNodes', 2, undefined));
+  // Explicitly empty the path, since the helper default creates one.
+  store.getState().updateNodeProps({ nodeKey: 'branch-1' }, 'childNode', undefined);
+  store.getState().selectNode('branch-1');
+  store.getState().removeBranch('gateway', 'branch-0', 'conditionNodes');
+  assert.equal(store.getState().processModel.nodeConfig.childNode.nodeKey, 'end');
+  assert.equal(store.getState().selectedNodeKey, 'end');
+
+  const nested = { nodeKey: 'nested', type: 8, parallelNodes: [{ nodeKey: 'inner', type: 3, childNode: approval('inside') }], childNode: approval('after-nested') };
+  store.getState().setProcessModel(branchModel('parallelNodes', 2, nested));
+  store.getState().selectNode('inside');
+  store.getState().removeBranch('gateway', 'branch-0', 'parallelNodes');
+  const surviving = store.getState().processModel.nodeConfig.childNode;
+  assert.equal(surviving.parallelNodes[0].childNode.nodeKey, 'inside');
+  assert.equal(surviving.childNode.childNode.nodeKey, 'end');
+  assert.equal(store.getState().selectedNodeKey, 'inside');
+});
+
+test('collapse without common continuation retains the surviving path', () => {
+  const value = branchModel('parallelNodes');
+  value.nodeConfig.childNode.childNode = undefined;
+  store.getState().setProcessModel(value);
+  store.getState().removeBranch('gateway', 'branch-0', 'parallelNodes');
+  assert.equal(store.getState().processModel.nodeConfig.childNode.childNode.nodeKey, 'tail');
+});
+
+test('terminal paths keep the gateway when a common continuation would become unreachable', () => {
+  for (const type of [-1, 31]) {
+    store.getState().setProcessModel(branchModel('parallelNodes', 2, { nodeKey: 'terminal', type }));
+    store.getState().removeBranch('gateway', 'branch-0', 'parallelNodes');
+    const gateway = store.getState().processModel.nodeConfig.childNode;
+    assert.equal(gateway.nodeKey, 'gateway');
+    assert.equal(gateway.parallelNodes.length, 1);
+    assert.equal(gateway.parallelNodes[0].childNode.childNode, undefined);
+    assert.equal(gateway.childNode.nodeKey, 'end');
+  }
+});
+
+test('invalid, read-only and protected deletions do not publish changes', () => {
+  store.getState().setProcessModel(branchModel('conditionNodes'));
+  const before = store.getState().processModel;
+  let changes = 0;
+  store.getState().setExternalOnChange(() => { changes += 1; });
+  store.getState().deleteNode({ nodeKey: 'start' });
+  store.getState().deleteNode({ nodeKey: 'branch-0' });
+  store.getState().deleteNode({ nodeKey: 'missing' });
+  store.getState().removeBranch('missing', 'branch-0', 'conditionNodes');
+  store.getState().removeBranch('gateway', 'missing', 'conditionNodes');
+  store.getState().removeBranch('gateway', 'branch-1', 'conditionNodes');
+  store.getState().setReadOnly(true);
+  store.getState().deleteNode({ nodeKey: 'removed-0' });
+  store.getState().removeBranch('gateway', 'branch-0', 'conditionNodes');
+  assert.equal(store.getState().processModel, before);
+  assert.equal(changes, 0);
+
+  store.getState().setReadOnly(false);
+  store.getState().setProcessModel(branchModel('parallelNodes', 1));
+  const single = store.getState().processModel;
+  store.getState().removeBranch('gateway', 'branch-0', 'parallelNodes');
+  assert.equal(store.getState().processModel, single);
   assert.equal(changes, 0);
 });

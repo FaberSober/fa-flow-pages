@@ -17,8 +17,9 @@ import InclusiveNode from './InclusiveNode';
  * @author xu.pengfei
  * @date 2026/01/19 16:00
  */
-export default function Inclusive({ node, parentNode }: Flw.BasicNodeProps) {
+export default function Inclusive({ node }: Flw.BasicNodeProps) {
   const updateNode = useWorkFlowStore(state => state.updateNode);
+  const removeBranch = useWorkFlowStore(state => state.removeBranch);
 
   function addTerm() {
     const nodeNew = cloneDeep(node)
@@ -31,25 +32,6 @@ export default function Inclusive({ node, parentNode }: Flw.BasicNodeProps) {
       conditionMode: 1,
       conditionList: []
     })
-    updateNode(nodeNew);
-  }
-
-  function delTerm(index: number) {
-    const nodeNew = cloneDeep(node)
-    nodeNew.inclusiveNodes!.splice(index, 1)
-    if (nodeNew.inclusiveNodes!.length == 1) { // 只剩下一个条件节点，则将剩下的条件节点的条件下属子节点，移动到当前节点的子节点
-      const parentNodeNew = cloneDeep(parentNode)
-      if (nodeNew.childNode) { // 条件节点有后续子节点
-        if (nodeNew.inclusiveNodes![0].childNode) { // 剩下的最后一个条件节点，如果有条件下属子节点，则将该子节点设置为父节点的子节点
-          parentNodeNew.childNode = nodeNew.inclusiveNodes![0].childNode
-        } else { // 剩下的最后一个条件节点，如果没有条件下属子节点，则将整个条件节点的子节点，设置为父节点的子节点
-          parentNodeNew.childNode = nodeNew.childNode;
-        }
-      } else { // 没有后续子节点，则表示后续流程已经结束
-        parentNodeNew.childNode = undefined;
-      }
-      updateNode(parentNodeNew);
-    }
     updateNode(nodeNew);
   }
 
@@ -107,7 +89,7 @@ export default function Inclusive({ node, parentNode }: Flw.BasicNodeProps) {
                       <InclusiveNode
                         parentNode={node}
                         node={cNode}
-                        onDel={() => delTerm(index)}
+                        onDel={() => removeBranch(node.nodeKey, cNode.nodeKey, 'inclusiveNodes')}
                         conditionText={conditionText}
                         index={index}
                         elseNode={index === node.inclusiveNodes!.length - 1}
