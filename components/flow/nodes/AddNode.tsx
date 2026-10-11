@@ -5,7 +5,7 @@ import { CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined, PlusOutl
 import { FaIcon, FaIconBranch, FaIconInclusive, FaIconRoute, FaIconSend, FaIconSlider, FaIconSubFlow, FaIconTrigger } from "@fa/icons";
 import { findNodeByKey, getNodeKey } from "@features/fa-flow-pages/components/flow/utils";
 import { countDownstreamNodes } from '../nodeLookup';
-import { useWorkFlowStore } from "@features/fa-flow-pages/components/flow/stores/useWorkFlowStore";
+import { useWorkFlowStore, useWorkFlowStoreApi } from "@features/fa-flow-pages/components/flow/stores/useWorkFlowStore";
 
 const NodeType = FlwEnums.NodeType
 const NodeSetType = FlwEnums.NodeSetType
@@ -42,6 +42,7 @@ export interface AddNodeProps {
  * @date 2025/8/19 21:03
  */
 export default function AddNode({parentNode}: AddNodeProps) {
+  const store = useWorkFlowStoreApi();
   const insertNode = useWorkFlowStore(state => state.insertNode);
   const readOnly = useWorkFlowStore(state => state.readOnly);
   const [open, setOpen] = useState(false);
@@ -49,7 +50,7 @@ export default function AddNode({parentNode}: AddNodeProps) {
   const downstreamCount = endConfirmOpen ? countDownstreamNodes(parentNode.childNode) : 0;
 
   function addType(type: FlwEnums.NodeType, endConfirmed = false) {
-    const state = useWorkFlowStore.getState();
+    const state = store.getState();
     if (state.readOnly || !state.processModel?.nodeConfig) return;
     const currentParent = findNodeByKey(state.processModel.nodeConfig, parentNode.nodeKey);
     if (!currentParent) return;

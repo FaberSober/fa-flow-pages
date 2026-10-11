@@ -15,7 +15,7 @@ const lookupUrl = compile(await readFile(new URL('../nodeLookup.ts', import.meta
 const utilsSource = (await readFile(new URL('../utils.ts', import.meta.url), 'utf8'))
   .replace('import { FaUtils } from "@fa/ui";', '')
   .replace("'./nodeLookup'", JSON.stringify(lookupUrl));
-let source = (await readFile(new URL('./useWorkFlowStore.ts', import.meta.url), 'utf8'))
+let source = (await readFile(new URL('./workFlowStore.ts', import.meta.url), 'utf8'))
   .replace("'../branchSemantics'", JSON.stringify(compile(await readFile(new URL('../branchSemantics.ts', import.meta.url), 'utf8'))))
   .replace("'../nodeLookup'", JSON.stringify(lookupUrl))
   .replace("'../utils'", JSON.stringify(compile(utilsSource)))
@@ -23,7 +23,8 @@ let source = (await readFile(new URL('./useWorkFlowStore.ts', import.meta.url), 
 for (const dependency of ['zustand', 'zustand/middleware', 'zustand/middleware/immer']) {
   source = source.replace(`'${dependency}'`, JSON.stringify(import.meta.resolve(dependency)));
 }
-const { useWorkFlowStore: store } = await import(compile(source));
+const { createWorkFlowStore } = await import(compile(source));
+const store = createWorkFlowStore();
 const end = () => ({ nodeKey: 'end', nodeName: '结束', type: -1 });
 const model = () => ({ key: 'test', name: '测试', nodeConfig: { nodeKey: 'start', nodeName: '发起', type: 0, childNode: end() } });
 
@@ -276,4 +277,54 @@ test('deleting a sibling does not silently discard conditions on a legacy final 
     assert.equal(gateway[field][0].childNode.nodeKey, 'kept');
     assert.equal(gateway.childNode.nodeKey, 'end');
   }
+});
+
+
+test('editor and viewer sessions isolate models, selection, flags and callbacks', () => {
+  const changes = [];
+  const editor = createWorkFlowStore({ processModel: model(), onChange: value => changes.push(value) });
+  const viewer = createWorkFlowStore({ processModel: model(), readOnly: true, renderNodes: { end: '1' } });
+  editor.getState().selectNode('start');
+  viewer.getState().selectNode('end');
+  viewer.getState().insertNode('start', { nodeKey: 'blocked', type: 1 });
+  editor.getState().insertNode('start', { nodeKey: 'approval', type: 1, childNode: end() });
+  assert.equal(changes.length, 1);
+  assert.equal(editor.getState().selectedNodeKey, 'approval');
+  assert.equal(viewer.getState().selectedNodeKey, 'end');
+  assert.equal(viewer.getState().processModel.nodeConfig.childNode.nodeKey, 'end');
+  assert.equal(editor.getState().renderNodes.end, undefined);
+  viewer.getState().clear();
+  assert.equal(editor.getState().processModel.nodeConfig.childNode.nodeKey, 'approval');
+  assert.equal(editor.getState().readOnly, false);
+  editor.getState().updateNodeProps({ nodeKey: 'approval' }, 'nodeName', '独立会话');
+  assert.equal(changes.length, 2);
+  editor.getState().clear();
+});
+
+
+test('provider shares the editor session with its canvas but isolates adjacent viewers', async () => {
+  let contextSource = (await readFile(new URL('./useWorkFlowStore.ts', import.meta.url), 'utf8'))
+    .replace("'./workFlowStore'", JSON.stringify(compile(source)));
+  for (const dependency of ['react', 'zustand']) {
+    contextSource = contextSource.replace("'" + dependency + "'", JSON.stringify(import.meta.resolve(dependency)));
+  }
+  const { WorkFlowProvider, useWorkFlowStoreApi, useWorkFlowStore } = await import(compile(contextSource));
+  const { createElement } = await import('react');
+  const { renderToStaticMarkup } = await import('react-dom/server');
+  const sessions = [];
+  function Probe() {
+    sessions.push(useWorkFlowStoreApi());
+    const name = useWorkFlowStore(state => state.processModel.name);
+    const readOnly = useWorkFlowStore(state => state.readOnly);
+    return createElement('span', null, name + ':' + readOnly);
+  }
+  const html = renderToStaticMarkup(createElement('div', null,
+    createElement(WorkFlowProvider, { initial: { processModel: model() } },
+      createElement(Probe),
+      createElement(WorkFlowProvider, { inherit: true, initial: { readOnly: true } }, createElement(Probe))),
+    createElement(WorkFlowProvider, { initial: { processModel: { ...model(), name: '查看器' }, readOnly: true } }, createElement(Probe))));
+  assert.equal(sessions[0], sessions[1]);
+  assert.notEqual(sessions[0], sessions[2]);
+  assert.match(html, /查看器:true/);
+  assert.equal(sessions[0].getState().readOnly, false);
 });

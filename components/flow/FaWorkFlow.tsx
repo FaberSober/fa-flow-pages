@@ -2,10 +2,10 @@ import ZoomPanEditor from "@features/fa-flow-pages/components/flow/cubes/ZoomPan
 import { Flow, Flw } from "@features/fa-flow-pages/types";
 import { Button, Space, Tag, theme } from 'antd';
 import clsx from 'clsx';
-import { type CSSProperties, useContext, useEffect } from 'react';
+import { type CSSProperties, useContext, useLayoutEffect } from 'react';
 import './index.scss';
 import NodeWrap from './NodeWrap';
-import { useWorkFlowStore } from './stores/useWorkFlowStore';
+import { useWorkFlowStore, WorkFlowProvider } from './stores/useWorkFlowStore';
 import { BaseDrawer, ThemeLayoutContext } from "@fa/ui";
 import JsonView from '@uiw/react-json-view';
 import { lightTheme } from '@uiw/react-json-view/light';
@@ -34,7 +34,15 @@ export interface FaWorkFlowProps {
  * @author xu.pengfei
  * @date 2025/8/19 17:34
  */
-export default function FaWorkFlow({ flowProcess, processModel, onChange, renderNodes, showLegends, readOnly = false, validationIssue }: FaWorkFlowProps) {
+export default function FaWorkFlow(props: FaWorkFlowProps) {
+  return (
+    <WorkFlowProvider inherit initial={{ flowProcess: props.flowProcess, processModel: props.processModel, onChange: props.onChange, renderNodes: props.renderNodes ?? {}, readOnly: props.readOnly ?? false }}>
+      <WorkFlowContent {...props} />
+    </WorkFlowProvider>
+  );
+}
+
+function WorkFlowContent({ flowProcess, processModel, onChange, renderNodes, showLegends, readOnly = false, validationIssue }: FaWorkFlowProps) {
   const { themeDark } = useContext(ThemeLayoutContext);
   const { token } = theme.useToken();
   // 从 Store 中获取设置方法和流程数据
@@ -43,40 +51,32 @@ export default function FaWorkFlow({ flowProcess, processModel, onChange, render
   const setExternalOnChange = useWorkFlowStore(state => state.setExternalOnChange);
   const setRenderNodes = useWorkFlowStore(state => state.setRenderNodes);
   const setReadOnly = useWorkFlowStore(state => state.setReadOnly);
-  const clear = useWorkFlowStore(state => state.clear);
+  const selectNode = useWorkFlowStore(state => state.selectNode);
 
-  // 清理 Store 数据，防止数据残留
-  useEffect(() => {
-    return () => {
-      console.log('FaWorkFlow unmount, clearing store data');
-      clear();
-    }
-  }, [clear]);
-
-  useEffect(() => {
+  useLayoutEffect(() => {
     setFlowProcess(flowProcess);
-  }, [flowProcess]);
+  }, [flowProcess, setFlowProcess]);
 
   // 1. 同步外部传入的 processModel 到 Store (仅在 processModel 变化时执行)
-  useEffect(() => {
+  useLayoutEffect(() => {
     setProcessModel(processModel);
-  }, [processModel]);
+  }, [processModel, setProcessModel]);
 
-  useEffect(() => {
-    if (validationIssue?.nodeKey) useWorkFlowStore.getState().selectNode(validationIssue.nodeKey);
-  }, [validationIssue]);
+  useLayoutEffect(() => {
+    if (validationIssue?.nodeKey) selectNode(validationIssue.nodeKey);
+  }, [validationIssue, selectNode]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setRenderNodes(renderNodes||{})
-  }, [renderNodes]);
+  }, [renderNodes, setRenderNodes]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setReadOnly(readOnly);
-  }, [readOnly]);
+  }, [readOnly, setReadOnly]);
 
   // 2. 同步外部传入的 onChange 回调到 Store
   // 这样 Store 内部的方法就能调用它
-  useEffect(() => {
+  useLayoutEffect(() => {
     setExternalOnChange(onChange);
 
     // 清理函数：在组件卸载时或 onChange 改变时，清除 Store 中的回调，防止内存泄漏或错误调用。

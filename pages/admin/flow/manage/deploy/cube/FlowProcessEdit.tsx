@@ -2,6 +2,7 @@ import { Fa, FaFlexRestLayout, FaFullContentModal, FaUtils, useApiLoading } from
 import { FaWorkFlow } from '@features/fa-flow-pages/components';
 import { parseEditorModel, validateProcessModelContent, type ProcessModelIssue } from '@features/fa-flow-pages/components/flow/modelValidation';
 import type { Flw } from '@features/fa-flow-pages/types';
+import { WorkFlowProvider } from '@features/fa-flow-pages/components/flow/stores/useWorkFlowStore';
 import NodeConfigPanel from '@features/fa-flow-pages/components/flow/NodeConfigPanel';
 import { flowProcessApi } from '@features/fa-flow-pages/services';
 import { Alert, Button, Checkbox, Form, Modal, message, Splitter, Steps, Typography } from 'antd';
@@ -204,30 +205,32 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
             </div>
           ) : (
             <div className="fa-flex-1 fa-relative" style={{ minWidth: 0, minHeight: 0 }}>
-              <Splitter className="fa-full-content fa-flow-design-splitter" style={{ minWidth: 0, minHeight: 0 }}>
-                <Splitter.Panel>
-                  <div className="fa-full fa-relative">
-                    <FaWorkFlow
-                      flowProcess={data}
-                      readOnly={viewOnly}
-                      processModel={editorModel.model as unknown as Flw.ProcessModel}
-                      validationIssue={validationIssue}
-                      onChange={(v) => setData((prev) => ({ ...prev, modelContent: JSON.stringify(v) }))}
-                    />
-                    {validation && (
-                      <div className="fa-flow-validation-overlay">
-                        <FlowValidationPanel result={validation} onLocate={locateIssue} />
-                      </div>
-                    )}
-                  </div>
-                </Splitter.Panel>
-                <Splitter.Panel defaultSize={520} min={320} max="45%" collapsible>
-                  <div className="fa-full fa-flex-column fa-p12 fa-flow-node-config-panel">
-                    <div className="fa-h3 fa-mb12 fa-flow-node-config-title">节点配置</div>
-                    <NodeConfigPanel validationIssue={validationIssue} onCancelLocate={() => setValidationIssue(undefined)} />
-                  </div>
-                </Splitter.Panel>
-              </Splitter>
+              <WorkFlowProvider initial={{ flowProcess: data, processModel: editorModel.model as unknown as Flw.ProcessModel, readOnly: !!viewOnly }}>
+                <Splitter className="fa-full-content fa-flow-design-splitter" style={{ minWidth: 0, minHeight: 0 }}>
+                  <Splitter.Panel>
+                    <div className="fa-full fa-relative">
+                      <FaWorkFlow
+                        flowProcess={data}
+                        readOnly={viewOnly}
+                        processModel={editorModel.model as unknown as Flw.ProcessModel}
+                        validationIssue={validationIssue}
+                        onChange={(v) => setData((prev) => ({ ...prev, modelContent: JSON.stringify(v) }))}
+                      />
+                      {validation && (
+                        <div className="fa-flow-validation-overlay">
+                          <FlowValidationPanel result={validation} onLocate={locateIssue} />
+                        </div>
+                      )}
+                    </div>
+                  </Splitter.Panel>
+                  <Splitter.Panel defaultSize={520} min={320} max="45%" collapsible>
+                    <div className="fa-full fa-flex-column fa-p12 fa-flow-node-config-panel">
+                      <div className="fa-h3 fa-mb12 fa-flow-node-config-title">节点配置</div>
+                      <NodeConfigPanel validationIssue={validationIssue} onCancelLocate={() => setValidationIssue(undefined)} />
+                    </div>
+                  </Splitter.Panel>
+                </Splitter>
+              </WorkFlowProvider>
             </div>
           )
         )}
