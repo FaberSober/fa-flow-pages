@@ -13,6 +13,7 @@ import { Flow } from '@/types';
 import FlowProcessForm from './FlowProcessForm';
 import { flowSavePayload, flowSaveSnapshot } from './flowSaveSnapshot';
 import { FlowPublishError, publishFlow } from './flowPublish';
+import { protectFlowUnload } from './flowLeaveGuard';
 import FlowValidationPanel from './FlowValidationPanel';
 import './FlowProcessEdit.scss';
 
@@ -38,6 +39,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'failed'>('idle');
   const [publishState, setPublishState] = useState<'idle' | 'saving' | 'deploying' | 'saveFailed' | 'deployFailed'>('idle');
   const publishLock = useRef(false);
+  const leaveConfirmOpen = useRef(false);
   const [current, setCurrent] = useState(embedded ? 1 : 0);
   const [open, setOpen] = useState(false);
   const [designVisited, setDesignVisited] = useState(false);
@@ -126,12 +128,43 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
           submitterPermission: get(savedData.current, 'submitterPermission', false),
         });
       }
-      setOpen(nextOpen);
+      // FaFullContentModal first calls onOpenChange(false), then onCancel.
+      // Keep controlled visibility until requestClose confirms discarding.
+      if (nextOpen) setOpen(true);
     },
     [extendForm, form, formInitialValues, item],
   );
 
   const dirty = flowSaveSnapshot(data) !== savedSnapshot;
+  useEffect(() => {
+    if (viewOnly || (!embedded && !open)) return;
+    return protectFlowUnload(window, () => saveLock.current || publishLock.current || flowSaveSnapshot(dataRef.current) !== flowSaveSnapshot(savedData.current));
+  }, [embedded, open, viewOnly]);
+
+  function requestClose() {
+    if (saveLock.current || publishLock.current) {
+      message.info('正在保存或发布，请稍候再关闭');
+      return;
+    }
+    if (leaveConfirmOpen.current) return;
+    if (viewOnly || flowSaveSnapshot(dataRef.current) === flowSaveSnapshot(savedData.current)) {
+      handleClose();
+      return;
+    }
+    leaveConfirmOpen.current = true;
+    Modal.confirm({
+      title: '流程有未保存的修改',
+      content: '关闭会放弃未保存的修改，已保存的流程定义不受影响。',
+      okText: '放弃并关闭',
+      cancelText: '继续编辑',
+      afterClose: () => { leaveConfirmOpen.current = false; },
+      onOk: () => {
+        if (saveLock.current || publishLock.current) throw new Error('请等待保存或发布完成');
+        handleClose();
+      },
+    });
+  }
+
   const saveStatus = saveState === 'saving' ? '保存中' : saveState === 'failed' ? '保存失败' : dirty ? '未保存' : '已保存';
   const saveStatusTag = <Tooltip title="保存定义不部署模型；基础信息和流程状态保存后立即生效"><Tag color={saveState === 'saving' ? 'processing' : saveState === 'failed' ? 'error' : dirty ? 'warning' : 'success'}>{saveStatus}</Tag></Tooltip>;
   const publishStatusTag = publishState !== 'idle' && (
@@ -434,7 +467,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
       triggerDom={triggerDom}
       open={open}
       onOpenChange={handleOpenChange}
-      onCancel={handleClose}
+      onCancel={requestClose}
       showOk={false}
       showCancel={false}
       headerCenter={
@@ -454,7 +487,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
           <Button onClick={handlePublish} type="primary" loading={loading}>
             发布
           </Button>
-          <Button onClick={handleClose} disabled={loading}>
+          <Button onClick={requestClose} disabled={loading}>
             取消
           </Button>
         </>
