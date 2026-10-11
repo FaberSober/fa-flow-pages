@@ -209,39 +209,71 @@ body {
   }
 
   // Draw only between branch centres. Background masks leave antialiasing seams when scaled.
-  .branch-box > .col-box::after {
-    content: '';
+  .branch-connector-top,
+  .branch-connector-bottom {
     position: absolute;
-    top: -2px;
-    bottom: -2px;
     left: 0;
     right: 0;
-    border-top: 2px solid #ccc;
-    border-bottom: 2px solid #ccc;
+    height: 10px;
+    box-sizing: border-box;
     pointer-events: none;
   }
 
+  .branch-connector-top {
+    top: -2px;
+    border-top: 2px solid rgb(202, 202, 202);
+  }
+
+  .branch-connector-bottom {
+    bottom: -2px;
+    border-bottom: 2px solid rgb(202, 202, 202);
+  }
+
   // Direct div children of branch-box are branch columns; the add control is a button.
-  .branch-box > .col-box:first-of-type::after {
-    left: 50%;
+  .branch-box > .col-box:first-of-type {
+    > .branch-connector-top,
+    > .branch-connector-bottom {
+      left: calc(50% - 1px);
+      border-left: 2px solid rgb(202, 202, 202);
+    }
+    > .branch-connector-top { border-top-left-radius: 8px; }
+    > .branch-connector-bottom { border-bottom-left-radius: 8px; }
   }
 
-  .branch-box > .col-box:last-of-type::after {
-    right: 50%;
+  .branch-box > .col-box:last-of-type {
+    > .branch-connector-top,
+    > .branch-connector-bottom {
+      right: calc(50% - 1px);
+      border-right: 2px solid rgb(202, 202, 202);
+    }
+    > .branch-connector-top { border-top-right-radius: 8px; }
+    > .branch-connector-bottom { border-bottom-right-radius: 8px; }
   }
 
-  .branch-box .col-box::before {
-    content: '';
-    position: absolute;
-    top: 0px;
-    left: 0px;
-    right: 0px;
-    bottom: 0px;
-    z-index: 0;
-    margin: auto;
+  .branch-box > .col-box:first-of-type,
+  .branch-box > .col-box:last-of-type {
+    > .condition-node > .condition-node-box > .branch-entry-connector {
+      margin-top: 8px;
+      min-height: 22px;
+      flex-basis: 22px;
+    }
+    > .branch-column-tail { margin-bottom: 8px; }
+  }
+
+  .branch-box > .col-box:only-of-type {
+    > .branch-connector-top,
+    > .branch-connector-bottom { display: none; }
+    > .condition-node > .condition-node-box > .branch-entry-connector { margin-top: 0; min-height: 30px; flex-basis: 30px; }
+    > .branch-column-tail { margin-bottom: 0; }
+  }
+
+  // Fill only the space after a branch subtree; a full-height column line
+  // would show through the centre of transparent nested gateways.
+  .branch-column-tail {
+    flex: 1 0 0px;
     width: 2px;
-    height: 100%;
     background-color: rgb(202, 202, 202);
+    pointer-events: none;
   }
 
   .condition-node {
@@ -251,7 +283,7 @@ body {
   }
 
   .condition-node-box {
-    padding-top: 30px;
+    padding-top: 0;
     padding-right: 50px;
     padding-left: 50px;
     justify-content: center;
@@ -262,17 +294,24 @@ body {
     flex-direction: column;
   }
 
-  .condition-node-box::before {
+  .condition-node-box::after {
     content: '';
-    position: absolute;
-    top: 0px;
-    left: 0px;
-    right: 0px;
-    bottom: 0px;
-    margin: auto;
+    flex: 1 0 0px;
     width: 2px;
-    height: 100%;
     background-color: rgb(202, 202, 202);
+  }
+
+  .branch-entry-connector {
+    position: relative;
+    // Keep the arrow visible over the card's selection outline and hover layer.
+    z-index: 3;
+    width: 10px;
+    min-height: 30px;
+    flex: 1 0 30px;
+    color: rgb(202, 202, 202);
+    pointer-events: none;
+
+    > svg { position: absolute; inset: 0; display: block; }
   }
 
   .auto-judge {
@@ -284,19 +323,6 @@ body {
     padding: 15px 15px;
     cursor: pointer;
     box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.1);
-  }
-
-  .auto-judge::before {
-    content: '';
-    position: absolute;
-    top: -12px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0px;
-    border-style: solid;
-    border-width: 8px 6px 4px;
-    border-color: rgb(202, 202, 202) transparent transparent;
-    background: rgb(239, 239, 239);
   }
 
   .auto-judge .branch-title {
@@ -554,8 +580,7 @@ body {
     background: var(--el-bg-color);
   }
 
-  .node-wrap-box::before,
-  .auto-judge::before {
+  .node-wrap-box::before {
     background-color: var(--el-bg-color);
   }
 
@@ -676,7 +701,6 @@ body {
     }
     .content { padding-top: 8px; color: var(--flow-card-muted); overflow-wrap: anywhere; }
     .placeholder { color: var(--flow-card-subtle); }
-    &::before { background: transparent; }
     &::after { border-radius: 10px; }
   }
 
@@ -781,5 +805,4 @@ body {
   .col-box { background: transparent; }
   .node-wrap-box,
   .auto-judge { background: var(--flow-card-bg); }
-  .auto-judge::before { background: transparent; }
 }

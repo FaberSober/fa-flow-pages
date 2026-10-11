@@ -3,6 +3,7 @@ import { Alert, Empty, Input, Tag } from 'antd';
 import { useEffect, useRef } from 'react';
 import { issueConfigTab, type ProcessModelIssue } from './modelValidation';
 import { findNodeContextByKey, type NodeLookupContext } from './nodeLookup';
+import { hasEmptyConditions } from './branchSemantics';
 import {
   Approver,
   CallProcess,
@@ -28,6 +29,7 @@ function renderNodeConfig({ node, parentNode, branchKind }: NodeLookupContext, i
         key={key}
         node={node as unknown as Flw.ConditionNode}
         parentNode={parentNode as Flw.Node}
+        elseNode={(parentNode as Flw.Node)?.conditionNodes?.at(-1)?.nodeKey === key && hasEmptyConditions(node.conditionList)}
         index={0}
         conditionText=""
         configOnly
@@ -52,6 +54,7 @@ function renderNodeConfig({ node, parentNode, branchKind }: NodeLookupContext, i
         key={key}
         node={node as unknown as Flw.ConditionNode}
         parentNode={parentNode as Flw.Node}
+        elseNode={(parentNode as Flw.Node)?.inclusiveNodes?.at(-1)?.nodeKey === key && hasEmptyConditions(node.conditionList)}
         index={0}
         conditionText=""
         configOnly

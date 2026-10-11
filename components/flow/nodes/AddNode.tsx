@@ -109,15 +109,13 @@ export default function AddNode({parentNode}: AddNodeProps) {
               nodeKey: getNodeKey(),
               type: NodeType.conditionNode,
               priorityLevel: 1,
-              conditionMode: 1,
               conditionList: [],
             },
             {
-              nodeName: "条件2",
+              nodeName: "默认分支",
               nodeKey: getNodeKey(),
               type: NodeType.conditionNode,
               priorityLevel: 2,
-              conditionMode: 2,
               conditionList: [],
             }
           ],
@@ -161,15 +159,13 @@ export default function AddNode({parentNode}: AddNodeProps) {
               nodeKey: getNodeKey(),
               type: NodeType.conditionNode,
               priorityLevel: 1,
-              conditionMode: 1,
               conditionList: [],
             },
             {
-              nodeName: "包容条件2",
+              nodeName: "默认分支",
               nodeKey: getNodeKey(),
               type: NodeType.conditionNode,
               priorityLevel: 2,
-              conditionMode: 2,
               conditionList: [],
             }
           ],

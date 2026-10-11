@@ -6,6 +6,7 @@ import { devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { findNodeByKey } from '../utils';
 import { findNodeContextByKey } from '../nodeLookup';
+import { hasEmptyConditions } from '../branchSemantics';
 
 type BranchCollection = 'conditionNodes' | 'parallelNodes' | 'inclusiveNodes';
 
@@ -30,6 +31,7 @@ interface WorkFlowState {
   refreshNode: () => void;
   deleteNode: (node: Flw.Node) => void;
   removeBranch: (gatewayKey: string, branchKey: string, field: BranchCollection) => void;
+  addBranch: (gatewayKey: string, branch: Flw.ConditionNode, field: 'conditionNodes' | 'inclusiveNodes') => void;
   updateNodeProps: (node: Flw.ParentNode, path: keyof Flw.Node | any, value: any) => void;
   updateNode: (node: Flw.ParentNode) => void;
   insertNode: (parentKey: string, node: Flw.Node) => void;
@@ -83,6 +85,21 @@ export const useWorkFlowStore = create<WorkFlowState>()(
         if (inserted) get().onChange?.(get().processModel);
       },
 
+      addBranch: (gatewayKey, branch, field) => {
+        if (get().readOnly || !get().processModel?.nodeConfig) return;
+        let added = false;
+        set((state) => {
+          const gateway = findNodeByKey(state.processModel.nodeConfig, gatewayKey);
+          const branches = gateway?.[field];
+          if (!branches?.length) return;
+          branches.splice(branches.length - 1, 0, branch);
+          branches.forEach((item, index) => { item.priorityLevel = index + 1; });
+          state.selectedNodeKey = branch.nodeKey;
+          added = true;
+        });
+        if (added) get().onChange?.(get().processModel);
+      },
+
       refreshNode: () => {
         if (get().readOnly) return;
         set(() => {}); // 强制刷新（Immer 下空更新触发渲染）
@@ -119,7 +136,7 @@ export const useWorkFlowStore = create<WorkFlowState>()(
           branches.splice(index, 1);
           branches.forEach((branch, position) => { branch.priorityLevel = position + 1; });
           let replacementKey = branches[Math.min(index, branches.length - 1)].nodeKey;
-          if (branches.length === 1) {
+          if (branches.length === 1 && (field === 'parallelNodes' || hasEmptyConditions(branches[0].conditionList))) {
             const survivor = branches[0].childNode;
             let tail = survivor;
             let hasTerminal = false;

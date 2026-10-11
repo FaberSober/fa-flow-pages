@@ -16,6 +16,7 @@ const utilsSource = (await readFile(new URL('../utils.ts', import.meta.url), 'ut
   .replace('import { FaUtils } from "@fa/ui";', '')
   .replace("'./nodeLookup'", JSON.stringify(lookupUrl));
 let source = (await readFile(new URL('./useWorkFlowStore.ts', import.meta.url), 'utf8'))
+  .replace("'../branchSemantics'", JSON.stringify(compile(await readFile(new URL('../branchSemantics.ts', import.meta.url), 'utf8'))))
   .replace("'../nodeLookup'", JSON.stringify(lookupUrl))
   .replace("'../utils'", JSON.stringify(compile(utilsSource)))
   .replace("import { set as lodashSet } from 'lodash';", `import lodash from ${JSON.stringify(import.meta.resolve('lodash'))}; const lodashSet = lodash.set;`);
@@ -226,4 +227,53 @@ test('confirmed end insertion removes only the chosen connection subtree in one 
   assert.equal(gateway.childNode.nodeKey, 'end');
   assert.deepEqual(observations, ['new-end']);
   assert.equal(changes, 1);
+});
+
+test('adding a condition or inclusive branch keeps the existing default and its path at the end', () => {
+  for (const field of ['conditionNodes', 'inclusiveNodes']) {
+    store.getState().setProcessModel(branchModel(field));
+    const fallbackBefore = store.getState().processModel.nodeConfig.childNode[field][1];
+    let changes = 0;
+    store.getState().setExternalOnChange(() => { changes += 1; });
+    const observations = [];
+    const unsubscribe = store.subscribe(state => observations.push(state.selectedNodeKey));
+    store.getState().addBranch('gateway', { nodeKey: 'new-condition', nodeName: '新条件', type: 3, conditionList: [] }, field);
+    unsubscribe();
+    const gateway = store.getState().processModel.nodeConfig.childNode;
+    assert.deepEqual(gateway[field].map(branch => branch.nodeKey), ['branch-0', 'new-condition', 'branch-1']);
+    assert.deepEqual(gateway[field].map(branch => branch.priorityLevel), [1, 2, 3]);
+    assert.equal(gateway[field][2].childNode, fallbackBefore.childNode);
+    assert.equal(gateway.childNode.nodeKey, 'end');
+    assert.deepEqual(observations, ['new-condition']);
+    assert.equal(changes, 1);
+  }
+});
+
+test('adding a branch to a missing, empty or read-only gateway leaves the model unchanged', () => {
+  store.getState().setProcessModel(branchModel('conditionNodes'));
+  const before = store.getState().processModel;
+  let changes = 0;
+  store.getState().setExternalOnChange(() => { changes += 1; });
+  const branch = { nodeKey: 'new-condition', type: 3, conditionList: [] };
+  store.getState().addBranch('missing', branch, 'conditionNodes');
+  store.getState().addBranch('gateway', branch, 'inclusiveNodes');
+  store.getState().setReadOnly(true);
+  store.getState().addBranch('gateway', branch, 'conditionNodes');
+  assert.equal(store.getState().processModel, before);
+  assert.equal(changes, 0);
+});
+
+test('deleting a sibling does not silently discard conditions on a legacy final branch', () => {
+  for (const field of ['conditionNodes', 'inclusiveNodes']) {
+    const value = branchModel(field);
+    const conditions = [[{ field: 'amount', operator: '>', value: '100' }]];
+    value.nodeConfig.childNode[field][1].conditionList = conditions;
+    store.getState().setProcessModel(value);
+    store.getState().removeBranch('gateway', 'branch-0', field);
+    const gateway = store.getState().processModel.nodeConfig.childNode;
+    assert.equal(gateway.nodeKey, 'gateway');
+    assert.deepEqual(gateway[field][0].conditionList, conditions);
+    assert.equal(gateway[field][0].childNode.nodeKey, 'kept');
+    assert.equal(gateway.childNode.nodeKey, 'end');
+  }
 });

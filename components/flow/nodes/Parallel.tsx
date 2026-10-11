@@ -3,6 +3,7 @@ import { Flw, FlwEnums } from "@features/fa-flow-pages/types";
 import { Button } from "antd";
 import { LeftOutlined, PlusOutlined, RightOutlined } from "@ant-design/icons";
 import AddNode from './AddNode';
+import BranchEntryConnector from '../cubes/BranchEntryConnector';
 import '../styles/Branch.scss'
 import NodeWrap from "@features/fa-flow-pages/components/flow/NodeWrap";
 import ParallelNode from "@features/fa-flow-pages/components/flow/nodes/ParallelNode";
@@ -59,8 +60,11 @@ export default function Parallel({ node }: Flw.BasicNodeProps) {
             const conditionText = '并行任务（同时进行）';
             return (
               <div className="col-box" key={cNode.nodeKey}>
+                <div className="branch-connector-top" aria-hidden="true" />
+                <div className="branch-connector-bottom" aria-hidden="true" />
                 <div className="condition-node">
                   <div className="condition-node-box">
+                    <BranchEntryConnector />
                     <div className="auto-judge">
                       {/* move this condition to left */}
                       {index !== 0 && index < node.parallelNodes!.length - 1 && (
@@ -91,6 +95,7 @@ export default function Parallel({ node }: Flw.BasicNodeProps) {
 
                 {/* condition node's child node */}
                 <NodeWrap node={cNode.childNode} parentNode={cNode} />
+                <div className="branch-column-tail" aria-hidden="true" />
 
                 {index === 0 && <div className="top-left-cover-line" />}
                 {index === 0 && <div className="bottom-left-cover-line" />}

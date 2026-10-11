@@ -3,11 +3,44 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import ts from 'typescript';
 
-const source = await readFile(new URL('./modelValidation.ts', import.meta.url), 'utf8');
+const semantics = ts.transpileModule(await readFile(new URL('./branchSemantics.ts', import.meta.url), 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+const semanticsUrl = `data:text/javascript;base64,${Buffer.from(semantics).toString('base64')}`;
+const source = (await readFile(new URL('./modelValidation.ts', import.meta.url), 'utf8')).replace("'./branchSemantics'", JSON.stringify(semanticsUrl));
 const { outputText } = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 });
 const { validateProcessModel, validateProcessModelContent, parseEditorModel, issueConfigTab } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
+const { hasEmptyConditions } = await import(semanticsUrl);
+
+test('default recognition matches the engine rather than conditionMode or array position', () => {
+  for (const value of [undefined, null, []]) assert.equal(hasEmptyConditions(value), true);
+  for (const value of [[[]], [[{ field: 'amount' }]], {}, '']) assert.equal(hasEmptyConditions(value), false);
+});
+
+test('condition and inclusive branches require one empty default at the end', () => {
+  for (const field of ['conditionNodes', 'inclusiveNodes']) {
+    const model = simpleModel();
+    const condition = [[{ label: '金额', field: 'amount', operator: '>', value: '100' }]];
+    model.nodeConfig.childNode = { nodeKey: 'gateway', nodeName: '分支', type: field === 'conditionNodes' ? 4 : 9, [field]: [
+      { nodeKey: 'normal', nodeName: '普通', type: 3, priorityLevel: 1, conditionList: condition, conditionMode: 2 },
+      { nodeKey: 'fallback', nodeName: '默认', type: 3, priorityLevel: 2, conditionList: [], conditionMode: 1 },
+    ] };
+    assert.equal(validateProcessModel(model).valid, true);
+    for (const empty of [undefined, null, []]) {
+      model.nodeConfig.childNode[field][1].conditionList = empty;
+      assert.equal(validateProcessModel(model).valid, true);
+    }
+    model.nodeConfig.childNode[field][0].conditionList = [];
+    assert.ok(validateProcessModel(model).issues.some(issue => issue.nodeKey === 'normal' && /普通分支必须/.test(issue.message)));
+    model.nodeConfig.childNode[field][0].conditionList = condition;
+    model.nodeConfig.childNode[field][1].conditionList = condition;
+    assert.ok(validateProcessModel(model).issues.some(issue => issue.nodeKey === 'fallback' && /最后一个分支/.test(issue.message)));
+    model.nodeConfig.childNode[field][1].conditionList = [[]];
+    assert.equal(validateProcessModel(model).valid, false);
+  }
+});
 
 const simpleModel = () => ({
   key: 'leave',

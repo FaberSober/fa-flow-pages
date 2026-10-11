@@ -2,7 +2,7 @@ import { DeleteOutlined, PartitionOutlined, PlusOutlined } from "@ant-design/ico
 import { FaArrUtils, FaFlexRestLayout } from "@fa/ui";
 import { NodeCloseBtn } from "@features/fa-flow-pages/components/flow/cubes";
 import { Flw } from "@features/fa-flow-pages/types";
-import { Button, Form, Input, Select } from "antd";
+import { Alert, Button, Form, Input, Popconfirm, Select } from "antd";
 import clsx from 'clsx';
 import { ReactNode } from 'react';
 import { useWorkFlowStore } from '../stores/useWorkFlowStore';
@@ -23,7 +23,7 @@ export interface InclusiveNodeProps {
  * @author xu.pengfei
  * @date 2026/01/19 16:00
  */
-export default function InclusiveNode({ node, elseNode, onDel, conditionText, configOnly }: InclusiveNodeProps) {
+export default function InclusiveNode({ node, parentNode, elseNode, onDel, conditionText, configOnly }: InclusiveNodeProps) {
   const readOnly = useWorkFlowStore(state => state.readOnly);
   const [form] = Form.useForm();
 
@@ -31,6 +31,9 @@ export default function InclusiveNode({ node, elseNode, onDel, conditionText, co
   const selectedNodeKey = useWorkFlowStore(state => state.selectedNodeKey);
   const selectNode = useWorkFlowStore(state => state.selectNode);
 
+  if (configOnly && elseNode) {
+    return <Alert type="info" showIcon message="默认分支" description="没有任何条件分支满足时进入此分支；满足多个条件时会执行多条路径。" />;
+  }
   function handleNodeClick() {
     selectNode(node.nodeKey);
   }
@@ -44,11 +47,11 @@ export default function InclusiveNode({ node, elseNode, onDel, conditionText, co
           onClick={handleNodeClick}
         >
           <div className="branch-title">
-            <span className="node-title fa-flow-branch-title-inclusive" title={node.nodeName}>
-              <PartitionOutlined aria-hidden="true" />{node.nodeName}
+            <span className="node-title fa-flow-branch-title-inclusive" title={elseNode ? '默认分支' : node.nodeName}>
+              <PartitionOutlined aria-hidden="true" />{elseNode ? '默认分支' : node.nodeName}
             </span>
             <span className="priority-title">优先级{node.priorityLevel}</span>
-            {!elseNode && <NodeCloseBtn onClick={onDel} />}
+            {!elseNode && parentNode.inclusiveNodes?.at(-1)?.nodeKey !== node.nodeKey && <NodeCloseBtn onClick={onDel} />}
           </div>
 
           <div className="content">
@@ -67,6 +70,19 @@ export default function InclusiveNode({ node, elseNode, onDel, conditionText, co
         >
           <FaFlexRestLayout>
             <div className="fa-flex-column">
+              {parentNode.inclusiveNodes?.at(-1)?.nodeKey === node.nodeKey && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message="末尾分支应为默认分支"
+                  description="当前条件会保留。请明确清空条件后，将此分支用作其他条件均不满足时的兜底路径。"
+                  action={(
+                    <Popconfirm title="将此分支设为默认？" description="现有条件将被清空，分支内节点会保留。" disabled={readOnly} onConfirm={() => updateNodeProps(node, 'conditionList', [])}>
+                      <Button size="small" disabled={readOnly}>设为默认</Button>
+                    </Popconfirm>
+                  )}
+                />
+              )}
               <div className="top-tips">满足以下条件时进入当前分支</div>
 
               {node.conditionList?.map((conditionGroup, conditionGroupIdx) => {
@@ -168,7 +184,7 @@ export default function InclusiveNode({ node, elseNode, onDel, conditionText, co
 
               <Button
                 onClick={() => {
-                  updateNodeProps(node, 'conditionList', [...node.conditionList!, [{
+                  updateNodeProps(node, 'conditionList', [...(node.conditionList ?? []), [{
                     label: '',
                     field: '',
                     operator: '',

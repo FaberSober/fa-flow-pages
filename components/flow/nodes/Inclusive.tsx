@@ -3,12 +3,13 @@ import { Flw, FlwEnums } from "@features/fa-flow-pages/types";
 import { Button } from "antd";
 import { LeftOutlined, PlusOutlined, RightOutlined } from "@ant-design/icons";
 import AddNode from './AddNode';
+import BranchEntryConnector from '../cubes/BranchEntryConnector';
 import '../styles/Branch.scss'
 import NodeWrap from "@features/fa-flow-pages/components/flow/NodeWrap";
 import { useWorkFlowStore } from "@features/fa-flow-pages/components/flow/stores/useWorkFlowStore";
 import { FaArrUtils } from '@fa/ui';
 import { getNodeKey } from "@features/fa-flow-pages/components/flow/utils";
-import { cloneDeep } from 'lodash';
+import { hasEmptyConditions } from '../branchSemantics';
 import InclusiveNode from './InclusiveNode';
 
 
@@ -20,21 +21,17 @@ import InclusiveNode from './InclusiveNode';
 export default function Inclusive({ node }: Flw.BasicNodeProps) {
   const updateNode = useWorkFlowStore(state => state.updateNode);
   const removeBranch = useWorkFlowStore(state => state.removeBranch);
+  const addBranch = useWorkFlowStore(state => state.addBranch);
 
   function addTerm() {
-    const nodeNew = cloneDeep(node)
-    let len = nodeNew.inclusiveNodes!.length + 1
-    nodeNew.inclusiveNodes!.push({
-      nodeName: '条件' + len,
+    addBranch(node.nodeKey, {
+      nodeName: '条件' + node.inclusiveNodes!.length,
       nodeKey: getNodeKey(),
-      type: FlwEnums.NodeType.conditionBranch,
-      priorityLevel: len,
-      conditionMode: 1,
-      conditionList: []
-    })
-    updateNode(nodeNew);
+      type: FlwEnums.NodeType.conditionNode,
+      priorityLevel: node.inclusiveNodes!.length,
+      conditionList: [],
+    }, 'inclusiveNodes');
   }
-
   /**
    * move condition position
    * @param index
@@ -58,7 +55,7 @@ export default function Inclusive({ node }: Flw.BasicNodeProps) {
       return conditionList.length + '个条件，或满足'
     } else {
       if (index === nodeConfig.inclusiveNodes!.length - 1) {
-        return '其他条件进入此流程'
+        return '其他条件不满足时进入'
       } else {
         return false
       }
@@ -76,8 +73,11 @@ export default function Inclusive({ node }: Flw.BasicNodeProps) {
             const conditionText = toText(node, index);
             return (
               <div className="col-box" key={cNode.nodeKey}>
+                <div className="branch-connector-top" aria-hidden="true" />
+                <div className="branch-connector-bottom" aria-hidden="true" />
                 <div className="condition-node">
                   <div className="condition-node-box">
+                    <BranchEntryConnector />
                     <div className="auto-judge">
                       {/* move this condition to left */}
                       {index !== 0 && index < node.inclusiveNodes!.length - 1 && (
@@ -92,7 +92,7 @@ export default function Inclusive({ node }: Flw.BasicNodeProps) {
                         onDel={() => removeBranch(node.nodeKey, cNode.nodeKey, 'inclusiveNodes')}
                         conditionText={conditionText}
                         index={index}
-                        elseNode={index === node.inclusiveNodes!.length - 1}
+                        elseNode={index === node.inclusiveNodes!.length - 1 && hasEmptyConditions(cNode.conditionList)}
                       />
 
                       {/* move this condition to right */}
@@ -109,6 +109,7 @@ export default function Inclusive({ node }: Flw.BasicNodeProps) {
 
                 {/* condition node's child node */}
                 <NodeWrap node={cNode.childNode} parentNode={cNode} />
+                <div className="branch-column-tail" aria-hidden="true" />
 
                 {index === 0 && <div className="top-left-cover-line" />}
                 {index === 0 && <div className="bottom-left-cover-line" />}

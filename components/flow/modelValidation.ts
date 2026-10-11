@@ -1,3 +1,5 @@
+import { hasEmptyConditions } from './branchSemantics';
+
 const NODE_TYPE = {
   approval: 1,
   callProcess: 5,
@@ -279,7 +281,16 @@ function validateBranchList(value: unknown, path: string, kind: BranchKind, cont
     if (!integer(branch.priorityLevel) || Number(branch.priorityLevel) < 1) {
       addError(context.errors, `${branchPath}.priorityLevel`, '分支优先级必须大于 0');
     }
-    if (kind !== 'parallel') validateConditionList(branch.conditionList, `${branchPath}.conditionList`, true, context);
+    if (kind === 'condition' || kind === 'inclusive') {
+      if (index === value.length - 1) {
+        if (!hasEmptyConditions(branch.conditionList)) {
+          addError(context.errors, `${branchPath}.conditionList`, '最后一个分支必须为默认分支，请清空其条件');
+        }
+      } else if (hasEmptyConditions(branch.conditionList)) {
+        addError(context.errors, `${branchPath}.conditionList`, '普通分支必须配置条件，默认分支只能位于末尾');
+      }
+    }
+    if (kind === 'route' || (kind !== 'parallel' && !hasEmptyConditions(branch.conditionList))) validateConditionList(branch.conditionList, `${branchPath}.conditionList`, true, context);
     visitNode(branch, branchPath, context, kind === 'route');
   });
 }
