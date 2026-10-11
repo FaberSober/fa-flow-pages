@@ -3,7 +3,7 @@ import { DepartmentCascade, RbacRoleSelect } from '@/components';
 import { departmentApi, rbacRoleApi, userApi } from '@/services';
 import { Flw, FlwEnums } from '@/types';
 import { FaUtils, FormNumber, UserSearchSelect } from '@fa/ui';
-import { Form, Input, InputNumber, Radio } from 'antd';
+import { Form, Input, Radio } from 'antd';
 import { useEffect } from 'react';
 import { NodeSetTypeRadio } from '../../cubes';
 import { useWorkFlowStore } from '../../stores/useWorkFlowStore';
@@ -108,7 +108,7 @@ export default function ApproverNodeBasicForm({ node }: ApproverNodeBasicFormPro
       )}
       {setType === NodeSetType.supervisor && (
         <Form.Item name="examineLevel" label="指定主管" rules={[{ required: true }]}>
-          <InputNumber style={{ width: 230 }} addonBefore="发起人的第" addonAfter="级主管" min={1} max={100} changeOnWheel />
+          <FormNumber style={{ width: 230 }} addonBefore="发起人的第" addonAfter="级主管" min={1} max={100} changeOnWheel />
         </Form.Item>
       )}
       {setType === NodeSetType.role && (

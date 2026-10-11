@@ -1,4 +1,5 @@
-import { Checkbox, Divider, Form, InputNumber, Radio } from 'antd';
+import { FormNumber } from '@fa/ui';
+import { Checkbox, Divider, Form, Radio } from 'antd';
 import { useEffect } from 'react';
 import { Flw, FlwEnums } from '@/types';
 import { useWorkFlowStore } from '../../stores/useWorkFlowStore';
@@ -55,7 +56,7 @@ export default function ApproverNodeRuleForm({ node }: ApproverNodeRuleFormProps
           tooltip="所有审批人权重之和达到该比例后通过"
           rules={[{ required: true, type: 'number', min: 1, max: 100 }]}
         >
-          <InputNumber min={1} max={100} addonAfter="%" changeOnWheel />
+          <FormNumber min={1} max={100} addonAfter="%" changeOnWheel />
         </Form.Item>
       )}
       {GROUP_SET_TYPES.includes(node.setType as FlwEnums.NodeSetType) && (
@@ -78,7 +79,7 @@ export default function ApproverNodeRuleForm({ node }: ApproverNodeRuleFormProps
       {termAuto && (
         <>
           <Form.Item name="term" label="审批期限" tooltip="为 0 则不生效" rules={[{ required: true, type: 'number', min: 0 }]}>
-            <InputNumber addonAfter="小时" min={0} max={1000} changeOnWheel />
+            <FormNumber addonAfter="小时" min={0} max={1000} changeOnWheel />
           </Form.Item>
           <Form.Item name="termMode" label="审批期限超时后执行" rules={[{ required: true }]}>
             <Radio.Group

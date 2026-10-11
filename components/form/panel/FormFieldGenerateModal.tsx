@@ -155,14 +155,14 @@ export default function FormFieldGenerateModal() {
           <div style={{ display: 'grid', gridTemplateColumns: '260px minmax(0, 1fr)', gap: 20, minHeight: 420 }}>
             <div style={{ borderRight: '1px solid var(--ant-color-border)', paddingRight: 16, maxHeight: 460, overflowY: 'auto' }}>
               <Typography.Text type="secondary">主表</Typography.Text>
-              <Space direction="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
+              <Space orientation="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
                 {mainSources.map((item) => renderSource(item, '主表'))}
               </Space>
 
               <Typography.Text type="secondary" style={{ display: 'block', marginTop: 20 }}>
                 关联子表
               </Typography.Text>
-              <Space direction="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
+              <Space orientation="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
                 {subtableSources.map((item) => renderSource(item, '子表'))}
                 {!loading && subtableSources.length === 0 && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无关联子表" />}
               </Space>

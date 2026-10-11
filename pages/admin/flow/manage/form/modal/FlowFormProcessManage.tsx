@@ -115,7 +115,7 @@ export default function FlowFormProcessManage({ flowForm }: FlowFormProcessManag
                         style={{ width: '100%', padding: 12, borderRadius: 6, border: `1px solid ${active ? 'var(--ant-color-primary)' : 'var(--ant-color-border)'}`, background: active ? 'var(--ant-color-primary-bg)' : 'var(--ant-color-bg-container)' }}
                       >
                         <div style={{ width: '100%' }}>
-                          <Space direction="vertical" size={4} style={{ width: '100%', alignItems: 'stretch' }}>
+                          <Space orientation="vertical" size={4} style={{ width: '100%', alignItems: 'stretch' }}>
                             <Space style={{ justifyContent: 'space-between' }}>
                               <Typography.Text strong>{item.processName || '未命名流程'}</Typography.Text>
                               <Tag color={state.color}>{state.text}</Tag>

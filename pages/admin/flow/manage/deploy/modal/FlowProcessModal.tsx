@@ -96,8 +96,6 @@ export default function FlowProcessModal({ children, title, record, fetchFinish,
 
   function showModal() {
     setOpen(true)
-    form.resetFields();
-    form.setFieldsValue(getInitialValues())
   }
 
   const loading = useApiLoading([ api.getUrl('save'), api.getUrl('update')]);
@@ -111,6 +109,11 @@ export default function FlowProcessModal({ children, title, record, fetchFinish,
       <DragModal
         title={title}
         open={open}
+        afterOpenChange={(nextOpen) => {
+          if (!nextOpen) return;
+          form.resetFields();
+          form.setFieldsValue(getInitialValues());
+        }}
         onOk={() => form.submit()}
         confirmLoading={loading}
         onCancel={() => setOpen(false)}

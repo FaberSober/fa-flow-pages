@@ -85,11 +85,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
     setData({ ...item });
     setValidationRequested(false);
     setValidationIssue(undefined);
-    // 设置扩展配置表单数据
-    extendForm.setFieldsValue({
-      submitterPermission: get(item, 'submitterPermission', false),
-    });
-  }, [item, form, extendForm]);
+  }, [item]);
 
   const formInitialValues = useMemo(() => {
     return {
@@ -108,6 +104,18 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
     };
   }, [item]);
 
+  const initializeForm = useCallback((element: HTMLDivElement | null) => {
+    if (!element) return;
+    form.resetFields();
+    form.setFieldsValue(savedData.current);
+  }, [form, formInitialValues, editorSession]);
+
+  const initializeExtendForm = useCallback((element: HTMLDivElement | null) => {
+    if (!element) return;
+    extendForm.resetFields();
+    extendForm.setFieldsValue({ submitterPermission: get(item, 'submitterPermission', false) });
+  }, [extendForm, item, editorSession]);
+
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
       if (nextOpen) {
@@ -121,18 +129,12 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
         setData({ ...savedData.current });
         setValidationRequested(false);
         setValidationIssue(undefined);
-        form.resetFields();
-        form.setFieldsValue(savedData.current);
-        extendForm.resetFields();
-        extendForm.setFieldsValue({
-          submitterPermission: get(savedData.current, 'submitterPermission', false),
-        });
       }
       // FaFullContentModal first calls onOpenChange(false), then onCancel.
       // Keep controlled visibility until requestClose confirms discarding.
       if (nextOpen) setOpen(true);
     },
-    [extendForm, form, formInitialValues, item],
+    [item],
   );
 
   const dirty = flowSaveSnapshot(data) !== savedSnapshot;
@@ -322,6 +324,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
     <div className="fa-full-content fa-flex-column fa-bg-grey2 fa-flow-process-editor">
       <FaFlexRestLayout className="fa-full-content fa-flex-column fa-scroll-hidden" style={{ overflow: 'hidden' }}>
         <div
+          ref={initializeForm}
           className="fa-bg-white fa-mt12 fa-mb12 fa-radius"
           style={{
             display: current === 0 ? undefined : 'none',
@@ -388,6 +391,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
           </div>
         )}
         <div
+          ref={initializeExtendForm}
           className="fa-bg-white fa-mt12 fa-mb12 fa-radius"
           style={{
             display: current === 2 ? undefined : 'none',

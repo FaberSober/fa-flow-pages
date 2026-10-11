@@ -70,7 +70,6 @@ export default function FlowCatagoryModal({ children, title, record, fetchFinish
 
   function showModal() {
     setOpen(true)
-    form.setFieldsValue(getInitialValues())
   }
 
   const loading = useApiLoading([ api.getUrl('save'), api.getUrl('update')]);
@@ -84,13 +83,18 @@ export default function FlowCatagoryModal({ children, title, record, fetchFinish
       <DragModal
         title={title}
         open={open}
+        afterOpenChange={(nextOpen) => {
+          if (!nextOpen) return;
+          form.resetFields();
+          form.setFieldsValue(getInitialValues());
+        }}
         onOk={() => form.submit()}
         confirmLoading={loading}
         onCancel={() => setOpen(false)}
         width={700}
         {...props}
       >
-        <Form form={form} onFinish={onFinish} {...FaUtils.formItemFullLayout}>
+        <Form form={form} initialValues={getInitialValues()} onFinish={onFinish} {...FaUtils.formItemFullLayout}>
           <Form.Item name="parentId" label="上级节点" rules={[{ required: true }]}>
             <FlowCatagoryCascader showRoot />
           </Form.Item>
