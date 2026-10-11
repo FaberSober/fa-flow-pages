@@ -1,3 +1,4 @@
+import { MenuLayoutContext, TabLeaveContext } from '@features/fa-admin-pages/layout';
 import { Fa, FaFlexRestLayout, FaFullContentModal, FaUtils, useApiLoading } from '@fa/ui';
 import { FaWorkFlow } from '@features/fa-flow-pages/components';
 import { parseEditorModel, validateProcessModelContent, type ProcessModelIssue } from '@features/fa-flow-pages/components/flow/modelValidation';
@@ -42,6 +43,8 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
   const publishLock = useRef(false);
   const leaveConfirmOpen = useRef(false);
   const leaveScope = useContext(FlowLeaveContext);
+  const tabKey = useContext(TabLeaveContext);
+  const { registerTabLeaveGuard } = useContext(MenuLayoutContext);
   const [current, setCurrent] = useState(embedded ? 1 : 0);
   const [open, setOpen] = useState(false);
   const [designVisited, setDesignVisited] = useState(false);
@@ -179,6 +182,11 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
     if (!embedded || viewOnly || !leaveScope) return;
     return leaveScope.register(() => leaveGuardRef.current());
   }, [embedded, viewOnly, leaveScope]);
+
+  useEffect(() => {
+    if (viewOnly || (!embedded && !open) || !tabKey || !registerTabLeaveGuard) return;
+    return registerTabLeaveGuard(tabKey, () => leaveGuardRef.current());
+  }, [embedded, open, viewOnly, tabKey, registerTabLeaveGuard]);
 
   async function requestClose() {
     if (await confirmLeave()) handleClose();
