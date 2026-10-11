@@ -4,11 +4,13 @@ import { Fa, FaFlexRestLayout, FaFullContentModal, FaHref, FaUtils } from '@fa/u
 import { FaFormEditor } from '@features/fa-flow-pages/components';
 import { Button, Modal, Segmented, Space, Spin, message } from 'antd';
 import { cloneDeep, isEqual } from 'lodash';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { Flow } from '@/types';
 import FormTableEdit from '../cube/database/FormTableEdit';
 import TableShowDesign from '../cube/table/TableShowDesign';
 import FlowFormProcessManage from './FlowFormProcessManage';
+import { FlowLeaveContext } from '../../deploy/cube/FlowLeaveContext';
+import { createFlowLeaveScope } from '../../deploy/cube/flowLeaveScope';
 import { useFlowFormEditStore } from '../store/useFlowFormEditStore';
 
 
@@ -24,6 +26,11 @@ export interface FlowFormConfigDrawerProps {
 export default function FlowFormConfigDrawer({ itemId, refresh }: FlowFormConfigDrawerProps) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState('database');
+  const leaveScope = useMemo(() => createFlowLeaveScope(), []);
+
+  function changeTab(next: string) {
+    if (next !== tab) void leaveScope.run(() => setTab(next));
+  }
   const { flowForm, setFlowForm, clear } = useFlowFormEditStore()
 
   const [loading, setLoading] = useState(false);
@@ -66,13 +73,27 @@ export default function FlowFormConfigDrawer({ itemId, refresh }: FlowFormConfig
   }
 
   function handleClose() {
+    void leaveScope.run(confirmFormClose);
+  }
+
+  function confirmFormClose() {
     if (savingRef.current) return;
     const latest = useFlowFormEditStore.getState().flowForm;
     if (latest && (!isEqual(latest.config, savedConfig.current) || !isEqual(latest.tableConfig, savedTableConfig.current))) {
-      Modal.confirm({ title: '表单或列表配置有未保存的修改', content: '关闭会放弃本次表单和列表设计修改。已执行的数据库结构修改和同步不受影响。', okText: '放弃并关闭', cancelText: '继续编辑', onOk: closeModal });
-      return;
+      return new Promise<void>(resolve => {
+        Modal.confirm({
+          title: '表单或列表配置有未保存的修改',
+          content: '关闭会放弃本次表单和列表设计修改。已执行的数据库结构修改和同步不受影响。',
+          okText: '放弃并关闭',
+          cancelText: '继续编辑',
+          onOk: () => { closeModal(); resolve(); },
+          onCancel: () => { resolve(); },
+          afterClose: () => { resolve(); },
+        });
+      });
     }
     closeModal();
+    return undefined;
   }
 
   async function handleSave() {
@@ -117,7 +138,7 @@ export default function FlowFormConfigDrawer({ itemId, refresh }: FlowFormConfig
           ]}
           disabled={loading || saving || !flowForm}
           value={tab}
-          onChange={setTab}
+          onChange={value => changeTab(String(value))}
         />
       }
       headerExtra={
@@ -126,7 +147,7 @@ export default function FlowFormConfigDrawer({ itemId, refresh }: FlowFormConfig
             onClick={() => {
               const steps = ['database', 'form', 'table', 'process'];
               const currentIndex = steps.indexOf(tab);
-              if (currentIndex > 0) setTab(steps[currentIndex - 1]);
+              if (currentIndex > 0) changeTab(steps[currentIndex - 1]);
             }}
             disabled={loading || saving || !flowForm || tab === 'database'}
           >
@@ -136,7 +157,7 @@ export default function FlowFormConfigDrawer({ itemId, refresh }: FlowFormConfig
             onClick={() => {
               const steps = ['database', 'form', 'table', 'process'];
               const currentIndex = steps.indexOf(tab);
-              if (currentIndex < steps.length - 1) setTab(steps[currentIndex + 1]);
+              if (currentIndex < steps.length - 1) changeTab(steps[currentIndex + 1]);
             }}
             disabled={loading || saving || !flowForm || tab === 'process'}
           >
@@ -159,7 +180,7 @@ export default function FlowFormConfigDrawer({ itemId, refresh }: FlowFormConfig
               />
             )}
             {tab === 'table' && <TableShowDesign />}
-            {tab === 'process' && <FlowFormProcessManage flowForm={flowForm} />}
+            {tab === 'process' && <FlowLeaveContext.Provider value={leaveScope}><FlowFormProcessManage flowForm={flowForm} /></FlowLeaveContext.Provider>}
           </FaFlexRestLayout>
         </div>
       )}

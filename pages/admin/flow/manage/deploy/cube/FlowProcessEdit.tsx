@@ -8,12 +8,13 @@ import NodeConfigPanel from '@features/fa-flow-pages/components/flow/NodeConfigP
 import { flowProcessApi } from '@features/fa-flow-pages/services';
 import { Alert, Button, Checkbox, Form, Modal, message, Splitter, Steps, Typography, Tag, Tooltip } from 'antd';
 import { get } from 'lodash';
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Flow } from '@/types';
 import FlowProcessForm from './FlowProcessForm';
 import { flowSavePayload, flowSaveSnapshot } from './flowSaveSnapshot';
 import { FlowPublishError, publishFlow } from './flowPublish';
 import { protectFlowUnload } from './flowLeaveGuard';
+import { FlowLeaveContext } from './FlowLeaveContext';
 import FlowValidationPanel from './FlowValidationPanel';
 import './FlowProcessEdit.scss';
 
@@ -40,6 +41,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
   const [publishState, setPublishState] = useState<'idle' | 'saving' | 'deploying' | 'saveFailed' | 'deployFailed'>('idle');
   const publishLock = useRef(false);
   const leaveConfirmOpen = useRef(false);
+  const leaveScope = useContext(FlowLeaveContext);
   const [current, setCurrent] = useState(embedded ? 1 : 0);
   const [open, setOpen] = useState(false);
   const [designVisited, setDesignVisited] = useState(false);
@@ -143,28 +145,43 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
     return protectFlowUnload(window, () => saveLock.current || publishLock.current || flowSaveSnapshot(dataRef.current) !== flowSaveSnapshot(savedData.current));
   }, [embedded, open, viewOnly]);
 
-  function requestClose() {
+  async function confirmLeave(): Promise<boolean> {
     if (saveLock.current || publishLock.current) {
-      message.info('正在保存或发布，请稍候再关闭');
-      return;
+      message.info('正在保存或发布，请稍候再离开');
+      return false;
     }
-    if (leaveConfirmOpen.current) return;
-    if (viewOnly || flowSaveSnapshot(dataRef.current) === flowSaveSnapshot(savedData.current)) {
-      handleClose();
-      return;
-    }
+    if (leaveConfirmOpen.current) return false;
+    if (viewOnly || flowSaveSnapshot(dataRef.current) === flowSaveSnapshot(savedData.current)) return true;
     leaveConfirmOpen.current = true;
-    Modal.confirm({
-      title: '流程有未保存的修改',
-      content: '关闭会放弃未保存的修改，已保存的流程定义不受影响。',
-      okText: '放弃并关闭',
-      cancelText: '继续编辑',
-      afterClose: () => { leaveConfirmOpen.current = false; },
-      onOk: () => {
-        if (saveLock.current || publishLock.current) throw new Error('请等待保存或发布完成');
-        handleClose();
-      },
+    return new Promise(resolve => {
+      Modal.confirm({
+        title: '流程有未保存的修改',
+        content: '离开会放弃未保存的流程修改，已保存的流程定义不受影响。',
+        okText: '放弃并离开',
+        cancelText: '继续编辑',
+        afterClose: () => { leaveConfirmOpen.current = false; resolve(false); },
+        onCancel: () => { resolve(false); },
+        onOk: () => {
+          if (saveLock.current || publishLock.current) {
+            message.info('请等待保存或发布完成');
+            return Promise.reject(new Error('流程正在提交'));
+          }
+          resolve(true);
+          return undefined;
+        },
+      });
     });
+  }
+
+  const leaveGuardRef = useRef(confirmLeave);
+  leaveGuardRef.current = confirmLeave;
+  useEffect(() => {
+    if (!embedded || viewOnly || !leaveScope) return;
+    return leaveScope.register(() => leaveGuardRef.current());
+  }, [embedded, viewOnly, leaveScope]);
+
+  async function requestClose() {
+    if (await confirmLeave()) handleClose();
   }
 
   const saveStatus = saveState === 'saving' ? '保存中' : saveState === 'failed' ? '保存失败' : dirty ? '未保存' : '已保存';
