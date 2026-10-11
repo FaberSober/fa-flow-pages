@@ -40,6 +40,7 @@ export default function RouteNode({ routeNode, readOnly = false, onDel, onChange
       <div className='fa-p12 fa-flex-row-center fa-border-b fa-gap12'>
         <div>
           <Input
+            data-validation-field="nodeName"
             value={routeNode.nodeName}
             disabled={readOnly}
             onChange={e => handleChange('nodeName', e.target.value)}
@@ -47,6 +48,7 @@ export default function RouteNode({ routeNode, readOnly = false, onDel, onChange
           />
         </div>
         <TreeSelect
+          data-validation-field="nodeKey"
           style={{ minWidth: 170 }}
           treeData={treeData}
           treeDefaultExpandAll
@@ -93,16 +95,17 @@ export default function RouteNode({ routeNode, readOnly = false, onDel, onChange
                       <div key={idx} className="condition-content">
                         <div className="fa-flex-row" style={{ gap: 8 }}>
                           <div style={{ width: 60 }} className="fa-flex-center">{idx === 0 ? '当' : '且'}</div>
-                          <Input disabled={readOnly} style={{ flex: 1 }} value={condition.label} placeholder="描述" onChange={e => {
+                          <Input data-validation-field={`conditionList[${conditionGroupIdx}][${idx}].label`} disabled={readOnly} style={{ flex: 1 }} value={condition.label} placeholder="描述" onChange={e => {
                             handleChange(`conditionList[${conditionGroupIdx}][${idx}].label`, e.target.value)
                           }} />
-                          <Input disabled={readOnly} style={{ flex: 1 }} value={condition.field} placeholder="条件字段" onChange={e => {
+                          <Input data-validation-field={`conditionList[${conditionGroupIdx}][${idx}].field`} disabled={readOnly} style={{ flex: 1 }} value={condition.field} placeholder="条件字段" onChange={e => {
                             handleChange(`conditionList[${conditionGroupIdx}][${idx}].field`, e.target.value)
                           }} />
                           <Select
                             disabled={readOnly}
                             style={{ flex: 1 }}
-                            value={condition.operator}
+                            data-validation-field={`conditionList[${conditionGroupIdx}][${idx}].operator`}
+                                  value={condition.operator}
                             onChange={(v) => handleChange(`conditionList[${conditionGroupIdx}][${idx}].operator`, v)}
                             options={[
                               { value: '==', label: '等于' },
@@ -116,7 +119,7 @@ export default function RouteNode({ routeNode, readOnly = false, onDel, onChange
                             ]}
                             placeholder="运算符"
                           />
-                          <Input disabled={readOnly} style={{ flex: 1 }} value={condition.value} placeholder="值" onChange={e => {
+                          <Input data-validation-field={`conditionList[${conditionGroupIdx}][${idx}].value`} disabled={readOnly} style={{ flex: 1 }} value={condition.value} placeholder="值" onChange={e => {
                             handleChange(`conditionList[${conditionGroupIdx}][${idx}].value`, e.target.value)
                           }} />
 

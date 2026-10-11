@@ -64,6 +64,22 @@ export default function useZoomPan({ minZoom = 0.1, maxZoom = 4, step = 0.1 }: Z
 
   const zoomBy = useCallback((direction: number) => setZoom(viewRef.current.zoom + direction * step), [setZoom, step]);
 
+  const focusElement = useCallback((element: HTMLElement) => {
+    const root = contentRef.current;
+    if (!root) return;
+    let x = 0;
+    let y = 0;
+    let current: HTMLElement | null = element;
+    while (current && current !== root) {
+      x += current.offsetLeft;
+      y += current.offsetTop;
+      current = current.offsetParent as HTMLElement | null;
+    }
+    const { viewport } = dimensionsRef.current;
+    const zoom = viewRef.current.zoom;
+    commitView({ zoom, offset: { x: viewport.width / 2 - (x + element.offsetWidth / 2) * zoom, y: viewport.height / 2 - (y + element.offsetHeight / 2) * zoom } });
+  }, [commitView]);
+
   useLayoutEffect(() => {
     const container = containerRef.current;
     const content = contentRef.current;
@@ -248,5 +264,5 @@ export default function useZoomPan({ minZoom = 0.1, maxZoom = 4, step = 0.1 }: Z
     [],
   );
 
-  return { containerRef, contentRef, ...view, ...dimensions, isDragging, isSpacePressed, setOffset, setZoom, zoomBy, resetView };
+  return { containerRef, contentRef, ...view, ...dimensions, isDragging, isSpacePressed, setOffset, setZoom, zoomBy, resetView, focusElement };
 }

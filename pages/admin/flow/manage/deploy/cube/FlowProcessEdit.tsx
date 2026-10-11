@@ -1,13 +1,15 @@
 import { Fa, FaFlexRestLayout, FaFullContentModal, FaUtils, useApiLoading } from '@fa/ui';
 import { FaWorkFlow } from '@features/fa-flow-pages/components';
-import { validateProcessModelContent } from '@features/fa-flow-pages/components/flow/modelValidation';
+import { parseEditorModel, validateProcessModelContent, type ProcessModelIssue } from '@features/fa-flow-pages/components/flow/modelValidation';
+import type { Flw } from '@features/fa-flow-pages/types';
 import NodeConfigPanel from '@features/fa-flow-pages/components/flow/NodeConfigPanel';
 import { flowProcessApi } from '@features/fa-flow-pages/services';
-import { Button, Checkbox, Form, Modal, message, Splitter, Steps, Typography } from 'antd';
+import { Alert, Button, Checkbox, Form, Modal, message, Splitter, Steps, Typography } from 'antd';
 import { get } from 'lodash';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Flow } from '@/types';
 import FlowProcessForm from './FlowProcessForm';
+import FlowValidationPanel from './FlowValidationPanel';
 import './FlowProcessEdit.scss';
 
 const { Text } = Typography;
@@ -26,6 +28,12 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
   const [data, setData] = useState({ ...item });
   const [current, setCurrent] = useState(embedded ? 1 : 0);
   const [open, setOpen] = useState(false);
+  const [validationRequested, setValidationRequested] = useState(false);
+  const [validationIssue, setValidationIssue] = useState<ProcessModelIssue>();
+  const dataRef = useRef(data);
+  dataRef.current = data;
+  const editorModel = useMemo(() => parseEditorModel(data.modelContent), [data.modelContent]);
+  const validation = useMemo(() => validationRequested ? validateProcessModelContent(data.modelContent, data.processKey) : undefined, [validationRequested, data.modelContent, data.processKey]);
   const [form] = Form.useForm();
   const [extendForm] = Form.useForm();
   const publishConfirmOpen = useRef(false);
@@ -38,6 +46,8 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
 
   useEffect(() => {
     setData({ ...item });
+    setValidationRequested(false);
+    setValidationIssue(undefined);
     // 设置扩展配置表单数据
     extendForm.setFieldsValue({
       submitterPermission: get(item, 'submitterPermission', false),
@@ -66,6 +76,8 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
       if (nextOpen) {
         setCurrent(0);
         setData({ ...item });
+        setValidationRequested(false);
+        setValidationIssue(undefined);
         form.resetFields();
         form.setFieldsValue(formInitialValues);
         extendForm.resetFields();
@@ -90,12 +102,15 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
 
       // 组合所有数据
       const publishData = {
-        ...data,
+        ...dataRef.current,
         ...formValues,
         ...extendValues,
       };
 
       const modelValidation = validateProcessModelContent(publishData.modelContent, publishData.processKey);
+      setData(publishData);
+      setValidationRequested(true);
+      setValidationIssue(undefined);
       if (!modelValidation.valid) {
         publishConfirmOpen.current = false;
         setCurrent(1);
@@ -137,6 +152,23 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
     }
   }
 
+  function handleValidate() {
+    setData({ ...dataRef.current, ...form.getFieldsValue(), ...extendForm.getFieldsValue() });
+    setValidationRequested(true);
+    setValidationIssue(undefined);
+    setCurrent(1);
+  }
+
+  function locateIssue(issue: ProcessModelIssue) {
+    if (!issue.nodeKey && ['key', 'name'].includes(issue.path)) {
+      setCurrent(0);
+      message.info(issue.message);
+      return;
+    }
+    setCurrent(1);
+    setValidationIssue({ ...issue });
+  }
+
   const editorContent = (
     <div className="fa-full-content fa-flex-column fa-bg-grey2 fa-flow-process-editor">
       <FaFlexRestLayout className="fa-full-content fa-flex-column fa-scroll-hidden" style={{ overflow: 'hidden' }}>
@@ -165,22 +197,39 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
           />
         </div>
         {current === 1 && (
-          <Splitter className="fa-full-content fa-flow-design-splitter" style={{ minWidth: 0, minHeight: 0 }}>
-            <Splitter.Panel>
-              <FaWorkFlow
-                flowProcess={data}
-                readOnly={viewOnly}
-                processModel={JSON.parse(data.modelContent)}
-                onChange={(v) => setData((prev) => ({ ...prev, modelContent: JSON.stringify(v) }))}
-              />
-            </Splitter.Panel>
-            <Splitter.Panel defaultSize={520} min={320} max="45%" collapsible>
-              <div className="fa-full fa-flex-column fa-p12 fa-flow-node-config-panel">
-                <div className="fa-h3 fa-mb12 fa-flow-node-config-title">节点配置</div>
-                <NodeConfigPanel />
-              </div>
-            </Splitter.Panel>
-          </Splitter>
+          editorModel.error ? (
+            <div className="fa-p12">
+              {validation && <FlowValidationPanel result={validation} onLocate={locateIssue} />}
+              <Alert type="error" showIcon title="无法展示流程设计" description={editorModel.error} />
+            </div>
+          ) : (
+            <div className="fa-flex-1 fa-relative" style={{ minWidth: 0, minHeight: 0 }}>
+              <Splitter className="fa-full-content fa-flow-design-splitter" style={{ minWidth: 0, minHeight: 0 }}>
+                <Splitter.Panel>
+                  <div className="fa-full fa-relative">
+                    <FaWorkFlow
+                      flowProcess={data}
+                      readOnly={viewOnly}
+                      processModel={editorModel.model as unknown as Flw.ProcessModel}
+                      validationIssue={validationIssue}
+                      onChange={(v) => setData((prev) => ({ ...prev, modelContent: JSON.stringify(v) }))}
+                    />
+                    {validation && (
+                      <div className="fa-flow-validation-overlay">
+                        <FlowValidationPanel result={validation} onLocate={locateIssue} />
+                      </div>
+                    )}
+                  </div>
+                </Splitter.Panel>
+                <Splitter.Panel defaultSize={520} min={320} max="45%" collapsible>
+                  <div className="fa-full fa-flex-column fa-p12 fa-flow-node-config-panel">
+                    <div className="fa-h3 fa-mb12 fa-flow-node-config-title">节点配置</div>
+                    <NodeConfigPanel validationIssue={validationIssue} onCancelLocate={() => setValidationIssue(undefined)} />
+                  </div>
+                </Splitter.Panel>
+              </Splitter>
+            </div>
+          )
         )}
         <div
           className="fa-bg-white fa-mt12 fa-mb12 fa-radius"
@@ -240,6 +289,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
               items={[{ title: '基础信息' }, { title: '流程设计' }, { title: '扩展配置' }]}
             />
           </div>
+          <Button onClick={handleValidate} disabled={loading}>校验流程</Button>
           <Button onClick={handlePublish} type="primary" loading={loading}>
             发布
           </Button>
@@ -270,6 +320,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
       }
       headerExtra={
         <>
+          <Button onClick={handleValidate} disabled={loading}>校验流程</Button>
           <Button onClick={handlePublish} type="primary" loading={loading}>
             发布
           </Button>

@@ -1,5 +1,7 @@
 import { Flw, FlwEnums } from '@features/fa-flow-pages/types';
-import { Empty, Input, Tag } from 'antd';
+import { Alert, Empty, Input, Tag } from 'antd';
+import { useEffect, useRef } from 'react';
+import { issueConfigTab, type ProcessModelIssue } from './modelValidation';
 import { findNodeContextByKey, type NodeLookupContext } from './nodeLookup';
 import {
   Approver,
@@ -17,7 +19,7 @@ import { useWorkFlowStore } from './stores/useWorkFlowStore';
 
 const emptyConfig = <div className="fa-p12 fa-text-light100">当前节点暂无其他配置</div>;
 
-function renderNodeConfig({ node, parentNode, branchKind }: NodeLookupContext) {
+function renderNodeConfig({ node, parentNode, branchKind }: NodeLookupContext, issue?: ProcessModelIssue) {
   const key = node.nodeKey;
 
   if (branchKind === 'condition') {
@@ -64,7 +66,7 @@ function renderNodeConfig({ node, parentNode, branchKind }: NodeLookupContext) {
     case FlwEnums.NodeType.major:
       return <Promoter key={key} node={node} configOnly />;
     case FlwEnums.NodeType.approval:
-      return <Approver key={key} node={node} parentNode={node} configOnly />;
+      return <Approver key={key} node={node} parentNode={node} configOnly configTab={issueConfigTab(issue?.fieldPath)} focusIssue={issue} />;
     case FlwEnums.NodeType.cc:
       return <Send key={key} node={node} parentNode={node} configOnly />;
     case FlwEnums.NodeType.conditionBranch:
@@ -125,7 +127,8 @@ function renderNodeConfig({ node, parentNode, branchKind }: NodeLookupContext) {
   }
 }
 
-export default function NodeConfigPanel() {
+export default function NodeConfigPanel({ validationIssue, onCancelLocate }: { validationIssue?: ProcessModelIssue; onCancelLocate?: () => void }) {
+  const panelRef = useRef<HTMLDivElement>(null);
   const selectedNodeKey = useWorkFlowStore(state => state.selectedNodeKey);
   const processModel = useWorkFlowStore(state => state.processModel);
   const updateNodeProps = useWorkFlowStore(state => state.updateNodeProps);
@@ -133,6 +136,31 @@ export default function NodeConfigPanel() {
   const nodeContext = selectedNodeKey && processModel?.nodeConfig
     ? findNodeContextByKey(processModel.nodeConfig, selectedNodeKey)
     : undefined;
+
+  const activeIssue = validationIssue?.nodeKey === selectedNodeKey ? validationIssue : undefined;
+  useEffect(() => {
+    if (!activeIssue?.fieldPath) return;
+    let highlighted: Element | null | undefined;
+    const frame = requestAnimationFrame(() => {
+      const field = activeIssue.fieldPath!;
+      const aliases: Record<string, string> = { nodeName: 'flow-node-name', nodeAssigneeList: 'nodeAssigneeIds', nodeCandidate: 'nodeCandidateIds', 'extendConfig.nodeAssigneeCodePath': 'nodeAssigneeCodePath', 'extendConfig.time': 'timeNum' };
+      const fieldName = aliases[field] ?? aliases[field.split(/[.[]/)[0]] ?? field;
+      const fields = panelRef.current?.querySelectorAll<HTMLElement>('[id], [data-validation-field]');
+      const element = Array.from(fields ?? []).find(item => {
+        const prefix = item.closest<HTMLElement>('[data-validation-path]')?.dataset.validationPath;
+        const path = prefix ? `${prefix}.${item.dataset.validationField}` : item.dataset.validationField;
+        return path === field || item.id === fieldName || item.id.endsWith(`_${fieldName}`);
+      })
+        ?? (field === 'extendConfig.time' ? panelRef.current?.querySelector<HTMLElement>('[id$="timeCal"]') : undefined);
+      if (element) {
+        highlighted = element.closest('.ant-form-item, .condition-content') ?? element;
+        highlighted.classList.add('fa-flow-validation-field');
+        highlighted.scrollIntoView({ block: 'nearest' });
+        (element.matches('input, textarea') ? element : element.querySelector<HTMLElement>('input, textarea, [role="combobox"]') ?? element).focus({ preventScroll: true });
+      }
+    });
+    return () => { cancelAnimationFrame(frame); highlighted?.classList.remove('fa-flow-validation-field'); };
+  }, [activeIssue]);
 
   if (!nodeContext) {
     return <div className="fa-flex-1 fa-flex-center"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="选择画布节点，或点击连线上的 + 添加节点" /></div>;
@@ -144,7 +172,7 @@ export default function NodeConfigPanel() {
     : FlwEnums.NodeTypeMap[node.type];
 
   return (
-    <div className="fa-flex-1 fa-flex-column" style={{ minWidth: 0, minHeight: 0 }}>
+    <div ref={panelRef} className="fa-flex-1 fa-flex-column" style={{ minWidth: 0, minHeight: 0 }}>
       <div className="fa-flow-config-header">
         <div className="fa-flow-config-type"><Tag color="processing">{typeName || '节点配置'}</Tag><span>{readOnly ? '只读查看' : '修改会实时应用到画布'}</span></div>
         <label htmlFor="flow-node-name">节点名称</label>
@@ -156,8 +184,9 @@ export default function NodeConfigPanel() {
           onChange={event => updateNodeProps(node, 'nodeName', event.target.value)}
         />
       </div>
+      {activeIssue?.fieldPath && <Alert type="info" showIcon title={`定位字段：${activeIssue.fieldPath}`} closable onClose={onCancelLocate} className="fa-mb12" />}
       <div className={`fa-flex-1 fa-flow-config-content${hasTabs ? ' fa-flow-config-content-tabs' : ''}`}>
-        {renderNodeConfig(nodeContext)}
+        {renderNodeConfig(nodeContext, activeIssue)}
       </div>
     </div>
   );

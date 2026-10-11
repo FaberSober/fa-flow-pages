@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
 import { MinusOutlined, PlusOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { Button, Popover, Space, theme } from 'antd';
 import useZoomPan, { type ZoomPanOptions } from '../hooks/useZoomPan';
@@ -14,6 +14,7 @@ interface ZoomPanEditorProps extends ZoomPanOptions {
   toolbar?: ReactNode;
   leftTop?: ReactNode;
   getMinimapShapes?: (root: HTMLElement) => MinimapShape[];
+  focusRequest?: { nodeKey?: string };
 }
 
 export default function ZoomPanEditor({
@@ -23,12 +24,19 @@ export default function ZoomPanEditor({
   toolbar,
   leftTop,
   getMinimapShapes,
+  focusRequest,
   ...options
 }: ZoomPanEditorProps) {
   const { token } = theme.useToken();
   const controller = useZoomPan(options);
   const { containerRef, contentRef, zoom, offset, viewport, content, isDragging, isSpacePressed, setOffset, setZoom, zoomBy, resetView } = controller;
   const shapes = useMinimapShapes(contentRef, getMinimapShapes);
+  useLayoutEffect(() => {
+    if (!focusRequest?.nodeKey) return;
+    const nodes = contentRef.current?.querySelectorAll<HTMLElement>('[data-flow-node-key]');
+    const node = Array.from(nodes ?? []).find(element => element.dataset.flowNodeKey === focusRequest.nodeKey);
+    if (node) controller.focusElement(node.querySelector<HTMLElement>('.node-wrap-box') ?? node);
+  }, [focusRequest, contentRef, controller.focusElement]);
   const mapSize = { width: Math.max(80, Math.min(miniMapWidth, viewport.width - 24)), height: Math.max(60, Math.min(miniMapHeight, viewport.height / 3)) };
   const map = getMinimap({ zoom, offset }, viewport, content, mapSize);
   const miniDrag = useRef<{ id: number; grab: Point; map: typeof map; zoom: number } | null>(null);

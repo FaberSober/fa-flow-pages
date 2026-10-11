@@ -4,6 +4,76 @@
   overflow: hidden;
 }
 
+.fa-flow-validation-panel {
+  border-radius: 10px;
+  border-color: var(--fa-border-color);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
+  .ant-card-head { min-height: 44px; }
+  .ant-card-extra .ant-tag { margin-inline-end: 0; }
+}
+
+.fa-flow-validation-overlay {
+  position: absolute;
+  z-index: 3;
+  top: 56px;
+  right: 12px;
+  width: 320px;
+  max-width: calc(100% - 24px);
+  max-height: calc(100% - 112px);
+  overflow: auto;
+  border-radius: 10px;
+}
+
+.fa-flow-validation-title { display: flex; align-items: center; gap: 8px; }
+.fa-flow-validation-success { color: var(--ant-color-success, #52c41a); }
+.fa-flow-validation-error { color: var(--ant-color-error, #ff4d4f); }
+.fa-flow-validation-description { font-size: 12px; }
+
+.fa-flow-validation-field {
+  outline: 2px solid var(--ant-color-primary, #1677ff);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.fa-flow-validation-list {
+  max-height: 420px;
+  overflow: auto;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--fa-text-color);
+  li + li { border-top: 1px solid var(--fa-border-color); }
+}
+
+.fa-flow-validation-item.ant-btn {
+  height: auto;
+  justify-content: space-between;
+  text-align: left;
+  white-space: normal;
+  padding: 6px 4px;
+  gap: 8px;
+  > span { overflow-wrap: anywhere; }
+}
+
+.fa-flow-validation-item-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+.fa-flow-validation-item-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  > span:first-child { max-width: 90px; flex-shrink: 0; }
+  > span:last-child { flex: 1; min-width: 0; font-size: 12px; }
+}
+.fa-flow-validation-path { font-size: 11px; line-height: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fa-flow-validation-arrow { flex-shrink: 0; opacity: .45; }
+
 .fa-flow-design-splitter {
   min-width: 0;
   min-height: 0;

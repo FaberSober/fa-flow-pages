@@ -55,6 +55,11 @@ test('mount, remount and viewport resizing commit fitted coordinates before any 
       assert.deepEqual(writes.at(-1), { zoom: 1, offset: { x: 500, y: 150 } });
       assert.equal(frames.size, 0, 'layout commit cancels stale input frames');
 
+      controller.focusElement({ offsetLeft: 20, offsetTop: 40, offsetWidth: 200, offsetHeight: 80, offsetParent: controller.contentRef.current });
+      assert.deepEqual(writes.at(-1), { zoom: 1, offset: { x: 480, y: 270 } }, 'issue navigation centres the actual card');
+      assert.equal(frames.size, 0, 'issue navigation commits before paint');
+      controller.resetView();
+
       for (const offset of [{ x: -100000, y: -100000 }, { x: 100000, y: 100000 }]) {
         controller.setOffset(offset);
         for (const callback of frames.values()) callback();

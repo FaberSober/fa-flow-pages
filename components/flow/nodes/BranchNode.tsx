@@ -104,14 +104,15 @@ export default function BranchNode({ node, elseNode, onDel, conditionText, confi
                             <div key={idx} className="condition-content">
                               <div className="fa-flex-row" style={{ gap: 8 }}>
                                 <div style={{ width: 60 }} className="fa-flex-center">{idx === 0 ? '当' : '且'}</div>
-                                <Input style={{ flex: 1 }} value={condition.label} placeholder="描述" onChange={e => {
+                                <Input data-validation-field={`conditionList[${conditionGroupIdx}][${idx}].label`} style={{ flex: 1 }} value={condition.label} placeholder="描述" onChange={e => {
                                   updateNodeProps(node, `conditionList[${conditionGroupIdx}][${idx}].label`, e.target.value)
                                 }} />
-                                <Input style={{ flex: 1 }} value={condition.field} placeholder="条件字段" onChange={e => {
+                                <Input data-validation-field={`conditionList[${conditionGroupIdx}][${idx}].field`} style={{ flex: 1 }} value={condition.field} placeholder="条件字段" onChange={e => {
                                   updateNodeProps(node, `conditionList[${conditionGroupIdx}][${idx}].field`, e.target.value)
                                 }} />
                                 <Select
                                   style={{ flex: 1 }}
+                                  data-validation-field={`conditionList[${conditionGroupIdx}][${idx}].operator`}
                                   value={condition.operator}
                                   onChange={(v) => updateNodeProps(node, `conditionList[${conditionGroupIdx}][${idx}].operator`, v)}
                                   options={[
@@ -126,7 +127,7 @@ export default function BranchNode({ node, elseNode, onDel, conditionText, confi
                                   ]}
                                   placeholder="运算符"
                                 />
-                                <Input style={{ flex: 1 }} value={condition.value} placeholder="值" onChange={e => {
+                                <Input data-validation-field={`conditionList[${conditionGroupIdx}][${idx}].value`} style={{ flex: 1 }} value={condition.value} placeholder="值" onChange={e => {
                                   updateNodeProps(node, `conditionList[${conditionGroupIdx}][${idx}].value`, e.target.value)
                                 }} />
 

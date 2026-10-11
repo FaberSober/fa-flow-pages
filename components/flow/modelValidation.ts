@@ -10,6 +10,7 @@ const NODE_SET_TYPE = {
   supervisor: 2,
   role: 3,
   initiatorSelected: 4,
+  initiatorThemselves: 5,
   multiLevelSupervisors: 6,
   department: 7,
   designatedCandidate: 8,
@@ -45,6 +46,38 @@ interface ValidationContext {
 export interface ProcessModelValidationResult {
   valid: boolean;
   errors: string[];
+  issues: ProcessModelIssue[];
+}
+
+export interface ProcessModelIssue {
+  path: string;
+  message: string;
+  nodeKey?: string;
+  nodeName?: string;
+  fieldPath?: string;
+}
+
+function validationResult(model: unknown, errors: string[]): ProcessModelValidationResult {
+  const issues = errors.map(error => {
+    const separator = error.indexOf('：');
+    const path = separator < 0 ? '' : error.slice(0, separator);
+    const issue: ProcessModelIssue = { path, message: separator < 0 ? error : error.slice(separator + 1) };
+    let value: unknown = model;
+    let nodePath = '';
+    let currentPath = '';
+    for (const part of path.match(/[^.[\]]+/g) ?? []) {
+      currentPath += /^\d+$/.test(part) ? `[${part}]` : `${currentPath ? '.' : ''}${part}`;
+      value = isObject(value) || Array.isArray(value) ? (value as JsonObject)[part] : undefined;
+      if (isObject(value) && typeof value.nodeKey === 'string' && !/\.routeNodes\[\d+\]$/.test(currentPath)) {
+        issue.nodeKey = value.nodeKey;
+        issue.nodeName = typeof value.nodeName === 'string' ? value.nodeName : undefined;
+        nodePath = currentPath;
+      }
+    }
+    if (nodePath) issue.fieldPath = path.slice(nodePath.length + 1);
+    return issue;
+  });
+  return { valid: errors.length === 0, errors, issues };
 }
 
 function isObject(value: unknown): value is JsonObject {
@@ -95,10 +128,10 @@ function validateConditionList(value: unknown, path: string, required: boolean, 
         addError(context.errors, expressionPath, '条件必须是对象');
         return;
       }
-      if (!text(expression.field)) addError(context.errors, expressionPath, '条件字段不能为空');
-      if (!text(expression.operator)) addError(context.errors, expressionPath, '条件操作符不能为空');
+      if (!text(expression.field)) addError(context.errors, `${expressionPath}.field`, '条件字段不能为空');
+      if (!text(expression.operator)) addError(context.errors, `${expressionPath}.operator`, '条件操作符不能为空');
       if (expression.value === undefined || expression.value === null || text(expression.value) === '') {
-        addError(context.errors, expressionPath, '条件值不能为空');
+        addError(context.errors, `${expressionPath}.value`, '条件值不能为空');
       }
     });
   });
@@ -290,7 +323,7 @@ function visitNode(node: JsonObject, path: string, context: ValidationContext, r
 
 export function validateProcessModel(model: unknown, expectedProcessKey?: string): ProcessModelValidationResult {
   const errors: string[] = [];
-  if (!isObject(model)) return { valid: false, errors: ['流程模型必须是对象'] };
+  if (!isObject(model)) return validationResult(model, ['流程模型必须是对象']);
 
   const modelKey = text(model.key);
   const modelName = text(model.name);
@@ -306,14 +339,40 @@ export function validateProcessModel(model: unknown, expectedProcessKey?: string
     if (!context.nodeKeys.has(reference.target)) addError(errors, reference.path, `路由目标不存在：${reference.target}`);
   }
 
-  return { valid: errors.length === 0, errors };
+  return validationResult(model, errors);
 }
 
 export function validateProcessModelContent(content: unknown, expectedProcessKey?: string): ProcessModelValidationResult {
-  if (typeof content !== 'string' || !content.trim()) return { valid: false, errors: ['流程模型内容不能为空'] };
+  if (typeof content !== 'string' || !content.trim()) return validationResult(undefined, ['流程模型内容不能为空']);
   try {
     return validateProcessModel(JSON.parse(content), expectedProcessKey);
   } catch {
-    return { valid: false, errors: ['流程模型不是有效 JSON'] };
+    return validationResult(undefined, ['流程模型不是有效 JSON']);
   }
+}
+
+/** Parse only renderable tree shapes; incomplete business configuration stays editable. */
+export function parseEditorModel(content: string): { model?: JsonObject; error?: string } {
+  function renderable(node: unknown, route = false): boolean {
+    if (!isObject(node) || typeof node.nodeName !== 'string' || (!route && typeof node.nodeKey !== 'string') || integer(node.type) === undefined) return false;
+    if (node.childNode !== undefined && !renderable(node.childNode)) return false;
+    for (const key of ['conditionNodes', 'parallelNodes', 'inclusiveNodes', 'routeNodes']) {
+      if (node[key] !== undefined && (!Array.isArray(node[key]) || !(node[key] as unknown[]).every(child => renderable(child, key === 'routeNodes')))) return false;
+    }
+    if (node.conditionList !== undefined && (!Array.isArray(node.conditionList) || !node.conditionList.every(group => Array.isArray(group) && group.every(isObject)))) return false;
+    if (node.nodeAssigneeList !== undefined && (!Array.isArray(node.nodeAssigneeList) || !node.nodeAssigneeList.every(isObject))) return false;
+    if (node.extendConfig !== undefined && (!isObject(node.extendConfig) || (node.extendConfig.time !== undefined && typeof node.extendConfig.time !== 'string'))) return false;
+    if (node.callProcess !== undefined && typeof node.callProcess !== 'string') return false;
+    return true;
+  }
+  try {
+    const model: unknown = JSON.parse(content);
+    return isObject(model) && renderable(model.nodeConfig) ? { model } : { error: '流程模型结构无效，请修正模型数据后重新打开' };
+  } catch {
+    return { error: '流程模型不是有效 JSON，请修正模型数据后重新打开' };
+  }
+}
+
+export function issueConfigTab(fieldPath?: string): 'basic' | 'rule' {
+  return /^(examineMode|passWeight|groupStrategy|termAuto|term|termMode|remind|approveSelf|rejectStrategy|rejectStart)(\.|\[|$)/.test(fieldPath ?? '') ? 'rule' : 'basic';
 }

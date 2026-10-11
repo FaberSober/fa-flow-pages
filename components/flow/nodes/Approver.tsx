@@ -3,7 +3,8 @@ import { FaFlexRestLayout } from '@fa/ui';
 import AddNode from "@features/fa-flow-pages/components/flow/nodes/AddNode";
 import { Flw, FlwEnums } from "@features/fa-flow-pages/types";
 import { Tabs } from "antd";
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { ProcessModelIssue } from '../modelValidation';
 import { useDelNode } from "../hooks";
 import ApproverNodeBasicForm from './property/ApproverNodeBasicForm';
 import ApproverNodeRuleForm from './property/ApproverNodeRuleForm';
@@ -17,10 +18,15 @@ const { NodeSetType } = FlwEnums;
  */
 interface ApproverProps extends Flw.BasicNodeProps {
   configOnly?: boolean;
+  configTab?: 'basic' | 'rule';
+  focusIssue?: ProcessModelIssue;
 }
 
-export default function Approver({ node, parentNode, configOnly }: ApproverProps) {
-  const [tab, setTab] = useState('basic');
+export default function Approver({ node, parentNode, configOnly, configTab = 'basic', focusIssue }: ApproverProps) {
+  const [tab, setTab] = useState<string>(configTab);
+  useEffect(() => {
+    if (focusIssue) setTab(configTab);
+  }, [focusIssue, configTab]);
 
   const { delNode } = useDelNode(node, parentNode);
 

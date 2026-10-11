@@ -67,7 +67,7 @@ export default function Route({ node, parentNode, configOnly }: RouteProps) {
       <div className="fa-flex-column fa-gap12">
         {node.routeNodes && node.routeNodes.map((routeNode, index) => {
           return (
-            <div key={index}>
+            <div key={index} data-validation-path={`routeNodes[${index}]`}>
               <RouteNode routeNode={routeNode} readOnly={readOnly} onDel={() => handleDelRoute(index)} onChange={(v) => handleRouteNodeChange(index, v)} />
             </div>
           )

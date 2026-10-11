@@ -11,6 +11,7 @@ import JsonView from '@uiw/react-json-view';
 import { lightTheme } from '@uiw/react-json-view/light';
 import { darkTheme } from '@uiw/react-json-view/dark';
 import { getFlowMinimapShapes } from './utils/flowMinimap';
+import type { ProcessModelIssue } from './modelValidation';
 
 
 export interface FaWorkFlowProps {
@@ -25,6 +26,7 @@ export interface FaWorkFlowProps {
   showLegends?: boolean;
   /** 是否只读 */
   readOnly?: boolean;
+  validationIssue?: ProcessModelIssue;
 }
 
 /**
@@ -32,7 +34,7 @@ export interface FaWorkFlowProps {
  * @author xu.pengfei
  * @date 2025/8/19 17:34
  */
-export default function FaWorkFlow({ flowProcess, processModel, onChange, renderNodes, showLegends, readOnly = false }: FaWorkFlowProps) {
+export default function FaWorkFlow({ flowProcess, processModel, onChange, renderNodes, showLegends, readOnly = false, validationIssue }: FaWorkFlowProps) {
   const { themeDark } = useContext(ThemeLayoutContext);
   const { token } = theme.useToken();
   // 从 Store 中获取设置方法和流程数据
@@ -61,6 +63,10 @@ export default function FaWorkFlow({ flowProcess, processModel, onChange, render
   }, [processModel]);
 
   useEffect(() => {
+    if (validationIssue?.nodeKey) useWorkFlowStore.getState().selectNode(validationIssue.nodeKey);
+  }, [validationIssue]);
+
+  useEffect(() => {
     setRenderNodes(renderNodes||{})
   }, [renderNodes]);
 
@@ -81,6 +87,7 @@ export default function FaWorkFlow({ flowProcess, processModel, onChange, render
 
   return (
     <ZoomPanEditor
+      focusRequest={validationIssue}
       getMinimapShapes={getFlowMinimapShapes}
       leftTop={showLegends && (
         <Space className="fa-flex-row">
