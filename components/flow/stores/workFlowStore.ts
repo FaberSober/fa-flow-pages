@@ -22,8 +22,19 @@ interface HistorySnapshot {
 }
 const HISTORY_LIMIT = 50;
 
+export interface NavigationViewState {
+  open: boolean;
+  query: string;
+  expandedKeys: string[];
+  showMinimap: boolean;
+  syncedSelection?: string;
+}
+const initialNavigationView = (): NavigationViewState => ({ open: false, query: '', expandedKeys: [], showMinimap: true });
+
 // 1. 定义状态和方法结构
 export interface WorkFlowState {
+  navigationView: NavigationViewState;
+  setNavigationView: (patch: Partial<NavigationViewState>) => void;
   historyPast: HistorySnapshot[];
   historyFuture: HistorySnapshot[];
   modelRevision: number;
@@ -113,6 +124,10 @@ export const createWorkFlowStore = (initial: Partial<Pick<WorkFlowState, 'flowPr
       historyPast: [],
       historyFuture: [],
       modelRevision: 0,
+      navigationView: initialNavigationView(),
+      setNavigationView: patch => set(state => {
+        Object.assign(state.navigationView, patch);
+      }),
       undo: () => restore('undo'),
       redo: () => restore('redo'),
 
@@ -272,6 +287,7 @@ export const createWorkFlowStore = (initial: Partial<Pick<WorkFlowState, 'flowPr
           modelRevision: get().modelRevision + 1,
           lastHistoryEdit: undefined,
           historyConfigFocus: undefined,
+          navigationView: initialNavigationView(),
         });
       },
       };

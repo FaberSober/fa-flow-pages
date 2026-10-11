@@ -15,6 +15,8 @@ interface ZoomPanEditorProps extends ZoomPanOptions {
   leftTop?: ReactNode;
   getMinimapShapes?: (root: HTMLElement) => MinimapShape[];
   focusRequest?: { nodeKey?: string; group?: boolean };
+  showMinimap?: boolean;
+  onMinimapChange?: (show: boolean) => void;
 }
 
 export default function ZoomPanEditor({
@@ -25,6 +27,8 @@ export default function ZoomPanEditor({
   leftTop,
   getMinimapShapes,
   focusRequest,
+  showMinimap = true,
+  onMinimapChange,
   ...options
 }: ZoomPanEditorProps) {
   const { token } = theme.useToken();
@@ -55,7 +59,7 @@ export default function ZoomPanEditor({
       reset();
       window.removeEventListener('blur', reset);
     };
-  }, []);
+  }, [showMinimap]);
   const ready = content.width > 0 && content.height > 0;
   const projection = useMemo(
     () =>
@@ -145,7 +149,7 @@ export default function ZoomPanEditor({
           <Button aria-label="画布操作帮助" icon={<QuestionCircleOutlined />} />
         </Popover>
       </Space>
-      <Space className="fa-zoom-pan-controls" size={4} role="group" aria-label="画布缩放">
+      <Space className="fa-zoom-pan-controls" wrap size={4} role="group" aria-label="画布缩放与导航">
         <Button aria-label="缩小" icon={<MinusOutlined />} disabled={!ready || zoom <= (options.minZoom ?? 0.1)} onClick={() => zoomBy(-1)} />
         <Button
           className="fa-zoom-pan-percentage"
@@ -160,8 +164,9 @@ export default function ZoomPanEditor({
         <Button disabled={!ready} onClick={resetView}>
           适应画布
         </Button>
+        {getMinimapShapes && onMinimapChange && <Button aria-label="显示小地图" aria-pressed={showMinimap} type={showMinimap ? 'primary' : 'default'} onClick={() => onMinimapChange(!showMinimap)}>小地图</Button>}
       </Space>
-      {ready && getMinimapShapes && (
+      {ready && showMinimap && getMinimapShapes && (
         <div
           ref={miniMapRef}
           aria-hidden="true"

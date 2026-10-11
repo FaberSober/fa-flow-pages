@@ -77,11 +77,11 @@
 }
 
 .fa-zoom-pan-editor-toolbar { top: 12px; right: 12px; padding: 6px; }
-.fa-zoom-pan-controls { bottom: 12px; left: 12px; padding: 6px; }
+.fa-zoom-pan-controls { bottom: 12px; left: 12px; padding: 6px; max-width: calc(100% - 24px); }
 .fa-zoom-pan-percentage { min-width: 66px; font-variant-numeric: tabular-nums; }
 .fa-zoom-pan-left-top { top: 12px; left: 12px; padding: 8px; max-width: calc(100% - 200px); }
 
 @container (max-width: 520px) {
-  .fa-zoom-pan-editor-minimap { bottom: 68px; }
+  .fa-zoom-pan-editor-minimap { bottom: 108px; }
   .fa-zoom-pan-left-top { top: 68px; max-width: calc(100% - 24px); }
 }

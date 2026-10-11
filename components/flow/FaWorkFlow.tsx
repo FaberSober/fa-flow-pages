@@ -56,6 +56,8 @@ function WorkFlowContent({ flowProcess, processModel, onChange, renderNodes, sho
   const model = useWorkFlowStore(state => state.processModel);
   const revision = useWorkFlowStore(state => state.modelRevision);
   const selectNode = useWorkFlowStore(state => state.selectNode);
+  const showMinimap = useWorkFlowStore(state => state.navigationView.showMinimap);
+  const setNavigationView = useWorkFlowStore(state => state.setNavigationView);
   const [focusRequest, setFocusRequest] = useState<{ nodeKey?: string; group?: boolean }>();
 
   useLayoutEffect(() => {
@@ -98,6 +100,8 @@ function WorkFlowContent({ flowProcess, processModel, onChange, renderNodes, sho
       <ZoomPanEditor
         focusRequest={focusRequest}
         getMinimapShapes={getFlowMinimapShapes}
+        showMinimap={showMinimap}
+        onMinimapChange={show => setNavigationView({ showMinimap: show })}
         leftTop={<div>
           {showLegends && <Space className="fa-flex-row">
             <Tag color="#52c41a" variant="solid">已执行</Tag>

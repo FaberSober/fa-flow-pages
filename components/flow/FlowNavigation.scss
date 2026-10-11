@@ -6,7 +6,6 @@
 .fa-flow-navigation-search { padding-top: 8px; }
 .fa-flow-navigation-status, .fa-flow-navigation-empty { display: block; padding: 8px 4px; font-size: 12px; }
 .fa-zoom-pan-left-top:has(.fa-flow-navigation.is-open) {
-  top: 68px;
   max-width: calc(100% - 24px);
   max-height: calc(100% - 136px);
   overflow: auto;

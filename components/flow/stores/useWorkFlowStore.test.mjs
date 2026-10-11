@@ -30,6 +30,41 @@ const model = () => ({ key: 'test', name: '测试', nodeConfig: { nodeKey: 'star
 
 test.beforeEach(() => { store.getState().clear(); store.getState().setProcessModel(model()); });
 
+test('navigation view updates leave model, save notifications and undo history untouched', () => {
+  let notifications = 0;
+  store.getState().setExternalOnChange(() => notifications++);
+  store.getState().insertNode('start', { nodeKey: 'approval', nodeName: '审批', type: 1, childNode: end() });
+  const before = store.getState();
+  const json = JSON.stringify(before.processModel);
+  const savedNotifications = notifications;
+  store.getState().setNavigationView({ open: true, query: '审批', expandedKeys: ['branch'], showMinimap: false, syncedSelection: 'approval' });
+  const after = store.getState();
+  assert.equal(after.processModel, before.processModel);
+  assert.equal(JSON.stringify(after.processModel), json);
+  assert.equal(after.historyPast, before.historyPast);
+  assert.equal(after.historyFuture, before.historyFuture);
+  assert.equal(after.modelRevision, before.modelRevision);
+  assert.equal(notifications, savedNotifications);
+  assert.equal(JSON.parse(json).navigationView, undefined);
+  const view = after.navigationView;
+  store.getState().undo();
+  assert.deepEqual(store.getState().navigationView, view);
+  store.getState().redo();
+  assert.deepEqual(store.getState().navigationView, view);
+});
+
+test('editor and readonly viewer keep independent navigation preferences; clear starts a fresh session', () => {
+  const viewer = createWorkFlowStore({ processModel: model(), readOnly: true });
+  store.getState().setNavigationView({ open: true, query: '审核', expandedKeys: ['branch'], showMinimap: false });
+  assert.deepEqual(viewer.getState().navigationView, { open: false, query: '', expandedKeys: [], showMinimap: true });
+  viewer.getState().setNavigationView({ query: '结束', showMinimap: false });
+  assert.equal(store.getState().navigationView.query, '审核');
+  assert.equal(viewer.getState().readOnly, true);
+  assert.equal(viewer.getState().historyPast.length, 0);
+  store.getState().clear();
+  assert.deepEqual(store.getState().navigationView, { open: false, query: '', expandedKeys: [], showMinimap: true });
+});
+
 test('insertion and selection are observed together and the following chain is retained', () => {
   const observations = [];
   const unsubscribe = store.subscribe(state => observations.push([state.processModel.nodeConfig.childNode.nodeKey, state.selectedNodeKey]));
