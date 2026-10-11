@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import { type CSSProperties, useContext, useLayoutEffect } from 'react';
 import './index.scss';
 import NodeWrap from './NodeWrap';
+import { WorkFlowHistoryButtons, WorkFlowHistoryScope } from './WorkFlowHistory';
 import { useWorkFlowStore, WorkFlowProvider } from './stores/useWorkFlowStore';
 import { BaseDrawer, ThemeLayoutContext } from "@fa/ui";
 import JsonView from '@uiw/react-json-view';
@@ -51,6 +52,8 @@ function WorkFlowContent({ flowProcess, processModel, onChange, renderNodes, sho
   const setExternalOnChange = useWorkFlowStore(state => state.setExternalOnChange);
   const setRenderNodes = useWorkFlowStore(state => state.setRenderNodes);
   const setReadOnly = useWorkFlowStore(state => state.setReadOnly);
+  const model = useWorkFlowStore(state => state.processModel);
+  const revision = useWorkFlowStore(state => state.modelRevision);
   const selectNode = useWorkFlowStore(state => state.selectNode);
 
   useLayoutEffect(() => {
@@ -86,56 +89,59 @@ function WorkFlowContent({ flowProcess, processModel, onChange, renderNodes, sho
   }, [onChange, setExternalOnChange]);
 
   return (
-    <ZoomPanEditor
-      focusRequest={validationIssue}
-      getMinimapShapes={getFlowMinimapShapes}
-      leftTop={showLegends && (
-        <Space className="fa-flex-row">
-          <Tag color="#52c41a" variant="solid">已执行</Tag>
-          <Tag color="#faad14" variant="solid">执行中</Tag>
-          <Tag color="#909399" variant="solid">未执行</Tag>
-        </Space>
-      )}
-      toolbar={(
-        <Space>
-          <BaseDrawer triggerDom={<Button>查看JSON</Button>} title="流程配置JSON" size={600} forceRender>
-            <JsonView
-              value={processModel}
-              style={themeDark ? darkTheme : lightTheme}
-              collapsed={3}
-            />
-          </BaseDrawer>
-        </Space>
-      )}
-    >
-      <div
-        className={clsx('sc-workflow-design', readOnly && 'sc-workflow-design-readonly')}
-        style={{
-          '--flow-card-bg': token.colorBgContainer,
-          '--flow-card-border': token.colorBorderSecondary,
-          '--flow-card-text': token.colorText,
-          '--flow-card-muted': token.colorTextSecondary,
-          '--flow-card-subtle': token.colorTextTertiary,
-          '--flow-card-primary': token.colorPrimary,
-          '--flow-card-warning': token.colorWarning,
-          '--flow-card-success': token.colorSuccess,
-          '--flow-card-shadow': token.boxShadowTertiary,
-          '--flow-type-start': token.colorPrimary,
-          '--flow-type-approval': token.colorWarning,
-          '--flow-type-cc': token.colorInfo,
-          '--flow-type-route': token.colorError,
-          '--flow-type-timer': token.colorWarning,
-          '--flow-type-trigger': token.colorSuccess,
-          '--flow-type-process': themeDark ? '#b37feb' : '#722ed1',
-          '--flow-type-pass': token.colorSuccess,
-          '--flow-type-reject': token.colorError,
-          '--flow-type-end': token.colorTextSecondary,
-        } as CSSProperties}
+    <WorkFlowHistoryScope>
+      <ZoomPanEditor
+        focusRequest={validationIssue}
+        getMinimapShapes={getFlowMinimapShapes}
+        leftTop={showLegends && (
+          <Space className="fa-flex-row">
+            <Tag color="#52c41a" variant="solid">已执行</Tag>
+            <Tag color="#faad14" variant="solid">执行中</Tag>
+            <Tag color="#909399" variant="solid">未执行</Tag>
+          </Space>
+        )}
+        toolbar={(
+          <Space>
+            <WorkFlowHistoryButtons />
+            <BaseDrawer triggerDom={<Button>查看JSON</Button>} title="流程配置JSON" size={600} forceRender>
+              <JsonView
+                value={model}
+                style={themeDark ? darkTheme : lightTheme}
+                collapsed={3}
+              />
+            </BaseDrawer>
+          </Space>
+        )}
       >
-        <div className="box-scale">
-          <NodeWrap node={processModel.nodeConfig} />
+        <div
+          className={clsx('sc-workflow-design', readOnly && 'sc-workflow-design-readonly')}
+          style={{
+            '--flow-card-bg': token.colorBgContainer,
+            '--flow-card-border': token.colorBorderSecondary,
+            '--flow-card-text': token.colorText,
+            '--flow-card-muted': token.colorTextSecondary,
+            '--flow-card-subtle': token.colorTextTertiary,
+            '--flow-card-primary': token.colorPrimary,
+            '--flow-card-warning': token.colorWarning,
+            '--flow-card-success': token.colorSuccess,
+            '--flow-card-shadow': token.boxShadowTertiary,
+            '--flow-type-start': token.colorPrimary,
+            '--flow-type-approval': token.colorWarning,
+            '--flow-type-cc': token.colorInfo,
+            '--flow-type-route': token.colorError,
+            '--flow-type-timer': token.colorWarning,
+            '--flow-type-trigger': token.colorSuccess,
+            '--flow-type-process': themeDark ? '#b37feb' : '#722ed1',
+            '--flow-type-pass': token.colorSuccess,
+            '--flow-type-reject': token.colorError,
+            '--flow-type-end': token.colorTextSecondary,
+          } as CSSProperties}
+        >
+          <div className="box-scale">
+            <NodeWrap key={revision} node={model.nodeConfig} />
+          </div>
         </div>
-      </div>
-    </ZoomPanEditor>
+      </ZoomPanEditor>
+    </WorkFlowHistoryScope>
   )
 }

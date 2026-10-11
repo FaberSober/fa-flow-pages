@@ -100,7 +100,7 @@ export default function NodeFormAuth({ node }: NodeFormAuthProps) {
     const extendConfig = { ...node.extendConfig };
     if (Object.keys(formAuth).length > 0) extendConfig.formAuth = formAuth;
     else delete extendConfig.formAuth;
-    updateNode({ ...node, extendConfig });
+    updateNode({ ...node, extendConfig }, 'formAuth');
   }, [formItems, formLoaded, node, updateNode]);
 
   const formAuth = useMemo(() => {
@@ -124,7 +124,7 @@ export default function NodeFormAuth({ node }: NodeFormAuthProps) {
         ...node.extendConfig,
         formAuth: formAuthNew,
       },
-    });
+    }, 'formAuth');
   }
 
   function processItemChecked(item: Flw.NodeExtendConfigFormAuth, perm: 'view' | 'edit' | 'required', checked: boolean) {

@@ -1,3 +1,4 @@
+import { useFlowChangeGuard } from '../../hooks/useFlowChangeGuard';
 import { RbacRoleSelect } from '@/components';
 import { rbacRoleApi, userApi } from '@/services';
 import { Flw, FlwEnums } from '@/types';
@@ -21,6 +22,7 @@ export default function StartNodeBasicForm({ node }: StartNodeBasicFormProps) {
   const [form] = Form.useForm();
   const setType = Form.useWatch('setType', form);
 
+  const beginChange = useFlowChangeGuard();
   const updateNode = useWorkFlowStore(state => state.updateNode);
   const readOnly = useWorkFlowStore(state => state.readOnly);
 
@@ -32,6 +34,7 @@ export default function StartNodeBasicForm({ node }: StartNodeBasicFormProps) {
   }, [form, node]);
 
   async function onChange(fieldsValue: any) {
+    const isCurrent = beginChange();
     try {
       const nodeAssigneeIds = fieldsValue.nodeAssigneeIds || [];
       let nodeAssigneeList: Flw.FlowActor[] = [];
@@ -48,7 +51,8 @@ export default function StartNodeBasicForm({ node }: StartNodeBasicFormProps) {
         setType: fieldsValue.setType === START_ALL ? undefined : fieldsValue.setType,
         nodeAssigneeList,
       }
-      updateNode(nodeNew);
+      if (!isCurrent()) return;
+      updateNode(nodeNew, 'basic');
     } catch (e) {
       console.error(e)
     }

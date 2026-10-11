@@ -1,3 +1,4 @@
+import { useFlowChangeGuard } from '../../hooks/useFlowChangeGuard';
 import { DepartmentCascade, RbacRoleSelect } from '@/components';
 import { departmentApi, rbacRoleApi, userApi } from '@/services';
 import { Flw, FlwEnums } from '@/types';
@@ -23,6 +24,7 @@ export default function ApproverNodeBasicForm({ node }: ApproverNodeBasicFormPro
   const setType = Form.useWatch('setType', form);
   const directorMode = Form.useWatch('directorMode', form);
 
+  const beginChange = useFlowChangeGuard();
   const updateNode = useWorkFlowStore(state => state.updateNode);
   const readOnly = useWorkFlowStore(state => state.readOnly);
 
@@ -39,6 +41,7 @@ export default function ApproverNodeBasicForm({ node }: ApproverNodeBasicFormPro
   }, [form, node]);
 
   async function onChange(fieldsValue: any) {
+    const isCurrent = beginChange();
     try {
       const { nodeAssigneeIds = [], nodeCandidateIds = [], nodeAssigneeCodePath, ...restFv } = fieldsValue;
 
@@ -76,7 +79,8 @@ export default function ApproverNodeBasicForm({ node }: ApproverNodeBasicFormPro
         delete nodeNew.extendConfig?.nodeAssigneeCodePath;
       }
       delete (nodeNew as Flw.Node & { nodeAssigneeCodePath?: string }).nodeAssigneeCodePath;
-      updateNode(nodeNew);
+      if (!isCurrent()) return;
+      updateNode(nodeNew, 'basic');
     } catch (e) {
       console.error(e);
     }

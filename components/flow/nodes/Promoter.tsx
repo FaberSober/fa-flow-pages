@@ -1,8 +1,9 @@
+import { useWorkFlowStore } from '../stores/useWorkFlowStore';
 import NodeCard from '../NodeCard';
 import { FaFlexRestLayout } from "@fa/ui";
 import { Flw } from "@features/fa-flow-pages/types";
 import { Tabs } from "antd";
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { useNodeAssigneeText } from '../hooks';
 import AddNode from './AddNode';
 import NodeFormAuth from "./property/NodeFormAuth";
@@ -22,7 +23,13 @@ export interface PromoterProps {
  * @date 2025/8/19 20:22
  */
 export default function Promoter({ node, configOnly }: PromoterProps) {
+  const historyFocus = useWorkFlowStore(state => state.historyConfigFocus);
+  const revision = useWorkFlowStore(state => state.modelRevision);
   const [tab, setTab] = useState('basic');
+  useLayoutEffect(() => {
+    if (historyFocus?.nodeKey !== node.nodeKey || !['basic', 'advance', 'formAuth'].includes(historyFocus.tab)) return;
+    setTab(current => current === historyFocus.tab ? current : historyFocus.tab);
+  }, [historyFocus, node.nodeKey, revision]);
 
   const text = useNodeAssigneeText(node)
 
@@ -45,7 +52,7 @@ export default function Promoter({ node, configOnly }: PromoterProps) {
           header: {marginBottom: 0}
         }}
       />
-      <FaFlexRestLayout className="fa-flow-config-tab-body">
+      <FaFlexRestLayout key={revision} className="fa-flow-config-tab-body">
         {tab === 'basic' && (<StartNodeBasicForm node={node} />)}
         {tab === 'advance' && (<StartNodeAdvanceForm node={node} />)}
         {tab === 'formAuth' && (<NodeFormAuth node={node} />)}

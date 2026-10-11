@@ -20,7 +20,7 @@ let source = (await readFile(new URL('./workFlowStore.ts', import.meta.url), 'ut
   .replace("'../nodeLookup'", JSON.stringify(lookupUrl))
   .replace("'../utils'", JSON.stringify(compile(utilsSource)))
   .replace("import { set as lodashSet } from 'lodash';", `import lodash from ${JSON.stringify(import.meta.resolve('lodash'))}; const lodashSet = lodash.set;`);
-for (const dependency of ['zustand', 'zustand/middleware', 'zustand/middleware/immer']) {
+for (const dependency of ['immer', 'zustand', 'zustand/middleware', 'zustand/middleware/immer']) {
   source = source.replace(`'${dependency}'`, JSON.stringify(import.meta.resolve(dependency)));
 }
 const { createWorkFlowStore } = await import(compile(source));
@@ -327,4 +327,104 @@ test('provider shares the editor session with its canvas but isolates adjacent v
   assert.notEqual(sessions[0], sessions[2]);
   assert.match(html, /查看器:true/);
   assert.equal(sessions[0].getState().readOnly, false);
+});
+
+
+test('undo and redo publish model and selection together, and parent echoes preserve history', () => {
+  const api = store.getState();
+  const changes = [];
+  api.setExternalOnChange(value => { changes.push(value); store.getState().setProcessModel(JSON.parse(JSON.stringify(value))); });
+  api.selectNode('start');
+  api.insertNode('start', { nodeKey: 'approval', nodeName: '审核', type: 1, childNode: end() });
+  const revision = store.getState().modelRevision;
+  const observations = [];
+  const unsubscribe = store.subscribe(state => observations.push([state.processModel.nodeConfig.childNode.nodeKey, state.selectedNodeKey, state.historyPast.length, state.historyFuture.length]));
+  api.undo();
+  assert.deepEqual(observations, [['end', 'start', 0, 1]]);
+  assert.equal(store.getState().modelRevision, revision + 1);
+  api.redo();
+  assert.deepEqual(observations[1], ['approval', 'approval', 1, 0]);
+  assert.equal(changes.length, 3);
+  unsubscribe();
+});
+
+test('branch folding can be undone with default and common paths intact', () => {
+  const value = model();
+  value.nodeConfig.childNode = { nodeKey: 'gateway', type: 4, childNode: end(), conditionNodes: [
+    { nodeKey: 'left', type: 3, conditionList: [[{ field: 'x', operator: '==', value: 1 }]] },
+    { nodeKey: 'default', type: 3, conditionList: [], childNode: { nodeKey: 'task', type: 1 } },
+  ] };
+  store.getState().setProcessModel(value);
+  store.getState().selectNode('left');
+  store.getState().removeBranch('gateway', 'left', 'conditionNodes');
+  assert.equal(store.getState().historyPast.length, 1);
+  store.getState().undo();
+  assert.deepEqual(store.getState().processModel, value);
+  assert.equal(store.getState().selectedNodeKey, 'left');
+  store.getState().redo();
+  assert.equal(store.getState().processModel.nodeConfig.childNode.nodeKey, 'task');
+});
+
+test('continuous text edits merge but different fields and structure create separate entries', () => {
+  const api = store.getState();
+  api.updateNodeProps({ nodeKey: 'start' }, 'nodeName', '发');
+  api.updateNodeProps({ nodeKey: 'start' }, 'nodeName', '发起者');
+  assert.equal(store.getState().historyPast.length, 1);
+  api.undo();
+  assert.equal(store.getState().processModel.nodeConfig.nodeName, '发起');
+  api.redo();
+  assert.equal(store.getState().processModel.nodeConfig.nodeName, '发起者');
+  api.updateNodeProps({ nodeKey: 'start' }, 'remark', '备注');
+  api.insertNode('start', { nodeKey: 'task', type: 1 });
+  assert.equal(store.getState().historyPast.length, 3);
+});
+
+test('no-op edits do not create history; new edits after undo invalidate redo', () => {
+  const api = store.getState();
+  api.updateNodeProps({ nodeKey: 'start' }, 'nodeName', '发起');
+  api.updateNodeProps({ nodeKey: 'missing' }, 'nodeName', '无效');
+  assert.equal(store.getState().historyPast.length, 0);
+  api.updateNodeProps({ nodeKey: 'start' }, 'nodeName', '修改');
+  api.undo();
+  api.updateNodeProps({ nodeKey: 'start' }, 'remark', '新修改');
+  assert.equal(store.getState().historyFuture.length, 0);
+  api.redo();
+  assert.equal(store.getState().processModel.nodeConfig.nodeName, '发起');
+});
+
+test('history is capped and read-only sessions cannot restore; external models reset history', () => {
+  const api = store.getState();
+  for (let i = 0; i < 55; i++) api.updateNodeProps({ nodeKey: 'start' }, 'priorityLevel', i);
+  assert.equal(store.getState().historyPast.length, 50);
+  api.setReadOnly(true);
+  const before = store.getState();
+  api.undo();
+  assert.equal(store.getState(), before);
+  api.setReadOnly(false);
+  api.setProcessModel({ ...model(), name: '外部替换' });
+  assert.equal(store.getState().historyPast.length, 0);
+  assert.equal(store.getState().historyFuture.length, 0);
+});
+
+
+test('undo and redo locate the tab of each edited field without recording tab navigation', () => {
+  const api = store.getState();
+  api.selectNode('start');
+  api.updateNode({ ...store.getState().processModel.nodeConfig, setType: 1 }, 'basic');
+  api.updateNode({ ...store.getState().processModel.nodeConfig, examineMode: 2 }, 'rule');
+  api.updateNode({ ...store.getState().processModel.nodeConfig, extendConfig: { formAuth: { field: { view: true } } } }, 'formAuth');
+  for (const tab of ['formAuth', 'rule', 'basic']) {
+    api.undo();
+    assert.deepEqual(store.getState().historyConfigFocus, { nodeKey: 'start', tab });
+    assert.equal(store.getState().selectedNodeKey, 'start');
+  }
+  for (const tab of ['basic', 'rule', 'formAuth']) {
+    api.redo();
+    assert.deepEqual(store.getState().historyConfigFocus, { nodeKey: 'start', tab });
+  }
+  api.updateNodeProps({ nodeKey: 'start' }, 'nodeName', '名称修改');
+  api.undo();
+  assert.equal(store.getState().historyConfigFocus, undefined);
+  api.selectNode('end');
+  assert.equal(store.getState().historyConfigFocus, undefined);
 });

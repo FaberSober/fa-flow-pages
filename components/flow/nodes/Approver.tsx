@@ -1,9 +1,10 @@
+import { useWorkFlowStore } from '../stores/useWorkFlowStore';
 import NodeCard from '../NodeCard';
 import { FaFlexRestLayout } from '@fa/ui';
 import AddNode from "@features/fa-flow-pages/components/flow/nodes/AddNode";
 import { Flw, FlwEnums } from "@features/fa-flow-pages/types";
 import { Tabs } from "antd";
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import type { ProcessModelIssue } from '../modelValidation';
 import { useDelNode } from "../hooks";
 import ApproverNodeBasicForm from './property/ApproverNodeBasicForm';
@@ -23,7 +24,13 @@ interface ApproverProps extends Flw.BasicNodeProps {
 }
 
 export default function Approver({ node, parentNode, configOnly, configTab = 'basic', focusIssue }: ApproverProps) {
+  const historyFocus = useWorkFlowStore(state => state.historyConfigFocus);
+  const revision = useWorkFlowStore(state => state.modelRevision);
   const [tab, setTab] = useState<string>(configTab);
+  useLayoutEffect(() => {
+    if (historyFocus?.nodeKey !== node.nodeKey || !['basic', 'rule', 'formAuth'].includes(historyFocus.tab)) return;
+    setTab(current => current === historyFocus.tab ? current : historyFocus.tab);
+  }, [historyFocus, node.nodeKey, revision]);
   useEffect(() => {
     if (focusIssue) setTab(configTab);
   }, [focusIssue, configTab]);
@@ -91,7 +98,7 @@ export default function Approver({ node, parentNode, configOnly, configTab = 'ba
         }}
       />
 
-      <FaFlexRestLayout className="fa-flow-config-tab-body">
+      <FaFlexRestLayout key={revision} className="fa-flow-config-tab-body">
         {tab === 'basic' && (<ApproverNodeBasicForm node={node} />)}
         {tab === 'rule' && (<ApproverNodeRuleForm node={node} />)}
         {tab === 'formAuth' && (<NodeFormAuth node={node} />)}

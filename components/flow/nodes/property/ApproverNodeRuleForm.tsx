@@ -35,7 +35,7 @@ export default function ApproverNodeRuleForm({ node }: ApproverNodeRuleFormProps
   }, [form, node]);
 
   return (
-    <Form form={form} layout="vertical" disabled={readOnly} className="fa-p12" onValuesChange={(_, values) => updateNode({ ...node, ...values })}>
+    <Form form={form} layout="vertical" disabled={readOnly} className="fa-p12" onValuesChange={(_, values) => updateNode({ ...node, ...values }, 'rule')}>
       <div className="fa-flow-config-section-title">审批方式</div>
       <Form.Item name="examineMode" label="多人审批时审批方式" rules={[{ required: true }]}>
         <Radio.Group

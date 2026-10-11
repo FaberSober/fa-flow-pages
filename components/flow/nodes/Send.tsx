@@ -1,3 +1,4 @@
+import { useFlowChangeGuard } from '../hooks/useFlowChangeGuard';
 import NodeCard from '../NodeCard';
 import { FaFlexRestLayout, UserSearchSelect } from '@fa/ui';
 import { userApi } from "@features/fa-admin-pages/services";
@@ -19,12 +20,14 @@ interface SendProps extends Flw.BasicNodeProps {
 
 export default function Send({ node, parentNode, configOnly }: SendProps) {
 
+  const beginChange = useFlowChangeGuard();
   const updateNode = useWorkFlowStore(state => state.updateNode);
   const readOnly = useWorkFlowStore(state => state.readOnly);
 
   const { delNode } = useDelNode(node, parentNode);
 
   async function handleValuesChange(av: any) {
+    const isCurrent = beginChange();
     try {
       const res = await userApi.getByIds(av.nodeAssigneeIds);
       const nodeAssigneeList = res.data.map(i => ({ id: i.id, name: i.name }))
@@ -32,6 +35,7 @@ export default function Send({ node, parentNode, configOnly }: SendProps) {
         ...node,
         nodeAssigneeList,
       }
+      if (!isCurrent()) return;
       updateNode(nodeNew)
     } catch (e) {
       console.error(e)

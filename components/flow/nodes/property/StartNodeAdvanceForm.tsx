@@ -49,7 +49,7 @@ export default function StartNodeAdvanceForm({ node }: StartNodeAdvanceFormProps
           ...av,
         }
       }
-      updateNode(nodeNew);
+      updateNode(nodeNew, 'advance');
     } catch (e) {
       console.error(e)
     }

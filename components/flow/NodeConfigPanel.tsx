@@ -131,6 +131,7 @@ function renderNodeConfig({ node, parentNode, branchKind }: NodeLookupContext, i
 }
 
 export default function NodeConfigPanel({ validationIssue, onCancelLocate }: { validationIssue?: ProcessModelIssue; onCancelLocate?: () => void }) {
+  const revision = useWorkFlowStore(state => state.modelRevision);
   const panelRef = useRef<HTMLDivElement>(null);
   const selectedNodeKey = useWorkFlowStore(state => state.selectedNodeKey);
   const processModel = useWorkFlowStore(state => state.processModel);
@@ -188,7 +189,7 @@ export default function NodeConfigPanel({ validationIssue, onCancelLocate }: { v
         />
       </div>
       {activeIssue?.fieldPath && <Alert type="info" showIcon title={`定位字段：${activeIssue.fieldPath}`} closable onClose={onCancelLocate} className="fa-mb12" />}
-      <div className={`fa-flex-1 fa-flow-config-content${hasTabs ? ' fa-flow-config-content-tabs' : ''}`}>
+      <div key={hasTabs ? 'tabs' : revision} className={`fa-flex-1 fa-flow-config-content${hasTabs ? ' fa-flow-config-content-tabs' : ''}`}>
         {renderNodeConfig(nodeContext, activeIssue)}
       </div>
     </div>
