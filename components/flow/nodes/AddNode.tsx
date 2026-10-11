@@ -1,9 +1,10 @@
 import { type ReactNode, useState } from 'react';
 import { Flw, FlwEnums } from "@features/fa-flow-pages/types";
-import { Button, Popover } from 'antd';
+import { Button, Modal, Popover } from 'antd';
 import { CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
 import { FaIcon, FaIconBranch, FaIconInclusive, FaIconRoute, FaIconSend, FaIconSlider, FaIconSubFlow, FaIconTrigger } from "@fa/icons";
-import { getNodeKey } from "@features/fa-flow-pages/components/flow/utils";
+import { findNodeByKey, getNodeKey } from "@features/fa-flow-pages/components/flow/utils";
+import { countDownstreamNodes } from '../nodeLookup';
 import { useWorkFlowStore } from "@features/fa-flow-pages/components/flow/stores/useWorkFlowStore";
 
 const NodeType = FlwEnums.NodeType
@@ -44,9 +45,19 @@ export default function AddNode({parentNode}: AddNodeProps) {
   const insertNode = useWorkFlowStore(state => state.insertNode);
   const readOnly = useWorkFlowStore(state => state.readOnly);
   const [open, setOpen] = useState(false);
+  const [endConfirmOpen, setEndConfirmOpen] = useState(false);
+  const downstreamCount = endConfirmOpen ? countDownstreamNodes(parentNode.childNode) : 0;
 
-  function addType(type: FlwEnums.NodeType) {
-    if (readOnly) return;
+  function addType(type: FlwEnums.NodeType, endConfirmed = false) {
+    const state = useWorkFlowStore.getState();
+    if (state.readOnly || !state.processModel?.nodeConfig) return;
+    const currentParent = findNodeByKey(state.processModel.nodeConfig, parentNode.nodeKey);
+    if (!currentParent) return;
+    if (type === NodeType.end && !endConfirmed) {
+      setOpen(false);
+      setEndConfirmOpen(true);
+      return;
+    }
     let node: Flw.Node;
     switch (type) {
       case NodeType.approval: {
@@ -70,7 +81,7 @@ export default function AddNode({parentNode}: AddNodeProps) {
           approveSelf: 1,		//审批人与提交人为同一人时自动跳过
           rejectStrategy: 2,	//驳回到上一节点
           rejectStart: 1,		//驳回后继续往下执行
-          childNode: parentNode.childNode,
+          childNode: currentParent.childNode,
           extendConfig: {
             btnSubmitValid: true,
           },
@@ -83,7 +94,7 @@ export default function AddNode({parentNode}: AddNodeProps) {
           type: NodeType.cc,
           userSelectFlag: true,
           nodeAssigneeList: [],
-          childNode: parentNode.childNode,
+          childNode: currentParent.childNode,
           extendConfig: {},
         };
       } break
@@ -110,7 +121,7 @@ export default function AddNode({parentNode}: AddNodeProps) {
               conditionList: [],
             }
           ],
-          childNode: parentNode.childNode,
+          childNode: currentParent.childNode,
           extendConfig: {},
         }
       } break
@@ -135,7 +146,7 @@ export default function AddNode({parentNode}: AddNodeProps) {
               conditionMode: 1,
             }
           ],
-          childNode: parentNode.childNode,
+          childNode: currentParent.childNode,
           extendConfig: {},
         }
       } break
@@ -162,7 +173,7 @@ export default function AddNode({parentNode}: AddNodeProps) {
               conditionList: [],
             }
           ],
-          childNode: parentNode.childNode,
+          childNode: currentParent.childNode,
           extendConfig: {},
         }
       } break
@@ -172,7 +183,7 @@ export default function AddNode({parentNode}: AddNodeProps) {
           nodeKey: getNodeKey(),
           type: NodeType.routeBranch,
           routeNodes: [],
-          childNode: parentNode.childNode,
+          childNode: currentParent.childNode,
           extendConfig: {},
         }
       } break
@@ -182,7 +193,7 @@ export default function AddNode({parentNode}: AddNodeProps) {
           nodeKey: getNodeKey(),
           type: NodeType.timer,
           delayType: FlwEnums.NodeDelayType.FIXED, // 延时处理类型 1，固定时长 2，自动计算
-          childNode: parentNode.childNode,
+          childNode: currentParent.childNode,
           extendConfig: {
             time: "1:m",
           },
@@ -195,7 +206,7 @@ export default function AddNode({parentNode}: AddNodeProps) {
           type: NodeType.trigger,
           triggerType: FlwEnums.NodeTriggerType.IMMEDIATE, // 触发器类型 1，立即执行 2，延迟执行
           delayType: FlwEnums.NodeDelayType.FIXED, // 延时处理类型 1，固定时长 2，自动计算
-          childNode: parentNode.childNode,
+          childNode: currentParent.childNode,
           extendConfig: {
             // time: "1:m",
             // args: "{}",
@@ -209,7 +220,7 @@ export default function AddNode({parentNode}: AddNodeProps) {
           nodeKey: getNodeKey(),
           type: NodeType.callProcess,
           callAsync: true,
-          childNode: parentNode.childNode,
+          childNode: currentParent.childNode,
           extendConfig: {},
         }
       } break
@@ -218,7 +229,7 @@ export default function AddNode({parentNode}: AddNodeProps) {
           nodeName: "自动通过",
           nodeKey: getNodeKey(),
           type: NodeType.autoPass,
-          childNode: parentNode.childNode,
+          childNode: currentParent.childNode,
           extendConfig: {},
         }
       } break
@@ -227,7 +238,7 @@ export default function AddNode({parentNode}: AddNodeProps) {
           nodeName: "自动拒绝",
           nodeKey: getNodeKey(),
           type: NodeType.autoReject,
-          childNode: parentNode.childNode,
+          childNode: currentParent.childNode,
           extendConfig: {},
         }
       } break
@@ -280,6 +291,26 @@ export default function AddNode({parentNode}: AddNodeProps) {
           <Button aria-label="添加流程节点" disabled={readOnly} shape="circle" icon={<PlusOutlined />} />
         </Popover>
       </div>
+      <Modal
+        title="插入结束节点"
+        open={endConfirmOpen && !readOnly}
+        okText="确认插入"
+        cancelText="取消"
+        okButtonProps={{ danger: downstreamCount > 0, disabled: readOnly }}
+        onCancel={() => setEndConfirmOpen(false)}
+        onOk={() => {
+          addType(NodeType.end, true);
+          setEndConfirmOpen(false);
+        }}
+      >
+        <p>流程执行到结束节点时将结束。</p>
+        {downstreamCount > 0 ? (
+          <p>将移除当前连接之后的 <strong>{downstreamCount}</strong> 个节点，包含其下的分支及分支内节点。移除后需重新添加才能恢复。</p>
+        ) : (
+          <p>当前连接之后没有节点，此操作不会移除已有节点。</p>
+        )}
+        <p>其他分支和上层汇合后的节点会保留。</p>
+      </Modal>
     </div>
   )
 }

@@ -47,3 +47,15 @@ function findNodeContext(node: Flw.Node, key: string, parentNode?: Flw.ParentNod
 export function findNodeContextByKey(node: Flw.Node, key: string): NodeLookupContext | undefined {
   return findNodeContext(node, key);
 }
+
+/** 统计当前连接之后会被替换的完整子树，包含分支头与各分支内节点。 */
+export function countDownstreamNodes(node: Flw.Node | undefined): number {
+  if (!node) return 0;
+  let count = 1 + countDownstreamNodes(node.childNode);
+  for (const branches of [node.conditionNodes, node.parallelNodes, node.inclusiveNodes, node.routeNodes]) {
+    for (const branch of branches ?? []) {
+      count += 1 + countDownstreamNodes(branch.childNode);
+    }
+  }
+  return count;
+}

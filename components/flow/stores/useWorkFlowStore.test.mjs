@@ -209,3 +209,21 @@ test('invalid, read-only and protected deletions do not publish changes', () => 
   assert.equal(store.getState().processModel, single);
   assert.equal(changes, 0);
 });
+
+test('confirmed end insertion removes only the chosen connection subtree in one update', () => {
+  store.getState().setProcessModel(branchModel('conditionNodes'));
+  store.getState().selectNode('removed-0');
+  const observations = [];
+  let changes = 0;
+  store.getState().setExternalOnChange(() => { changes += 1; });
+  const unsubscribe = store.subscribe(state => observations.push(state.selectedNodeKey));
+  store.getState().insertNode('branch-0', { nodeKey: 'new-end', nodeName: '结束', type: -1 });
+  unsubscribe();
+  const gateway = store.getState().processModel.nodeConfig.childNode;
+  assert.equal(gateway.conditionNodes[0].childNode.nodeKey, 'new-end');
+  assert.equal(gateway.conditionNodes[0].childNode.childNode, undefined);
+  assert.equal(gateway.conditionNodes[1].childNode.nodeKey, 'kept');
+  assert.equal(gateway.childNode.nodeKey, 'end');
+  assert.deepEqual(observations, ['new-end']);
+  assert.equal(changes, 1);
+});

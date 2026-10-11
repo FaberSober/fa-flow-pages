@@ -7,7 +7,7 @@ const source = await readFile(new URL('./nodeLookup.ts', import.meta.url), 'utf8
 const { outputText } = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 });
-const { findNodeContextByKey } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
+const { findNodeContextByKey, countDownstreamNodes } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
 
 const model = {
   nodeKey: 'start',
@@ -31,4 +31,23 @@ test('keeps linear and nested child lookup working', () => {
   assert.equal(findNodeContextByKey(model, 'approval').parentNode.nodeKey, 'start');
   assert.equal(findNodeContextByKey(model, 'condition-child').parentNode.nodeKey, 'condition-branch');
   assert.equal(findNodeContextByKey(model, 'missing'), undefined);
+});
+
+test('end insertion impact includes nested branches, branch heads and common continuation', () => {
+  assert.equal(countDownstreamNodes(undefined), 0);
+  assert.equal(countDownstreamNodes({ nodeKey: 'end', type: -1 }), 1);
+  assert.equal(countDownstreamNodes(model), 7);
+  const nested = {
+    nodeKey: 'gateway', type: 4,
+    conditionNodes: [{ nodeKey: 'head', type: 3, childNode: model }],
+    childNode: { nodeKey: 'end', type: -1 },
+  };
+  assert.equal(countDownstreamNodes(nested), 10);
+});
+
+test('impact of ending one branch excludes its siblings and the upper continuation', () => {
+  const branch = findNodeContextByKey(model, 'condition-branch').node;
+  assert.equal(countDownstreamNodes(branch.childNode), 1);
+  assert.equal(model.childNode.nodeKey, 'approval');
+  assert.equal(model.parallelNodes[0].nodeKey, 'parallel-branch');
 });
