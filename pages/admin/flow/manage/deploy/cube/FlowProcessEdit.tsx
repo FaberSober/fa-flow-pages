@@ -6,11 +6,12 @@ import { WorkFlowProvider } from '@features/fa-flow-pages/components/flow/stores
 import { WorkFlowHistoryScope } from '@features/fa-flow-pages/components/flow/WorkFlowHistory';
 import NodeConfigPanel from '@features/fa-flow-pages/components/flow/NodeConfigPanel';
 import { flowProcessApi } from '@features/fa-flow-pages/services';
-import { Alert, Button, Checkbox, Form, Modal, message, Splitter, Steps, Typography } from 'antd';
+import { Alert, Button, Checkbox, Form, Modal, message, Splitter, Steps, Typography, Tag, Tooltip } from 'antd';
 import { get } from 'lodash';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Flow } from '@/types';
 import FlowProcessForm from './FlowProcessForm';
+import { flowSavePayload, flowSaveSnapshot } from './flowSaveSnapshot';
 import FlowValidationPanel from './FlowValidationPanel';
 import './FlowProcessEdit.scss';
 
@@ -28,6 +29,12 @@ interface FlowProcessEditProps {
 
 export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, viewOnly, embedded, fixedFormId }: FlowProcessEditProps) {
   const [data, setData] = useState({ ...item });
+  const savedData = useRef(item);
+  const savedDuringSession = useRef(false);
+  const saveLock = useRef(false);
+  const saveSession = useRef(0);
+  const [savedSnapshot, setSavedSnapshot] = useState(() => flowSaveSnapshot(item));
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'failed'>('idle');
   const [current, setCurrent] = useState(embedded ? 1 : 0);
   const [open, setOpen] = useState(false);
   const [designVisited, setDesignVisited] = useState(false);
@@ -49,13 +56,23 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
   const loading = useApiLoading([flowProcessApi.getUrl('update'), flowProcessApi.getUrl('publish')]);
 
   const handleClose = useCallback(() => {
+    saveSession.current += 1;
     setOpen(false);
+    if (savedDuringSession.current) {
+      savedDuringSession.current = false;
+      onSuccess?.();
+    }
     onClose?.();
-  }, [onClose]);
+  }, [onClose, onSuccess]);
 
   useEffect(() => {
     if (sessionItem.current !== item) {
       sessionItem.current = item;
+      savedData.current = item;
+      savedDuringSession.current = false;
+      saveSession.current += 1;
+      setSavedSnapshot(flowSaveSnapshot(item));
+      setSaveState('idle');
       setDesignVisited(false);
       setEditorSession(value => value + 1);
     }
@@ -91,14 +108,17 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
         setDesignVisited(false);
         setEditorSession(value => value + 1);
         setCurrent(0);
-        setData({ ...item });
+        saveSession.current += 1;
+        setSaveState('idle');
+        setSavedSnapshot(flowSaveSnapshot(savedData.current));
+        setData({ ...savedData.current });
         setValidationRequested(false);
         setValidationIssue(undefined);
         form.resetFields();
-        form.setFieldsValue(formInitialValues);
+        form.setFieldsValue(savedData.current);
         extendForm.resetFields();
         extendForm.setFieldsValue({
-          submitterPermission: get(item, 'submitterPermission', false),
+          submitterPermission: get(savedData.current, 'submitterPermission', false),
         });
       }
       setOpen(nextOpen);
@@ -106,8 +126,43 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
     [extendForm, form, formInitialValues, item],
   );
 
+  const dirty = flowSaveSnapshot(data) !== savedSnapshot;
+  const saveStatus = saveState === 'saving' ? '保存中' : saveState === 'failed' ? '保存失败' : dirty ? '未保存' : '已保存';
+  const saveStatusTag = <Tooltip title="保存定义不部署模型；基础信息和流程状态保存后立即生效"><Tag color={saveState === 'saving' ? 'processing' : saveState === 'failed' ? 'error' : dirty ? 'warning' : 'success'}>{saveStatus}</Tag></Tooltip>;
+
+  async function handleSave() {
+    if (saveLock.current || publishConfirmOpen.current || loading) return;
+    saveLock.current = true;
+    const session = saveSession.current;
+    try {
+      let values;
+      try { values = await form.validateFields(); }
+      catch { setCurrent(0); message.error('请先完善基础信息'); return; }
+      if (session !== saveSession.current) return;
+      const snapshot = { ...dataRef.current, ...values, ...extendForm.getFieldsValue() };
+      const payload = flowSavePayload(snapshot) as unknown as Flow.FlowProcess;
+      setData(snapshot);
+      setSaveState('saving');
+      const response = await flowProcessApi.update(snapshot.id, payload);
+      if (response.status !== Fa.RES_CODE.OK) throw new Error('保存失败');
+      if (session !== saveSession.current) return;
+      savedData.current = snapshot;
+      savedDuringSession.current = true;
+      setSavedSnapshot(flowSaveSnapshot(snapshot));
+      setSaveState('idle');
+      message.success('流程定义已保存，模型尚未发布');
+    } catch {
+      if (session === saveSession.current) {
+        setSaveState('failed');
+        message.error('保存失败，编辑内容已保留，请重试');
+      }
+    } finally {
+      saveLock.current = false;
+    }
+  }
+
   async function handlePublish() {
-    if (publishConfirmOpen.current) return;
+    if (publishConfirmOpen.current || saveLock.current || loading) return;
     publishConfirmOpen.current = true;
     try {
       // 校验基础信息表单
@@ -151,6 +206,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
             if (publishRes.status !== Fa.RES_CODE.OK) throw new Error('发布流程失败');
             FaUtils.showResponse(publishRes, '发布流程');
 
+            savedDuringSession.current = false;
             onSuccess?.();
             if (!embedded) handleClose();
           } catch (error) {
@@ -204,8 +260,9 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
             form={form}
             onFinish={(values) => {
               setData((prev) => ({ ...prev, ...values }));
-              message.success('基础信息已保存');
+              message.success('基础信息已应用到当前编辑内容');
             }}
+            onValuesChange={(_changed, values) => setData(prev => ({ ...prev, ...values }))}
             initialValues={formInitialValues}
             readOnly={viewOnly}
             fixedFormId={fixedFormId}
@@ -266,10 +323,11 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
           }}
         >
           <Form
+            onValuesChange={(_changed, values) => setData(prev => ({ ...prev, ...values }))}
             form={extendForm}
             onFinish={(values) => {
               setData((prev) => ({ ...prev, ...values }));
-              message.success('扩展配置已保存');
+              message.success('扩展配置已应用到当前编辑内容');
             }}
             {...FaUtils.formItemFullLayout}
           >
@@ -311,6 +369,8 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
               items={[{ title: '基础信息' }, { title: '流程设计' }, { title: '扩展配置' }]}
             />
           </div>
+          {saveStatusTag}
+          <Button onClick={handleSave} loading={saveState === 'saving'} disabled={loading || !dirty && saveState !== 'failed'}>保存</Button>
           <Button onClick={handleValidate} disabled={loading}>校验流程</Button>
           <Button onClick={handlePublish} type="primary" loading={loading}>
             发布
@@ -342,6 +402,8 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
       }
       headerExtra={
         <>
+          {saveStatusTag}
+          <Button onClick={handleSave} loading={saveState === 'saving'} disabled={loading || !dirty && saveState !== 'failed'}>保存</Button>
           <Button onClick={handleValidate} disabled={loading}>校验流程</Button>
           <Button onClick={handlePublish} type="primary" loading={loading}>
             发布

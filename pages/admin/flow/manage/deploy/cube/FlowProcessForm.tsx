@@ -8,6 +8,7 @@ interface FlowProcessFormProps {
   form?: FormInstance;
   initialValues?: Partial<Flow.FlowProcess>;
   onFinish?: (values: any) => void;
+  onValuesChange?: (changed: any, values: any) => void;
   readOnly?: boolean;
   fixedFormId?: number;
   type: 'create' | 'edit';
@@ -16,7 +17,7 @@ interface FlowProcessFormProps {
 /**
  * 流程基础信息表单组件
  */
-export default function FlowProcessForm({ form, initialValues, onFinish, readOnly, fixedFormId, type }: FlowProcessFormProps) {
+export default function FlowProcessForm({ form, initialValues, onFinish, onValuesChange, readOnly, fixedFormId, type }: FlowProcessFormProps) {
   const [formType, setFormType] = useState<any>();
 
   useEffect(() => {
@@ -30,6 +31,7 @@ export default function FlowProcessForm({ form, initialValues, onFinish, readOnl
       initialValues={initialValues}
       disabled={readOnly}
       onValuesChange={(cv, av) => {
+        onValuesChange?.(cv, av);
         if (av.formType !== formType) {
           setFormType(av.formType)
         }
