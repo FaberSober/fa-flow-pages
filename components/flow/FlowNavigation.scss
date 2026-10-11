@@ -38,3 +38,12 @@
 .fa-flow-navigation-name, .fa-flow-navigation-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fa-flow-navigation-name { font-size: 13px; font-weight: 500; }
 .fa-flow-navigation-path { font-size: 11px; }
+.fa-flow-navigation-tree-actions { display: flex; justify-content: flex-end; }
+.fa-flow-navigation-outline {
+  max-height: min(360px, 40vh);
+  overflow: auto;
+  .ant-tree { background: transparent; color: inherit; }
+  .ant-tree-node-content-wrapper { min-width: 0; }
+}
+.fa-flow-navigation-tree-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.fa-flow-navigation-group-label { margin-left: auto; font-size: 11px; flex-shrink: 0; }

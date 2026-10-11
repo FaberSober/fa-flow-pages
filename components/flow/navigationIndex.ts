@@ -18,33 +18,69 @@ const labels: Partial<Record<FlwEnums.NodeType, string>> = {
   [NodeType.trigger]: '触发', [NodeType.routeBranch]: '路由',
 };
 
-/** Branch cards are real destinations; gateways and route references are not extra cards. */
-export function buildNavigationIndex(root?: Flw.Node): NavigationItem[] {
-  const items: NavigationItem[] = [];
+export interface NavigationTreeItem extends NavigationItem {
+  group: boolean;
+  children?: NavigationTreeItem[];
+}
+
+/** Linear successors remain siblings; only gateways and branch cards introduce nesting. */
+export function buildNavigationTree(root?: Flw.Node): NavigationTreeItem[] {
   const visited = new Set<Flw.Node | Flw.ConditionNode>();
   const keys = new Set<string>();
-  function walk(node: Flw.Node | Flw.ConditionNode | undefined, path: string[], branchType?: string, defaultBranch = false) {
-    if (!node || visited.has(node)) return;
+  function walk(node: Flw.Node | Flw.ConditionNode | undefined, path: string[], branchType?: string, defaultBranch = false): NavigationTreeItem[] {
+    if (!node || visited.has(node) || keys.has(node.nodeKey)) return [];
     visited.add(node);
+    keys.add(node.nodeKey);
     const typeName = branchType ?? labels[node.type as FlwEnums.NodeType] ?? FlwEnums.NodeTypeMap[node.type as FlwEnums.NodeType] ?? '节点';
     const name = defaultBranch ? '默认分支' : node.nodeName?.trim() || typeName;
-    if ((branchType || !groups.has(node.type)) && node.nodeKey && !keys.has(node.nodeKey)) {
-      keys.add(node.nodeKey);
-      items.push({ key: node.nodeKey, name, type: node.type, typeName, path: path.join(' / ') });
-    }
+    const group = !branchType && groups.has(node.type);
+    const children: NavigationTreeItem[] = [];
     const config = node as Flw.Node;
     for (const [field, label] of [['conditionNodes', '条件'], ['parallelNodes', '并行'], ['inclusiveNodes', '包容']] as const) {
       const branches = config[field] ?? [];
       branches.forEach((branch, index) => {
         const fallback = field !== 'parallelNodes' && index === branches.length - 1 && hasEmptyConditions(branch.conditionList);
-        walk(branch, [...path, name], label, fallback);
+        children.push(...walk(branch, [...path, name], label, fallback));
       });
     }
-    // Main-chain successors are siblings; successors inside a branch retain that branch's path.
-    walk(node.childNode, branchType ? [...path, name] : path);
+    if (branchType) children.push(...walk(node.childNode, [...path, name]));
+    const item: NavigationTreeItem = { key: node.nodeKey, name, type: node.type, typeName, path: path.join(' / '), group, children: children.length ? children : undefined };
+    const result = node.nodeKey ? [item] : children;
+    if (!branchType) result.push(...walk(node.childNode, path));
+    return result;
   }
-  walk(root, ['主流程']);
+  return walk(root, ['主流程']);
+}
+
+/** Branch cards are real destinations; gateways and route references are not extra search results. */
+export function flattenNavigationTree(tree: NavigationTreeItem[]): NavigationItem[] {
+  const items: NavigationItem[] = [];
+  for (const item of tree) {
+    if (!item.group) items.push(item);
+    if (item.children) items.push(...flattenNavigationTree(item.children));
+  }
   return items;
+}
+
+export function buildNavigationIndex(root?: Flw.Node): NavigationItem[] {
+  return flattenNavigationTree(buildNavigationTree(root));
+}
+
+export function navigationAncestors(tree: NavigationTreeItem[], key?: string): string[] {
+  if (!key) return [];
+  for (const item of tree) {
+    if (item.key === key) return [];
+    if (item.children) {
+      if (item.children.some(child => child.key === key)) return [item.key];
+      const nested = navigationAncestors(item.children, key);
+      if (nested.length) return [item.key, ...nested];
+    }
+  }
+  return [];
+}
+
+export function navigationExpandableKeys(tree: NavigationTreeItem[]): string[] {
+  return tree.flatMap(item => item.children?.length ? [item.key, ...navigationExpandableKeys(item.children)] : []);
 }
 
 export function searchNavigation(items: NavigationItem[], query: string): NavigationItem[] {

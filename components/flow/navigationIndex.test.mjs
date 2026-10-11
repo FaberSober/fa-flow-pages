@@ -11,7 +11,7 @@ async function moduleUrl(file, replacements = {}) {
 }
 const enums = await moduleUrl('../../types/FlwEnums.ts');
 const semantics = await moduleUrl('./branchSemantics.ts');
-const { buildNavigationIndex, searchNavigation } = await import(await moduleUrl('./navigationIndex.ts', { '../../types/FlwEnums': enums, './branchSemantics': semantics }));
+const { buildNavigationIndex, buildNavigationTree, navigationAncestors, navigationExpandableKeys, searchNavigation } = await import(await moduleUrl('./navigationIndex.ts', { '../../types/FlwEnums': enums, './branchSemantics': semantics }));
 const node = (nodeKey, nodeName, type = 1, rest = {}) => ({ nodeKey, nodeName, type, ...rest });
 
 test('nested branches follow visual order with unique paths and one merged successor', () => {
@@ -56,4 +56,29 @@ test('rebuilding reflects rename and deletion, and handles missing or cyclic mod
   assert.equal(buildNavigationIndex(root).length, 2);
   delete root.childNode;
   assert.equal(searchNavigation(buildNavigationIndex(root), '待删除').length, 0);
+});
+
+test('outline keeps sequential nodes as siblings and groups nested branches before their single merge', () => {
+  const root = node('start', '发起', 0, { childNode: node('outer', '条件分支', 4, {
+    conditionNodes: [node('branch', '条件1', 3, { childNode: node('approval', '审核', 1, { childNode: node('inner', '包容分支', 9, {
+      inclusiveNodes: [node('nested', '条件2', 3, { childNode: node('task', '任务') })],
+      childNode: node('after-inner', '内层后续'),
+    }) }) })], childNode: node('end', '结束', -1),
+  }) });
+  const tree = buildNavigationTree(root);
+  assert.deepEqual(tree.map(item => item.key), ['start', 'outer', 'end']);
+  assert.equal(tree[1].group, true);
+  assert.equal(tree[1].children[0].group, false);
+  assert.deepEqual(tree[1].children[0].children.map(item => item.key), ['approval', 'inner', 'after-inner']);
+  assert.deepEqual(navigationAncestors(tree, 'task'), ['outer', 'branch', 'inner', 'nested']);
+  assert.deepEqual(navigationExpandableKeys(tree), ['outer', 'branch', 'inner', 'nested']);
+  assert.deepEqual(navigationAncestors(tree, 'end'), []);
+  assert.deepEqual(navigationAncestors(tree, 'deleted'), []);
+});
+
+test('parallel branch cards remain navigable despite sharing the group node type', () => {
+  const tree = buildNavigationTree(node('group', '并行分支', 8, { parallelNodes: [node('left', '分支1', 8), node('right', '分支2', 8)] }));
+  assert.equal(tree[0].group, true);
+  assert.deepEqual(tree[0].children.map(item => [item.key, item.group]), [['left', false], ['right', false]]);
+  assert.deepEqual(navigationAncestors(tree, 'right'), ['group']);
 });

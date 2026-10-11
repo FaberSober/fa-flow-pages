@@ -14,7 +14,7 @@ interface ZoomPanEditorProps extends ZoomPanOptions {
   toolbar?: ReactNode;
   leftTop?: ReactNode;
   getMinimapShapes?: (root: HTMLElement) => MinimapShape[];
-  focusRequest?: { nodeKey?: string };
+  focusRequest?: { nodeKey?: string; group?: boolean };
 }
 
 export default function ZoomPanEditor({
@@ -35,7 +35,10 @@ export default function ZoomPanEditor({
     if (!focusRequest?.nodeKey) return;
     const nodes = contentRef.current?.querySelectorAll<HTMLElement>('[data-flow-node-key]');
     const node = Array.from(nodes ?? []).find(element => element.dataset.flowNodeKey === focusRequest.nodeKey);
-    if (node) controller.focusElement(node.querySelector<HTMLElement>('.node-wrap-box') ?? node);
+    if (node) {
+      const target = node.querySelector<HTMLElement>(focusRequest.group ? '.add-branch' : '.node-wrap-box');
+      controller.focusElement(target ?? node);
+    }
   }, [focusRequest, contentRef, controller.focusElement]);
   const mapSize = { width: Math.max(80, Math.min(miniMapWidth, viewport.width - 24)), height: Math.max(60, Math.min(miniMapHeight, viewport.height / 3)) };
   const map = getMinimap({ zoom, offset }, viewport, content, mapSize);

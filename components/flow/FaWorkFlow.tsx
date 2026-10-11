@@ -56,7 +56,7 @@ function WorkFlowContent({ flowProcess, processModel, onChange, renderNodes, sho
   const model = useWorkFlowStore(state => state.processModel);
   const revision = useWorkFlowStore(state => state.modelRevision);
   const selectNode = useWorkFlowStore(state => state.selectNode);
-  const [focusRequest, setFocusRequest] = useState<{ nodeKey?: string }>();
+  const [focusRequest, setFocusRequest] = useState<{ nodeKey?: string; group?: boolean }>();
 
   useLayoutEffect(() => {
     setFlowProcess(flowProcess);
@@ -104,9 +104,9 @@ function WorkFlowContent({ flowProcess, processModel, onChange, renderNodes, sho
             <Tag color="#faad14" variant="solid">执行中</Tag>
             <Tag color="#909399" variant="solid">未执行</Tag>
           </Space>}
-          <FlowNavigationPanel onLocate={key => {
-            selectNode(key);
-            setFocusRequest({ nodeKey: key });
+          <FlowNavigationPanel onLocate={(key, group) => {
+            if (!group) selectNode(key);
+            setFocusRequest({ nodeKey: key, group });
           }} />
         </div>}
         toolbar={(
