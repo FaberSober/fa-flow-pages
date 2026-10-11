@@ -23,7 +23,7 @@ const source = (await readFile(new URL('./useZoomPan.ts', import.meta.url), 'utf
 const { default: useZoomPan } = await import(compile(source));
 const { layouts, writes, effects } = await import(react);
 
-test('mount, remount and viewport resizing commit fitted coordinates before any animation frame', () => {
+test('mount fits before paint; resizing and hidden steps preserve the latest view', () => {
   const originals = { requestAnimationFrame: globalThis.requestAnimationFrame, cancelAnimationFrame: globalThis.cancelAnimationFrame, ResizeObserver: globalThis.ResizeObserver };
   const frames = new Map();
   let frameId = 0;
@@ -52,11 +52,21 @@ test('mount, remount and viewport resizing commit fitted coordinates before any 
       assert.equal(frames.size, 1, 'pointer zoom still batches via RAF');
       viewport.clientWidth = 1200;
       resize();
-      assert.deepEqual(writes.at(-1), { zoom: 1, offset: { x: 500, y: 150 } });
+      assert.deepEqual(writes.at(-1), { zoom: 0.8, offset: { x: 420, y: 190 } });
+      const retained = writes.at(-1);
+      const writesBeforeHide = writes.length;
+      viewport.clientWidth = 0;
+      viewport.clientHeight = 0;
+      resize();
+      assert.equal(writes.length, writesBeforeHide, 'hidden steps do not overwrite dimensions or view');
+      viewport.clientWidth = 1200;
+      viewport.clientHeight = 700;
+      resize();
+      assert.deepEqual(writes.at(-1), retained, 'returning to the step preserves zoom and pan');
       assert.equal(frames.size, 0, 'layout commit cancels stale input frames');
 
       controller.focusElement({ offsetLeft: 20, offsetTop: 40, offsetWidth: 200, offsetHeight: 80, offsetParent: controller.contentRef.current });
-      assert.deepEqual(writes.at(-1), { zoom: 1, offset: { x: 480, y: 270 } }, 'issue navigation centres the actual card');
+      assert.deepEqual(writes.at(-1), { zoom: 0.8, offset: { x: 504, y: 286 } }, 'issue navigation centres the actual card');
       assert.equal(frames.size, 0, 'issue navigation commits before paint');
       controller.resetView();
 

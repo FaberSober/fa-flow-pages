@@ -30,6 +30,13 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
   const [data, setData] = useState({ ...item });
   const [current, setCurrent] = useState(embedded ? 1 : 0);
   const [open, setOpen] = useState(false);
+  const [designVisited, setDesignVisited] = useState(false);
+  const [editorSession, setEditorSession] = useState(0);
+  const sessionItem = useRef(item);
+
+  useEffect(() => {
+    if (current === 1) setDesignVisited(true);
+  }, [current, editorSession]);
   const [validationRequested, setValidationRequested] = useState(false);
   const [validationIssue, setValidationIssue] = useState<ProcessModelIssue>();
   const dataRef = useRef(data);
@@ -47,6 +54,11 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
   }, [onClose]);
 
   useEffect(() => {
+    if (sessionItem.current !== item) {
+      sessionItem.current = item;
+      setDesignVisited(false);
+      setEditorSession(value => value + 1);
+    }
     setData({ ...item });
     setValidationRequested(false);
     setValidationIssue(undefined);
@@ -76,6 +88,8 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
       if (nextOpen) {
+        setDesignVisited(false);
+        setEditorSession(value => value + 1);
         setCurrent(0);
         setData({ ...item });
         setValidationRequested(false);
@@ -198,44 +212,46 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
             type="edit"
           />
         </div>
-        {current === 1 && (
-          editorModel.error ? (
-            <div className="fa-p12">
-              {validation && <FlowValidationPanel result={validation} onLocate={locateIssue} />}
-              <Alert type="error" showIcon title="无法展示流程设计" description={editorModel.error} />
-            </div>
-          ) : (
-            <div className="fa-flex-1 fa-relative" style={{ minWidth: 0, minHeight: 0 }}>
-              <WorkFlowProvider initial={{ flowProcess: data, processModel: editorModel.model as unknown as Flw.ProcessModel, readOnly: !!viewOnly }}>
-                <WorkFlowHistoryScope>
-                  <Splitter className="fa-full-content fa-flow-design-splitter" style={{ minWidth: 0, minHeight: 0 }}>
-                    <Splitter.Panel>
-                      <div className="fa-full fa-relative">
-                        <FaWorkFlow
-                          flowProcess={data}
-                          readOnly={viewOnly}
-                          processModel={editorModel.model as unknown as Flw.ProcessModel}
-                          validationIssue={validationIssue}
-                          onChange={(v) => setData((prev) => ({ ...prev, modelContent: JSON.stringify(v) }))}
-                        />
-                        {validation && (
-                          <div className="fa-flow-validation-overlay">
-                            <FlowValidationPanel result={validation} onLocate={locateIssue} />
-                          </div>
-                        )}
-                      </div>
-                    </Splitter.Panel>
-                    <Splitter.Panel defaultSize={520} min={320} max="45%" collapsible>
-                      <div className="fa-full fa-flex-column fa-p12 fa-flow-node-config-panel">
-                        <div className="fa-h3 fa-mb12 fa-flow-node-config-title">节点配置</div>
-                        <NodeConfigPanel validationIssue={validationIssue} onCancelLocate={() => setValidationIssue(undefined)} />
-                      </div>
-                    </Splitter.Panel>
-                  </Splitter>
-                </WorkFlowHistoryScope>
-              </WorkFlowProvider>
-            </div>
-          )
+        {(current === 1 || designVisited) && (
+          <div key={editorSession} className="fa-flex-1 fa-relative" style={{ display: current === 1 ? undefined : 'none', minWidth: 0, minHeight: 0 }}>
+            {editorModel.error ? (
+              <div className="fa-p12">
+                {validation && <FlowValidationPanel result={validation} onLocate={locateIssue} />}
+                <Alert type="error" showIcon title="无法展示流程设计" description={editorModel.error} />
+              </div>
+            ) : (
+              <div className="fa-full-content" style={{ minWidth: 0, minHeight: 0 }}>
+                <WorkFlowProvider initial={{ flowProcess: data, processModel: editorModel.model as unknown as Flw.ProcessModel, readOnly: !!viewOnly }}>
+                  <WorkFlowHistoryScope>
+                    <Splitter className="fa-full-content fa-flow-design-splitter" style={{ minWidth: 0, minHeight: 0 }}>
+                      <Splitter.Panel>
+                        <div className="fa-full fa-relative">
+                          <FaWorkFlow
+                            flowProcess={data}
+                            readOnly={viewOnly}
+                            processModel={editorModel.model as unknown as Flw.ProcessModel}
+                            validationIssue={validationIssue}
+                            onChange={(v) => setData((prev) => ({ ...prev, modelContent: JSON.stringify(v) }))}
+                          />
+                          {validation && (
+                            <div className="fa-flow-validation-overlay">
+                              <FlowValidationPanel result={validation} onLocate={locateIssue} />
+                            </div>
+                          )}
+                        </div>
+                      </Splitter.Panel>
+                      <Splitter.Panel defaultSize={520} min={320} max="45%" collapsible>
+                        <div className="fa-full fa-flex-column fa-p12 fa-flow-node-config-panel">
+                          <div className="fa-h3 fa-mb12 fa-flow-node-config-title">节点配置</div>
+                          <NodeConfigPanel validationIssue={validationIssue} onCancelLocate={() => setValidationIssue(undefined)} />
+                        </div>
+                      </Splitter.Panel>
+                    </Splitter>
+                  </WorkFlowHistoryScope>
+                </WorkFlowProvider>
+              </div>
+            )}
+          </div>
         )}
         <div
           className="fa-bg-white fa-mt12 fa-mb12 fa-radius"

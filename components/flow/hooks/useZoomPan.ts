@@ -114,13 +114,16 @@ export default function useZoomPan({ minZoom = 0.1, maxZoom = 4, step = 0.1 }: Z
         previous.content.height !== next.content.height
       )
         setDimensions(next);
-      if (!initialized || next.viewport.width !== lastVisibleViewport.width || next.viewport.height !== lastVisibleViewport.height) {
+      if (!initialized) {
         if (next.content.width && next.content.height) {
           initialized = true;
           resetView();
         }
       } else if (anchor && lastAnchor && (anchor.x !== lastAnchor.x || anchor.y !== lastAnchor.y)) {
         commitView(anchorView(viewRef.current, lastAnchor, anchor));
+      } else if (next.viewport.width !== lastVisibleViewport.width || next.viewport.height !== lastVisibleViewport.height) {
+        // 保留用户缩放与位置，尺寸变化仅提交尚未绘制的最新视图。
+        commitView(viewRef.current);
       }
       lastAnchor = anchor;
       lastVisibleViewport = next.viewport;
