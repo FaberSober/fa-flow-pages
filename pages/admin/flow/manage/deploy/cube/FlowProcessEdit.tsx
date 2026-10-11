@@ -24,6 +24,7 @@ const { Text } = Typography;
 interface FlowProcessEditProps {
   item: Flow.FlowProcess;
   onSuccess?: () => void;
+  onDefinitionSaved?: () => void;
   onClose?: () => void;
   triggerDom?: ReactNode;
   viewOnly?: boolean;
@@ -31,7 +32,7 @@ interface FlowProcessEditProps {
   fixedFormId?: number;
 }
 
-export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, viewOnly, embedded, fixedFormId }: FlowProcessEditProps) {
+export default function FlowProcessEdit({ item, onSuccess, onDefinitionSaved, onClose, triggerDom, viewOnly, embedded, fixedFormId }: FlowProcessEditProps) {
   const [data, setData] = useState({ ...item });
   const savedData = useRef(item);
   const savedDuringSession = useRef(false);
@@ -217,6 +218,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
       if (response.status !== Fa.RES_CODE.OK) throw new Error('保存失败');
       if (session !== saveSession.current) return;
       savedData.current = snapshot;
+      onDefinitionSaved?.();
       savedDuringSession.current = true;
       setSavedSnapshot(flowSaveSnapshot(snapshot));
       setSaveState('idle');
@@ -283,6 +285,7 @@ export default function FlowProcessEdit({ item, onSuccess, onClose, triggerDom, 
               onSaved: () => {
                 if (session !== saveSession.current) return;
                 savedData.current = publishData;
+                onDefinitionSaved?.();
                 savedDuringSession.current = true;
                 setSavedSnapshot(requestSnapshot);
                 setSaveState('idle');

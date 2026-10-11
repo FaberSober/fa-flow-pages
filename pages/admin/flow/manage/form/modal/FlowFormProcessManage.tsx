@@ -1,10 +1,12 @@
 import { ReloadOutlined } from '@ant-design/icons';
 import { Fa, useApiLoading } from '@fa/ui';
 import { Alert, Button, Empty, List, Space, Spin, Tag, Typography } from 'antd';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { flowProcessApi } from '@/services';
 import { Flow, FlowEnums } from '@/types';
 import FlowProcessEdit from '../../deploy/cube/FlowProcessEdit';
+import { FlowLeaveContext } from '../../deploy/cube/FlowLeaveContext';
+import { commitFlowRefresh } from '../../deploy/cube/flowRefresh';
 import FlowProcessModal from '../../deploy/modal/FlowProcessModal';
 
 interface FlowFormProcessManageProps {
@@ -21,7 +23,11 @@ export default function FlowFormProcessManage({ flowForm }: FlowFormProcessManag
   const [processes, setProcesses] = useState<Flow.FlowProcess[]>([]);
   const [selectedId, setSelectedId] = useState<number>();
   const [loadError, setLoadError] = useState(false);
-  const loading = useApiLoading([flowProcessApi.getUrl('list')]);
+  const leaveScope = useContext(FlowLeaveContext);
+  const requestId = useRef(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const apiLoading = useApiLoading([flowProcessApi.getUrl('list')]);
+  const loading = apiLoading || refreshing;
 
   const createDefaults = useMemo<Partial<Flow.FlowProcess>>(
     () => ({
@@ -36,25 +42,34 @@ export default function FlowFormProcessManage({ flowForm }: FlowFormProcessManag
   );
 
   const loadProcesses = useCallback(async () => {
+    const request = ++requestId.current;
+    const isCurrent = () => request === requestId.current;
+    setRefreshing(true);
     setLoadError(false);
     try {
       const res = await flowProcessApi.list({ query: { formId: flowForm.id }, sorter: 'sort asc,id asc' });
+      if (!isCurrent()) return [];
       if (res.status !== Fa.RES_CODE.OK) {
         setLoadError(true);
         return [];
       }
-      const next = (res.data || []).filter((item) => item.formType === FlowEnums.FlowProcessFormType.CUSTOM && Number(item.formId) === Number(flowForm.id));
-      setProcesses(next);
-      setSelectedId((current) => (next.some((item) => item.id === current) ? current : next[0]?.id));
-      return next;
+      const next: Flow.FlowProcess[] = (res.data || []).filter((item: Flow.FlowProcess) => item.formType === FlowEnums.FlowProcessFormType.CUSTOM && Number(item.formId) === Number(flowForm.id));
+      const applied = await commitFlowRefresh(isCurrent, action => leaveScope ? leaveScope.run(action) : Promise.resolve(action()), () => {
+        setProcesses(next);
+        setSelectedId((current) => (next.some((item) => item.id === current) ? current : next[0]?.id));
+      });
+      return applied ? next : [];
     } catch {
-      setLoadError(true);
+      if (isCurrent()) setLoadError(true);
       return [];
+    } finally {
+      if (isCurrent()) setRefreshing(false);
     }
-  }, [flowForm.id]);
+  }, [flowForm.id, leaveScope]);
 
   useEffect(() => {
     void loadProcesses();
+    return () => { requestId.current++; };
   }, [loadProcesses]);
 
   const selected = processes.find((item) => item.id === selectedId);
@@ -69,6 +84,7 @@ export default function FlowFormProcessManage({ flowForm }: FlowFormProcessManag
             <Typography.Title level={5} style={{ margin: 0 }}>
               {hasConflict ? `旧关联冲突（${processes.length}）` : '关联流程'}
             </Typography.Title>
+            <Button size="small" type="text" icon={<ReloadOutlined />} loading={loading} onClick={() => void loadProcesses()} title="重新加载关联流程">刷新</Button>
             {!loading && !loadError && processes.length === 0 && <FlowProcessModal
               addBtn
               title="新增关联流程"
@@ -146,7 +162,7 @@ export default function FlowFormProcessManage({ flowForm }: FlowFormProcessManag
               description="一张表单最多关联一个流程。请明确需要保留的流程，为其他用途创建独立申请表单，再逐一点击左侧“重新关联表单”，修改自定义表单并保存。原业务数据与流程实例不会删除；处理完成后可继续设计及发布。"
             />
           ) : selected ? (
-            <FlowProcessEdit key={selected.id} item={selected} fixedFormId={flowForm.id} embedded onSuccess={() => void loadProcesses()} />
+            <FlowProcessEdit key={selected.id} item={selected} fixedFormId={flowForm.id} embedded onDefinitionSaved={() => { requestId.current++; setRefreshing(false); }} onSuccess={() => void loadProcesses()} />
           ) : (
             <div className="fa-full fa-flex-center">
               <Empty description={loadError ? '关联流程加载失败，请重试' : processes.length === 0 ? '先新增一个关联流程' : '请选择一个流程继续配置'} />
